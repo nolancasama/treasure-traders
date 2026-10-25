@@ -191,3 +191,36 @@ is executed directly, in the same order. The worktrees were removed.
 - **The save also checks item conservation.** Totals must equal the
   chapter's start, so a hand-edited or corrupted save that duplicates an item
   is backed up and replaced instead of loaded.
+
+## 2026-10-25 — Art kit decisions
+
+- **One skinned mesh per character.** Every primitive is rigidly weighted to
+  one of 12 bones (hips, spine, head, arms + elbows, legs + knees). A body
+  with moving head, arms and legs is 1 draw call, plus a face mesh. The
+  sibling games used ~6 limb meshes per character; 18 NPCs plus the town
+  would not fit ~100 draw calls that way. A fixed bounding sphere keeps
+  frustum culling on.
+- **Expressions swap the face geometry** (neutral/happy/sad/surprised × open/
+  blink, prebuilt), so they cost no extra draw calls. Knees and elbows exist
+  so sitting (Grandma on her bench), giving and "think" read naturally.
+- **Gestures vs. looping states:** nod/shake/cheer/give/show are timed
+  one-shots. "present" (an item held up) is a looping state, because a
+  "Yes, I do!" line can outlast any timer; the flow ends it explicitly.
+- **Items are modelled at real scale** with per-item display scales (world
+  pickups ≈ 2–4×, in hand ≈ 1.4–3×). At true scale they vanish next to a
+  person. Long items use a 45° pose in plaques like the icons. Flat items
+  show their top; the stapler shows its side profile (its top view is
+  unrecognisable).
+- **Portraits are rendered from the 3D rigs** (small offscreen renderer,
+  cached data URLs), not drawn separately. The journal face can never drift
+  from the person in the world. There is a coloured-initial fallback without
+  WebGL.
+- **Hair under covering hats** drops the fringe and uses a smaller, lower
+  volume, because hair spheres poked through caps. The headscarf replaces the
+  hair.
+- **Sea-chest engravings are pale gold inlays, larger than first drawn.**
+  Children must identify them to ask the right question; dark-on-dark failed
+  review.
+- **Budget:** ≤ 4,500 triangles per character body (measured 3.2k–4.4k), ≤ 1,500
+  per item, ≤ 2 draw calls per item. The 20-character line-up renders in 77
+  calls including labels and shadows.
