@@ -1,0 +1,61 @@
+/* Treasure Traders base styles: tokens and reset only.
+   System fonts only (school networks block webfonts).
+   Feature styles live beside their components (e.g. src/ui/*.css). */
+
+:root {
+  --ink: #2b2d42;
+  --ink-soft: #55597a;
+  --ja: #6b6f8a;
+  --paper: #fffaf0;
+  --paper-2: #fdf0d5;
+  --line: #f1d9a7;
+  --festival-red: #e5484d;
+  --festival-red-dark: #b8343a;
+  --sun: #ffcf3f;
+  --sun-dark: #e0a800;
+  --sky: #6cc4f0;
+  --leaf: #3daa6b;
+  --grape: #8e6cef;
+  --teal: #1fa2b8;
+  --wood: #b5651d;
+  --shadow: 0 6px 0 rgba(43, 45, 66, 0.16), 0 10px 24px rgba(43, 45, 66, 0.22);
+  --radius: 18px;
+  --font: "Hiragino Maru Gothic ProN", "M PLUS Rounded 1c", "Arial Rounded MT Bold", "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #8fd3f4;
+  font-family: var(--font);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+button {
+  font-family: inherit;
+}
+
+.scaffold {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  background: linear-gradient(#8fd3f4, #fdf0d5);
+}
+
+.scaffold h1 {
+  margin: 0;
+  font-size: 56px;
+  color: var(--festival-red);
+}
