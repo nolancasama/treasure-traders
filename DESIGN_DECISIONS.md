@@ -141,3 +141,53 @@ the test list, the Chromebook target.
   a relative base.
 - Review galleries (`?gallery=items|people|world|ui`) let parallel workers
   build and screenshot their slices without touching the shared app entry.
+
+## 2026-10-25 — Built directly by Claude
+
+Codex hit its usage limit about 30 seconds into the first two slices (both
+returned QUOTA_EXHAUSTED with no usable code). The router fell back to Claude,
+and the teacher said "do it yourself", so the slice plan in CURRENT_STATE.md
+is executed directly, in the same order. The worktrees were removed.
+
+## 2026-10-25 — Core model decisions
+
+- **Interaction API = pure beat scripts.** `talk / ask / answer / collect /
+  inspect` return `{ state, beats, prompt }`. State changes are applied (and
+  can be saved) before any animation plays; beats are lines, gestures and
+  events for the flow layer; the prompt is the next Ask or Answer input. The
+  flow layer never decides game rules.
+- **Questions carry ids** (`kind:target:item:serial`). A stale or repeated
+  answer is ignored, which is part of the exactly-once guarantee alongside
+  per-transaction once-ids (`c<chapter>:<seed>:<what>`).
+- **Abstract solver, verified against the real API.** Validation searches only
+  material state (holdings, roles, mission flags), not conversation
+  details. Tests then replay the solver's plan through the real API for every
+  chapter and for 25 full campaigns, so the two models can't drift apart. The
+  same plan converter (`plan.ts`) will drive the e2e playthroughs.
+- **Spot ids are abstract and stable:** `square-pencil`, `square-eraser`,
+  `library-1..8` (three hold notebooks, active once Ms. Page asks; five are
+  named distractors), `grounds-1..6` (one hides Chapter 5's R).
+- **Sticker question items are deterministic** from the chapter seed, the
+  asker and their ask count. About half are items the player holds, so
+  "Yes, I do." comes up as often as "No, I don't.".
+- **Nine stickers, not eight:** the sea chest's promised sticker is a new
+  "anchor" (SPEC §6.6 updated) instead of taking one of the askers'.
+- **Chapter 1 keeps the pen** at chapter end (Chapter 2's canonical start
+  inventory), so the Mayor's "Keep the pen for trading!" stays true. Other
+  chapters send leftovers to the spare box.
+- **Residents without a role** stay at home, answer truthfully (they hold
+  nothing) and use their flavour/"done" lines. Chapter 5 helpers and the Mayor
+  stand at the festival stage; sticker askers stand at two asker spots per
+  chapter (`placement()`).
+- **esl-stt corrections live in the game wrapper** (`speechJudge.ts`), found by
+  probing v1.0.0:
+  - "pencil case"/"pen case" resolved to pencil/pen, so phrases are joined
+    into one token first.
+  - Live interim "pen…" could still become "pencil", so live acceptance of
+    pen/pencil waits until the item word is not the last token.
+  - There is no yes/no profile: the answer judge reuses esl-stt normalisation
+    with game rules ("I do" = yes; "don't"/"not" = no; both = unclear; only
+    the top hypothesis decides; live accepts only a clear yes/no word).
+- **The save also checks item conservation.** Totals must equal the
+  chapter's start, so a hand-edited or corrupted save that duplicates an item
+  is backed up and replaced instead of loaded.

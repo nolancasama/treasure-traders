@@ -391,9 +391,10 @@ card → free festival roam, or back to the title.
   is an item the player holds, when there is one, so answers vary.
 - A truthful answer earns a sticker and a happy reaction. A contradicting answer
   gets the bag check, and nothing is lost.
-- There are eight festival stickers in all: balloon, star, fish, flower, bell,
-  lantern, kite, fireworks. They are cosmetic, shown in the journal, and each
-  asker gives once per run.
+- There are nine festival stickers in all: balloon, star, fish, flower, bell,
+  lantern, kite and fireworks from the askers, plus the anchor from the
+  Captain's sea chest. They are cosmetic, shown in the journal, and each asker
+  gives once per run.
 
 ### 6.7 Hints (every step)
 
