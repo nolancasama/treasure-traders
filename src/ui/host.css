@@ -1,0 +1,10 @@
+.tt-ui { position: absolute; inset: 0; pointer-events: none; font-size: 16px; }
+.tt-ui button, .tt-ui input, .tt-ui select, .tt-ui a, .tt-ui [role="dialog"] { pointer-events: auto; }
+.tt-host-bottom { position: absolute; bottom: 0; left: 0; width: 100%; pointer-events: auto; }
+.tt-host-bottom:empty { pointer-events: none; }
+.tt-host-backpack { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); pointer-events: auto; }
+.tt-host-backpack > .tt-backpack-bar { position: relative; bottom: auto; left: auto; transform: none; }
+.tt-host-bottom > .tt-dialogue { position: relative; bottom: auto; left: auto; transform: none; margin: 0 auto 16px; }
+.tt-no-japanese .tt-ja { display: none; }
+.tt-host-notice { position: absolute; top: 110px; left: 50%; transform: translateX(-50%); display: flex; gap: 16px; align-items: center; max-width: 740px; padding: 12px 18px; background: var(--paper); border: 3px solid var(--sun); border-radius: 18px; box-shadow: var(--shadow); pointer-events: auto; z-index: 40; }
+.tt-host-notice button { min-width: 44px; min-height: 44px; font-size: 24px; border: 0; border-radius: 12px; background: var(--paper-2); }

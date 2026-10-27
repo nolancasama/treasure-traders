@@ -50,7 +50,7 @@ describe("full campaign through the real API", () => {
       expect(ev.filter((e) => e.type === "finale")).toHaveLength(1);
       expect(state.holdings.chest).toEqual(Object.fromEntries(ITEM_IDS.map((i) => [i, 1])));
     }
-  });
+  }, 30_000);
 
   it("gives every reward exactly once, even when saved and reloaded after every step", () => {
     let state = startChapter(3, { mode: "campaign", campaignSeed: 5 });

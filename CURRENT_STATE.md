@@ -4,8 +4,9 @@
 In progress (2026-10-27). World slice built by Codex via the router, reviewed
 and accepted by Claude.
 - **Done and committed:** frozen design, scaffold, core game model, art kit,
-  world (town + World API).
-- **Not yet playable as a game.** HUD/audio and the chapter flows remain;
+  world (town + World API), UI + audio (screens, prompts, speech ladder,
+  TTS presets, synthesised music/SFX, coach; UI API).
+- **Not yet playable as a game.** Integration (App/store, chapter flows, e2e) remains;
   the town is walkable in `?gallery=world`.
 
 ## What Exists
@@ -41,27 +42,30 @@ and accepted by Claude.
   paths, follow/conversation/cutscene camera with lens shift, library cutaway,
   NPC actors, indicators, Kiwi, FX, liveliness, culling, adaptive dpr.
   **`docs/WORLD_API.md` is the frozen integration boundary.**
-- **Tests: 151 unit tests pass** (`npm test`). `npm run typecheck` and
+- **UI + audio** (`src/ui/`, `src/audio/`): `createUI` + `UIHost`; title,
+  HUD, backpack bar/panel/inspect/bag-check, dialogue, Ask/Answer with the
+  speech ladder and mic-free fallback, journal, settings, chapter select,
+  cards, results, tips; `speech.ts` over esl-stt; `audio.ts` synthesised
+  district music/SFX/ambience with ducking. **`docs/UI_API.md` is the
+  frozen UI boundary.**
+- **Tests: 186 unit tests pass** (`npm test`). `npm run typecheck` and
   `npm run build` pass. The e2e smoke test passes.
 - **Review galleries:** `?gallery=items` (views: items, chests, hand, icons,
   closeup&item=) and `?gallery=people` (lineup, states, faces, kiwi,
-  portraits, closeup&id=), `?gallery=world` (14 views incl. play-follow,
+  portraits, closeup&id=), `?gallery=ui` (46 views incl.
+  1280×800 and touch), `?gallery=world` (14 views incl. play-follow,
   conversation, gates, wind, fireworks; renderer.info overlay). `npm run shots` re-renders them to `.tmp/shots/`;
   last reviewed and accepted this session.
 
 ## Current Work
-UI + audio slice delegated (see `.ai/work-order.json`); review its result
-before integration.
+Integration slice delegated (see `.ai/work-order.json`); review its result
+with a real browser playthrough.
 
 Remaining plan (all delegated through the router):
-1. **UI + audio**: HUD, Ask/Answer prompts with the speech ladder and
-   mic-free fallback, backpack (inspect, bag-check), journal, title, settings,
-   chapter select, cards/results; TTS voice presets, synthesised music/SFX,
-   the esl-stt recognizer, the pronunciation coach; a UI gallery.
-2. **Integration**: App/store, chapter flows and cutscenes against
+1. **Integration**: App/store, chapter flows and cutscenes against
    `docs/WORLD_API.md`, save/replay, ending; `window.__tt` test hook; e2e
    full playthroughs (mic-free + stubbed speech) using `plan.ts` intents.
-3. **Polish/QA** at 1366×768, README, deploy (`.github/workflows` is
+2. **Polish/QA** at 1366×768, README, deploy (`.github/workflows` is
    present).
 
 Design intent for slices 1–2 (layout coordinates, UI look, component list)
@@ -80,6 +84,6 @@ are local and gitignored. The essentials are also in SPEC §9–§11.
   sign plank is blank (label floats above it).
 
 ## Next Steps
-1. Review the UI + audio result (`?gallery=ui` shots at 1366×768).
-2. Integration slice against `docs/WORLD_API.md` and the UI `say/prompt` API.
-3. Polish (world backlog above), README, deploy.
+1. Review the integration result: e2e playthroughs, then play chapter 1 in
+   the browser at 1366×768.
+2. Polish (world backlog above), README, deploy.

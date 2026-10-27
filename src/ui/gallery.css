@@ -1,0 +1,14 @@
+.tt-gallery { position: fixed; inset: 0; background: #bfdfd3; }
+.tt-gallery-backdrop { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(#acd9ec 0 40%,#b4d8a2 40%); }
+.tt-gallery-sun { position: absolute; top: 90px; left: 56%; width: 110px; height: 110px; border-radius: 50%; background: #ffe6a2; box-shadow: 0 0 120px #fff7c9; }
+.tt-gallery-hill { position: absolute; width: 130%; height: 450px; left: -15%; top: 32%; border-radius: 50% 50% 0 0; background: #9ac990; }
+.tt-gallery-path { position: absolute; width: 300px; height: 700px; background: #decaa1; left: 44%; top: 46%; transform: perspective(300px) rotateX(35deg) rotateZ(-16deg); border: 12px solid #d3bb91; }
+.tt-gallery-stand { position: absolute; top: 39%; left: 22%; width: 200px; height: 180px; border-radius: 20px; background: #e9b379; box-shadow: 12px 14px #65986e40; }
+.tt-gallery-stand > span { position: absolute; top: -32px; left: -12px; width: 224px; height: 70px; border-radius: 24px 24px 8px 8px; background: repeating-linear-gradient(90deg,#e77563 0 32px,#ffebbb 32px 64px); text-align: center; font-size: 48px; color: #cf4f56; }
+.tt-gallery-stand i { position: absolute; bottom: 16px; width: 36px; height: 52px; border-radius: 16px; background: #c06970; left: 24px; }
+.tt-gallery-stand i:nth-of-type(2) { left: 80px; background: #e0bf53; }.tt-gallery-stand i:nth-of-type(3) { left: 136px; background: #80a4d5; }
+.tt-gallery-sign { position: absolute; right: 14%; top: 34%; transform: rotate(4deg); background: #f1d5a3; border: 8px solid #aa7c50; border-radius: 12px; padding: 20px; font: 800 23px/1.4 system-ui; text-align: center; color: #7c634a; box-shadow: 8px 12px #65986e40; }
+.tt-gallery-tools { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; align-items: center; gap: 8px; border-radius: 14px; padding: 4px 8px; background: #fffaf0de; font-size: 16px; }
+.tt-gallery-tools select { min-height: 44px; max-width: 160px; font: inherit; border-radius: 8px; border: 1px solid #d7b98d; background: #fffaf0; }
+.tt-gallery-prompt { position: absolute; bottom: 0; width: 100%; z-index: 25; }.tt-gallery-prompt-dock { width: max-content; margin: 0 auto 8px; }.tt-gallery-prompt-dock .tt-backpack-bar { position: static; transform: none; }
+.tt-gallery:has(.tt-gallery-prompt) .tt-host-backpack { display: none; }

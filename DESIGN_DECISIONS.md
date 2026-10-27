@@ -275,3 +275,73 @@ is executed directly, in the same order. The worktrees were removed.
 - Hide the library district label while its room is cut away, so signage never
   covers the playable interior. Kiwi automatically perches on the player's
   shoulder indoors; follow and hint flights resume outside the room.
+
+## 2026-10-27 — Frozen UI/audio presentation boundary
+
+- **UI API v1 is a presentation controller plus a React host.** `createUI`
+  exposes `say`, `prompt`, screens/cards/notices, settings, slot rectangles,
+  district music and measured bottom-panel height; `docs/UI_API.md` freezes
+  the contract. It accepts core model types, returns recognized input, and
+  never applies game rules or writes saves. Integration receives menu/reset
+  callbacks and owns world input locks, chapter flows and persistence.
+  Rejected: an App/game store in this slice, or presentation code deciding
+  whether an answer is true.
+- **Spoken lines require voice completion and a child-controlled Continue.**
+  Replay leaves the acknowledgement pending; replacing/cancelling commands
+  settles pending promises. Screens retain a small back history so closing
+  title Settings returns to Title. The actual rendered bottom-panel height
+  is observed rather than guessed, and fixed backpack slots report viewport
+  CSS rectangles for the existing world FX. Rejected: a hard-coded camera
+  offset and promises stranded when a conversation is left.
+
+## 2026-10-27 — Speech ladder and classroom audio hygiene
+
+- **The controller delegates every speech verdict to the frozen core judges.**
+  Misses are per prompt: retry with JP tip, then Kiwi modelling with capture
+  closed, then tappable cards. An incomplete noun receives the whole-question
+  tip. Transient errors request another press without increasing misses;
+  silence is one miss; error/end pairs cannot double count. Permission,
+  hardware and unsupported errors enable session-only mic-free; teacher
+  settings remain separate. `fallbackSuggested` unlocks only this prompt.
+  Rejected: automatic mic restart, persisting a device error as teacher
+  preference, or using inventory truth to influence recognition.
+- **Kiwi modelling has an explicit animation hook and truthful-answer port.**
+  The controller speaks independently and waits for both the animation and
+  speech. Integration supplies the answer from current holdings; without it
+  Kiwi models both answer forms. TTS closes capture synchronously before
+  playback; stopping speech never reopens the mic. A second mic press or
+  opening a panel pauses capture without adding a miss. Rejected: guessing
+  “yes”, holding a trackpad button, and queued mic presses during TTS.
+- **The optional coach is lazy and advisory.** Only item near-misses request
+  it; it uses the vendor adapter and lives inside the prompt. Coach Listen
+  closes capture and holds an independent audio ducking lock so overlapping
+  game speech cannot restore music early. Mic-free and `?coach=off` disable
+  it. Recognizer/TTS/coach ports are injectable for later e2e without adding
+  the integration slice's window hook. Rejected: editing either vendor or
+  letting a pronunciation hint change the recognized verdict.
+- **One procedural Web Audio scheduler owns backgrounds and crossfades.**
+  Each district and celebration has a retained track; per-track gains fade
+  over 1.5 seconds. Music has its own volume bus, ambience shares Effects,
+  and speech ducks both backgrounds. Listening sets background gains to
+  exactly zero, including native recognizer startup. TTS cancellation settles
+  all promises, and its watchdog cancels actual browser playback before
+  releasing the speech lock. Rejected: recorded assets, one context per
+  effect, and a listening fade with a tail that can bleed into recognition.
+
+## 2026-10-27 — Chromebook presentation and review fixtures
+
+- **Warm paper cards carry the interface, with system fonts and the existing
+  art-kit SVGs/portraits.** The nine-slot backpack stays visible above talk;
+  its compact icons have 44px targets rather than the draft's 40px sketch.
+  English dialogue is 30px, prompt sentences 28px and JP/support at least
+  16px. Large panels scroll internally; dialogs trap/restore keyboard focus.
+  Item inspection uses a small R3F canvas and shared art-kit geometry, with
+  an icon fallback without WebGL. Rejected: smaller text to fit all states,
+  downloaded fonts, duplicate item drawings and disposing shared geometry.
+- **The UI gallery is deliberately independent of real game wiring.** It
+  auto-registers through the existing gallery discovery and presents mocked
+  core state, explicit ladder snapshots and a lightweight DOM landscape.
+  The 44 named views include confirmations, Japanese-only dialogue, coach
+  layout, all journal tabs, error/rescue states and all five tips. Screenshot
+  specs add 1366×768 views plus 1280×800/touch Ask layouts. Rejected: chapter
+  scripts solely to reach screenshots and edits to the frozen World API.
