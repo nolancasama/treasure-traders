@@ -224,3 +224,54 @@ is executed directly, in the same order. The worktrees were removed.
 - **Budget:** ≤ 4,500 triangles per character body (measured 3.2k–4.4k), ≤ 1,500
   per item, ≤ 2 draw calls per item. The 20-character line-up renders in 77
   calls including labels and shadows.
+
+## 2026-10-27 — World layout, collision, and frozen integration boundary
+
+- **Compact harbor and explicit support surfaces.** The hub follows the world
+  draft, with square (0,0), market (37,0), school (0,-36), harbor (8,34),
+  and festival (-48,0). The south bank is z=28–37 and the pier ends at z=49;
+  the draft's z=58 pier was rejected because it adds unnecessary walking.
+  The library is a raised 14×10m room with an east doorway, eight named
+  supports, and an automatic roof/south-wall cutaway. Every core spot maps to
+  a support top. Rejected: putting hidden items at arbitrary floating points.
+- **Shared footprints, restricted land, and checked paths.** Scenery and
+  collision consume the same rectangle/circle descriptors. Walk rectangles
+  restrict water and district access; closed gates also have explicit
+  barriers. Keyboard movement projects and slides in 0.14m substeps. Taps use
+  a 1m A* grid with diagonal corner checks and line-of-sight smoothing.
+  Rejected: direct steering alone, which strands tap targets behind the
+  fountain or library furniture, and a separate invisible collision map.
+- **World API v1 is frozen.** `createWorld` returns a frozen command/event
+  object with a copied `WorldState` input and mutable renderer runtime.
+  `worldStateFromGame` adapts placements, indicators, active items, gates,
+  and chest state without applying rules. Interaction/arrival subscriptions
+  and explicit camera, FX, gesture, held-item, input-lock, and panel-height
+  commands are documented in `docs/WORLD_API.md`. Rejected: coupling the
+  world to a React game store or running chapter scripts inside scene code;
+  the integration slice owns flows, audio, UI, and model transitions.
+- **Stable follow camera and deliberate framing.** Movement is relative to
+  the smoothed camera, with no manual orbit. Conversations use an over-shoulder
+  three-quarter shot; keyframed paths cover intro, gates, and finale. Bottom
+  panel height applies a perspective lens shift, capped at 30% of the viewport.
+  Input locks are explicit and cancel walking. Rejected: camera bobbing or
+  changing field of view to make space for dialogue.
+- **Merged scenery and shared instance batches preserve the budget.** Each
+  district uses merged vertex colors; trees, lamps, flags, bunting, birds,
+  droplets, cheap townsfolk, particles, and actor blob shadows use instances.
+  Distant districts and actors are hidden; no real-time shadows or external
+  assets are used. Decorations pop at chest counts 2/4/6/8/9. DPR starts at
+  min(devicePixelRatio,1.5) and drops once to 1 after four continuously slow
+  seconds below 28fps. Rejected: individual meshes for every prop/particle
+  and shadow maps, which would spend the Chromebook budget on scenery.
+  Review renders exposed floating harbor lamps and an interior fence segment;
+  lamps now share explicit collision footprints on land, the fence stops at
+  the library approach, and merged grass foundations support scenery outside
+  the paved navigation areas. Grass outside those areas is decorative;
+  paving and pier surfaces define the playable boundary. Rejected: widening
+  navigation onto all background land, which would allow bypassing gates.
+
+## 2026-10-27 — Cutaway readability and indoor companion
+
+- Hide the library district label while its room is cut away, so signage never
+  covers the playable interior. Kiwi automatically perches on the player's
+  shoulder indoors; follow and hint flights resume outside the room.

@@ -1,11 +1,12 @@
 # Current State
 
 ## Status
-In progress (end of session, 2026-10-25). Built directly by Claude (Codex hit
-its usage limit; the teacher asked Claude to do it).
-- **Done and committed:** frozen design, scaffold, core game model, art kit.
-- **Not yet playable in the browser.** The town (world), the HUD/audio and the
-  chapter flows remain.
+In progress (2026-10-27). World slice built by Codex via the router, reviewed
+and accepted by Claude.
+- **Done and committed:** frozen design, scaffold, core game model, art kit,
+  world (town + World API).
+- **Not yet playable as a game.** HUD/audio and the chapter flows remain;
+  the town is walkable in `?gallery=world`.
 
 ## What Exists
 - `docs/BRIEF.md` — the teacher's original brief. `SPEC.md` — frozen v1
@@ -34,31 +35,33 @@ its usage limit; the teacher asked Claude to do it).
   - `Lighting`, blob shadows, glow, `textSprite`
   - SVG item icons/silhouettes, sticker icons
   - portraits rendered from the rigs
-- **Tests: 131 unit tests pass** (`npm test`): 97 core + 34 art.
-  `npm run typecheck` passes. The e2e smoke test passes.
+- **World** (`src/game/world/`, `src/game/runtime.ts`, `src/scene/World*.tsx`,
+  `src/scene/town/`, `src/scene/fx/`, `src/input/tap.ts`): five districts,
+  gates from state, decorations by chest count, shared collision + A* tap
+  paths, follow/conversation/cutscene camera with lens shift, library cutaway,
+  NPC actors, indicators, Kiwi, FX, liveliness, culling, adaptive dpr.
+  **`docs/WORLD_API.md` is the frozen integration boundary.**
+- **Tests: 151 unit tests pass** (`npm test`). `npm run typecheck` and
+  `npm run build` pass. The e2e smoke test passes.
 - **Review galleries:** `?gallery=items` (views: items, chests, hand, icons,
   closeup&item=) and `?gallery=people` (lineup, states, faces, kiwi,
-  portraits, closeup&id=). `npm run shots` re-renders them to `.tmp/shots/`;
+  portraits, closeup&id=), `?gallery=world` (14 views incl. play-follow,
+  conversation, gates, wind, fireworks; renderer.info overlay). `npm run shots` re-renders them to `.tmp/shots/`;
   last reviewed and accepted this session.
 
 ## Current Work
-None in flight. The next session starts the **world** slice.
+UI + audio slice delegated (see `.ai/work-order.json`); review its result
+before integration.
 
-Remaining plan (Claude-direct unless Codex is available again; it was out
-until 2026-10-26 00:30 JST):
-1. **World**: town with five districts and gates, decorations by chest count,
-   collision, keyboard + tap-to-walk controller, follow camera with
-   conversation shots and lens shift, NPC actors at their placements,
-   indicators, FX (pickup, trade, deposit, wind intro, gate shots, fireworks),
-   region culling, adaptive dpr; a world gallery.
-2. **UI + audio**: HUD, Ask/Answer prompts with the speech ladder and
+Remaining plan (all delegated through the router):
+1. **UI + audio**: HUD, Ask/Answer prompts with the speech ladder and
    mic-free fallback, backpack (inspect, bag-check), journal, title, settings,
    chapter select, cards/results; TTS voice presets, synthesised music/SFX,
    the esl-stt recognizer, the pronunciation coach; a UI gallery.
-3. **Integration**: App/store, chapter flows and cutscenes, save/replay,
-   ending; `window.__tt` test hook; e2e full playthroughs (mic-free + stubbed
-   speech) using `plan.ts` intents.
-4. **Polish/QA** at 1366×768, README, deploy (`.github/workflows` is
+2. **Integration**: App/store, chapter flows and cutscenes against
+   `docs/WORLD_API.md`, save/replay, ending; `window.__tt` test hook; e2e
+   full playthroughs (mic-free + stubbed speech) using `plan.ts` intents.
+3. **Polish/QA** at 1366×768, README, deploy (`.github/workflows` is
    present).
 
 Design intent for slices 1–2 (layout coordinates, UI look, component list)
@@ -71,10 +74,12 @@ are local and gitignored. The essentials are also in SPEC §9–§11.
   is acceptable; revisit if hard to read in the world.
 - Silhouettes of pen/pencil/marker look alike in empty backpack slots. The
   fixed slot order distinguishes them.
+- World polish backlog: finale fireworks read as faint confetti specks (need
+  bold coloured bursts); wind-FX items are barely visible in wide shots;
+  Festival field is a large empty lawn; Grandma clips the bench edge; arch
+  sign plank is blank (label floats above it).
 
 ## Next Steps
-1. Read SPEC §9–§10 and the world draft; build the world slice in
-   `src/game/world/`, `src/scene/town/`, `src/scene/fx/` and
-   `src/dev/galleries/world.tsx`.
-2. Verify the world with screenshots at 1366×768 (and the draw-call budget),
-   then build UI + audio, then integrate.
+1. Review the UI + audio result (`?gallery=ui` shots at 1366×768).
+2. Integration slice against `docs/WORLD_API.md` and the UI `say/prompt` API.
+3. Polish (world backlog above), README, deploy.
