@@ -12,6 +12,18 @@ export function interactionPoints(rt: WorldRuntime): { target: Interaction; posi
   return entries;
 }
 
+/** NPCs, active spot items and the sea chest that can currently be interacted with. */
+export function interactables(world: WorldAPI): { target: Interaction; position: Position }[] {
+  const rt = world.runtime, candidates = interactionPoints(rt);
+  for (const item of rt.state.items.filter(i => i.active)) {
+    const target = { kind: "spot", id: item.spotId } as const;
+    const position = world.positionOf(target);
+    if (position) candidates.push({ target, position });
+  }
+  if (rt.state.seaChest.items.length) candidates.push({ target: { kind: "seaChest" }, position: world.positionOf({ kind: "seaChest" })! });
+  return candidates;
+}
+
 /** Pure per-frame movement; dt clamping and collision substeps handle stalls. */
 export function stepController(world: WorldAPI, dt: number, input = { x: 0, y: 0 }): void {
   const rt = world.runtime, p = rt.player;
@@ -48,16 +60,15 @@ export function stepController(world: WorldAPI, dt: number, input = { x: 0, y: 0
   p.speed = dt ? Math.hypot(next.x - p.x, next.z - p.z) / dt : 0;
   if (p.speed > 0.01) p.yaw = Math.atan2(next.x - p.x, next.z - p.z);
   Object.assign(p, next); p.y = standY(p.x, p.z);
+  updateFocus(world);
+}
+
+/** Nearest interactable in range and in front of the player, not through a wall. */
+function updateFocus(world: WorldAPI): void {
+  const rt = world.runtime, p = rt.player;
   rt.focus = null;
   let closest = 2.4;
-  const candidates = interactionPoints(rt);
-  for (const item of rt.state.items.filter(i => i.active)) {
-    const target = { kind: "spot", id: item.spotId } as const;
-    const position = world.positionOf(target);
-    if (position) candidates.push({ target, position });
-  }
-  if (rt.state.seaChest.items.length) candidates.push({ target: { kind: "seaChest" }, position: world.positionOf({ kind: "seaChest" })! });
-  for (const { target, position } of candidates) {
+  for (const { target, position } of interactables(world)) {
     const x = position.x - p.x, z = position.z - p.z, d = Math.hypot(x, z);
     if (d <= closest && (d < 0.2 || (x * Math.sin(p.yaw) + z * Math.cos(p.yaw)) / d > 0.2)) {
       // A closed gate or a shelf must not permit interaction through a wall.
@@ -72,7 +83,11 @@ export function WorldController({ world }: { world: WorldAPI }) {
   const { gl, camera, scene } = useThree();
   useEffect(() => {
     const uninstall = installKeyboard(code => {
-      if ((code === "KeyE" || code === "Enter") && !world.runtime.locked && world.runtime.focus) world.runtime.emitInteract(world.runtime.focus);
+      if (code !== "KeyE" && code !== "Enter" || world.runtime.locked) return;
+      // Locked frames clear focus; a press right after unlocking must not
+      // wait for the next rendered frame to find the NPC beside the player.
+      if (!world.runtime.focus) updateFocus(world);
+      if (world.runtime.focus) world.runtime.emitInteract(world.runtime.focus);
     });
     const canvas = gl.domElement, taps = new TapTracker(), ray = new THREE.Raycaster();
     const down = (e: PointerEvent) => { if (e.button === 0) { taps.down(e.pointerId, e.clientX, e.clientY); canvas.setPointerCapture(e.pointerId); } };
@@ -81,7 +96,21 @@ export function WorldController({ world }: { world: WorldAPI }) {
       if (!taps.up(e.pointerId, e.clientX, e.clientY) || world.runtime.locked) return;
       const rect = canvas.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2((e.clientX - rect.left) / rect.width * 2 - 1, -(e.clientY - rect.top) / rect.height * 2 + 1), camera);
-      for (const hit of ray.intersectObjects(scene.children, true)) {
+      const hits = ray.intersectObjects(scene.children, true);
+      const tagged = hits.some(hit => { for (let o: THREE.Object3D | null = hit.object; o; o = o.parent) if (o.userData.interaction) return true; return false; });
+      if (!tagged) {
+        // Small items (a pencil on the fountain rim) are hard to hit exactly;
+        // a tap within a finger's width of any interactable selects it.
+        let best: Interaction | undefined, bestPx = 48;
+        for (const { target, position } of interactables(world)) {
+          const s = new THREE.Vector3(position.x, position.y + (target.kind === "npc" ? 1.1 : 0.1), position.z).project(camera);
+          if (s.z < -1 || s.z > 1) continue;
+          const px = Math.hypot((s.x + 1) / 2 * rect.width - (e.clientX - rect.left), (1 - s.y) / 2 * rect.height - (e.clientY - rect.top));
+          if (px < bestPx) { bestPx = px; best = target; }
+        }
+        if (best) { const p = world.positionOf(best); if (p) world.walkTo(p, best); return; }
+      }
+      for (const hit of hits) {
         let object: THREE.Object3D | null = hit.object;
         if (!object.visible) continue;
         let target: Interaction | undefined;

@@ -9,5 +9,5 @@ const params = new URLSearchParams(location.search);
 const gallery = import.meta.env.DEV || params.get("e2e") === "1" ? params.get("gallery") : null;
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode>{gallery !== null ? <Gallery name={gallery} /> : <App />}</StrictMode>
+  gallery !== null ? <StrictMode><Gallery name={gallery} /></StrictMode> : <App />
 );

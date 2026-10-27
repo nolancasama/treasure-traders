@@ -39,6 +39,17 @@ describe("frozen world integration surface", () => {
     world.setInputLocked(false); stepController(world, 0.1, { x: 1, y: 0 });
     expect(world.runtime.player.x).toBeCloseTo(0.45);
   });
+  it("keeps a tapped approach when an already-unlocked world is unlocked again", () => {
+    const world = make(), calls: string[] = [];
+    world.onInteract(t => calls.push(t.kind));
+    const p = world.positionOf({ kind: "npc", id: "ken" })!;
+    expect(world.walkTo(p, { kind: "npc", id: "ken" })).toBe(true);
+    stepController(world, 0.05);
+    world.setInputLocked(false);
+    expect(world.runtime.pending).toEqual({ kind: "npc", id: "ken" });
+    for (let i = 0; i < 200; i++) stepController(world, 0.05);
+    expect(calls).toEqual(["npc"]);
+  });
   it("walks to an NPC, fires once, and supports event unsubscription", () => {
     const world = make(), calls: string[] = [];
     const off = world.onInteract(t => calls.push(t.kind));

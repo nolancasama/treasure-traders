@@ -345,3 +345,86 @@ is executed directly, in the same order. The worktrees were removed.
   layout, all journal tabs, error/rescue states and all five tips. Screenshot
   specs add 1366×768 views plus 1280×800/touch Ask layouts. Rejected: chapter
   scripts solely to reach screenshots and edits to the frozen World API.
+
+## 2026-10-28 — Playable integration and persistence
+
+- **Async game flows coordinate the frozen model, World and UI APIs.**
+  `flow/game.ts` owns conversations, input locks, menus and chapter boundaries;
+  `flow/presentation.ts` translates model beats into dialogue, gestures, item
+  arcs and cutscenes. An epoch invalidates cancelled conversations before late
+  input can apply. Rules remain in the pure model. Rejected: duplicating trade
+  or truth rules in React components, or expanding the frozen presentation APIs.
+- **A vanilla zustand store keeps the current game and retained campaign
+  separately.** Phase, busy state, hint level and teacher settings belong to
+  integration; the complete generated instance remains in the model state.
+  Replays use `tt.replay.v1` and retain `tt.save.v1` for Continue and chapter
+  selection. Per-frame movement stays in the world runtime. Rejected: a React
+  update on every movement frame or replay overwriting campaign progress.
+- **Save at completed beat sequences, arrivals and completed chapter
+  transitions.** Apply each atomic model Step before its presentation, then
+  checkpoint after presentation and before the next prompt. Cutscenes do not
+  save halfway through a chapter transition. Persist only `x`, `z`, `yaw` from
+  the renderer player so Continue's safe relocation preserves the same save
+  shape. Rejected: persisting renderer height/speed, saving every frame, or
+  restoring halfway through a presentation without a resumable beat cursor.
+- **World taps have a 48 CSS pixel nearest-interactable fallback.** Thin
+  stationery can be missed by an exact mesh ray even when a child taps the
+  visible item. Nearby targets use the same walk-and-interact command as mesh
+  hits. Rejected: enlarging visible models or requiring pixel-perfect taps.
+
+## 2026-10-28 — Integration e2e isolation and progress waits
+
+- **Each full campaign has its own spec file and Playwright project.** A single
+  worker runs the short group, mic-free campaign and speech campaign serially;
+  project boundaries create fresh workers and browsers for both long runs.
+  `e2e` still covers everything, with `e2e:short` and `e2e:campaign` for focused
+  runs. Rejected: separate files alone, which can reuse the same browser worker,
+  or parallel SwiftShader campaigns competing for GPU/memory resources.
+- **Campaigns retain named review screenshots and failure screenshots, without
+  continuous tracing.** This avoids retaining hundreds of DOM snapshots and
+  screencast frames during long software-rendered runs. Short tests retain
+  failure traces. JSON results preserve per-spec durations. Rejected: dropping
+  required visual evidence or reducing real-input coverage to shorten tests.
+- **Dialogue settling waits for progress, and retries identify fresh prompts.**
+  The contradiction failure trace showed successful Continue clicks taking
+  about 25 and 55 seconds under browser pressure; a 45-second total deadline
+  expired while Kiwi/re-ask dialogue still advanced. Each real acknowledgement
+  now resets the inactivity deadline, within the overall test timeout. Re-asks
+  must have fresh question IDs, and accepted Yes must clear the latest retry.
+  Rejected: assuming the Mayor asks first, waiting on an old prompt, or raising
+  every timeout without checking actual progress. Playwright runs are serial
+  so their shared output directory cannot be deleted by a competing run.
+
+## 2026-10-28 — Chapter 5 projected-target race
+
+- **Wait for a stable rendered target before automated screen clicks/taps.**
+  A narrow canonical Chapter 5 checkpoint reproduced the notebook-to-Ken stall.
+  The path to Ken was reachable; the test sampled his position while the pickup
+  conversation camera eased back to follow. Instrumentation measured Ken moving
+  roughly 239 CSS pixels between projection and pointer-down. The stale click
+  selected ground, producing a path with `pending: null`, then no interaction.
+  The helper now requires four rendered frames with less than 0.5 pixel target
+  movement before clicking; it still uses real mouse/touch input. A focused
+  checkpoint regression retains collection and Ken dialogue through the real
+  flows. Read-only `__tt` navigation diagnostics distinguish ground walks from
+  cancelled or blocked interaction approaches. Rejected: increasing the 1.9m
+  interaction range or 48px tap tolerance, altering collision geometry that was
+  already reachable, retrying missed clicks until success, or replacing visible
+  target clicks with hook-driven walks. No World/UI API change is needed.
+
+## 2026-10-28 — Keyboard interaction and unlocks never drop input
+
+- **E/Enter resolves focus on the keypress when none is cached.** Locked
+  frames clear focus and it was only rebuilt on the next rendered frame, so an
+  E pressed right after leaving a conversation (Esc, then E) was silently
+  ignored on a slow Chromebook-class renderer. The keyboard handler now runs
+  the same focus calculation as the frame loop. Rejected: queueing the press
+  for the next frame (could act on a stale target) and keeping focus while
+  locked (stale across state changes); waiting for focus in the e2e test would
+  have hidden a child-facing dropped input.
+- **Only locking cancels a walk.** The flow re-publishes the lock state on
+  every store update, and `setInputLocked(false)` used to clear the path and
+  pending target each time, so any unrelated update (hint timer, settings)
+  during a tapped approach could strand the player. WORLD_API.md now states
+  that unlocking leaves an active walk alone. Rejected: diffing the lock state
+  in the flow, which leaves the world API trap in place for other callers.

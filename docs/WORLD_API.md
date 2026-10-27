@@ -34,7 +34,7 @@ at z=28–37 and pier ending z=49; all five district centres are within about
 
 | Method | Meaning |
 |---|---|
-| `setInputLocked(boolean)` | Stops and cancels walking, suppresses taps/keys/interactions. Flow owns unlocking. |
+| `setInputLocked(boolean)` | Locking stops and cancels walking and suppresses taps/keys/interactions; unlocking leaves an active walk alone. Flow owns unlocking. |
 | `setBottomPanel(heightPx)` | Lens shift for the UI's covered bottom region, capped at 30% of viewport height. |
 | `setCamera({mode:"follow"})` | Resume smooth follow. Library cutaway is automatic while inside. |
 | `setCamera({mode:"conversation",target:{x,y,z}})` | Three-quarter view over the player's shoulder. Lock input separately. |

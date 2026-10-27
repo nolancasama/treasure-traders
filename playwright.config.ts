@@ -10,7 +10,7 @@ export default defineConfig({
   workers: 1,
   retries: process.env.CI ? 1 : 0,
   timeout: 240_000,
-  reporter: "line",
+  reporter: [["line"], ["json", { outputFile: ".tmp/e2e-results.json" }]],
   use: {
     baseURL: external ?? "http://127.0.0.1:4183",
     trace: "retain-on-failure",
@@ -29,8 +29,21 @@ export default defineConfig({
       },
   projects: [
     {
-      name: "chromebook",
+      name: "chromebook-short",
+      testIgnore: "**/*.campaign.spec.ts",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 }
+    },
+    // Project identity gives each long campaign a fresh worker and browser,
+    // even with workers: 1. Context fixtures still close after every test.
+    {
+      name: "chromebook-mic-free",
+      testMatch: "**/game.mic-free.campaign.spec.ts",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1, trace: "off" }
+    },
+    {
+      name: "chromebook-speech",
+      testMatch: "**/game.speech.campaign.spec.ts",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1, trace: "off" }
     }
   ]
 });

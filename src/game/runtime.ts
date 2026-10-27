@@ -69,7 +69,11 @@ export function createWorld(initial: WorldState): WorldAPI {
       const p = relocate(runtime.player);
       Object.assign(runtime.player, p, { y: standY(p.x, p.z), speed: 0 });
     },
-    setInputLocked(locked) { runtime.locked = locked; runtime.path = []; runtime.pending = null; runtime.player.speed = 0; },
+    setInputLocked(locked) {
+      // Only locking cancels a walk; a repeated unlock must not drop a tapped approach.
+      if (locked) { runtime.path = []; runtime.pending = null; runtime.player.speed = 0; }
+      runtime.locked = locked;
+    },
     setBottomPanel(height) { runtime.bottomPanel = Number.isFinite(height) ? Math.max(0, height) : 0; },
     setCamera(command) { runtime.camera = structuredClone(command); },
     playCutscene(name) {

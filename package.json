@@ -11,6 +11,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "e2e": "npm run build && playwright test",
+    "e2e:short": "npm run build && playwright test --project=chromebook-short",
+    "e2e:campaign": "npm run build && playwright test --project=chromebook-mic-free --project=chromebook-speech",
     "shots": "npm run build && playwright test --config=playwright.shots.config.ts"
   },
   "dependencies": {

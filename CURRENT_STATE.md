@@ -1,13 +1,10 @@
 # Current State
 
 ## Status
-In progress (2026-10-27). World slice built by Codex via the router, reviewed
-and accepted by Claude.
-- **Done and committed:** frozen design, scaffold, core game model, art kit,
-  world (town + World API), UI + audio (screens, prompts, speech ladder,
-  TTS presets, synthesised music/SFX, coach; UI API).
-- **Not yet playable as a game.** Integration (App/store, chapter flows, e2e) remains;
-  the town is walkable in `?gallery=world`.
+Playable end to end (2026-10-28). All slices are committed: frozen design,
+scaffold, core model, art kit, world, UI + audio, and integration (App, store,
+flows, presentation, e2e). `npm run e2e` is green (11/11, ~20 min).
+Next is polish/QA, README and deploy.
 
 ## What Exists
 - `docs/BRIEF.md` — the teacher's original brief. `SPEC.md` — frozen v1
@@ -17,7 +14,7 @@ and accepted by Claude.
   Vitest + Playwright. Vendored `vendor/esl-stt` (v1.0.0) and
   `vendor/esl-pronunciation-coach` (v1.1.0); `src/audio/vendor.ts` is the
   only import point. `src/audio/tts.ts`, `src/input/keyboard.ts` and
-  `src/scene/partBuilder.ts` are adopted from monster-island, not yet wired up.
+  `src/scene/partBuilder.ts` were adopted from monster-island and are now in use.
 - **Core model** (`src/game/content/`, `src/game/logic/`, barrel `index.ts`):
   - beat-script interaction API (`talk / ask / answer / collect / inspect /
     leave`), truth checks, reversible trades, exactly-once transactions
@@ -48,8 +45,15 @@ and accepted by Claude.
   cards, results, tips; `speech.ts` over esl-stt; `audio.ts` synthesised
   district music/SFX/ambience with ducking. **`docs/UI_API.md` is the
   frozen UI boundary.**
-- **Tests: 186 unit tests pass** (`npm test`). `npm run typecheck` and
-  `npm run build` pass. The e2e smoke test passes.
+- **Integration** (`src/App.tsx`, `src/game/store.ts`, `src/game/flow/game.ts`
+  + `presentation.ts`, `src/dev/gameHook.ts`): title orbit, new/continue/
+  chapter replay, async interaction and chapter flows, cutscenes, finale,
+  results, free roam, saves; `window.__tt` only with `?e2e=1`.
+- **Tests:** 188 unit tests (`npm test`); typecheck and build pass.
+  E2E (`npm run e2e`, 11 specs, ~20 min under SwiftShader): Playwright
+  projects `chromebook-short` (`npm run e2e:short`), `chromebook-mic-free` and
+  `chromebook-speech` (`npm run e2e:campaign`) each get a fresh browser.
+  Campaign screenshots land in `.tmp/shots/game/` (reviewed 2026-10-28).
 - **Review galleries:** `?gallery=items` (views: items, chests, hand, icons,
   closeup&item=) and `?gallery=people` (lineup, states, faces, kiwi,
   portraits, closeup&id=), `?gallery=ui` (46 views incl.
@@ -58,19 +62,7 @@ and accepted by Claude.
   last reviewed and accepted this session.
 
 ## Current Work
-Integration slice delegated (see `.ai/work-order.json`); review its result
-with a real browser playthrough.
-
-Remaining plan (all delegated through the router):
-1. **Integration**: App/store, chapter flows and cutscenes against
-   `docs/WORLD_API.md`, save/replay, ending; `window.__tt` test hook; e2e
-   full playthroughs (mic-free + stubbed speech) using `plan.ts` intents.
-2. **Polish/QA** at 1366×768, README, deploy (`.github/workflows` is
-   present).
-
-Design intent for slices 1–2 (layout coordinates, UI look, component list)
-is in `.ai/drafts/wave3-world.md` and `.ai/drafts/wave3-ui-audio.md`. They
-are local and gitignored. The essentials are also in SPEC §9–§11.
+None in flight. No delegated work is pending.
 
 ## Known Issues
 - Real microphones and TTS voices are untested (headless tests stub them).
@@ -82,8 +74,20 @@ are local and gitignored. The essentials are also in SPEC §9–§11.
   bold coloured bursts); wind-FX items are barely visible in wide shots;
   Festival field is a large empty lawn; Grandma clips the bench edge; arch
   sign plank is blank (label floats above it).
+- Seen in the game screenshots (2026-10-28): the title orbit and the Square
+  follow view have a large beige beam/post across the left foreground (the
+  camera clips through or sits behind geometry); in Square conversations a
+  pillar can stand between the player and the NPC; in the finale, an NPC head
+  and a dark blob sit at the bottom edge of the frame.
+- Chapter 1 has not been hand-played in a real browser yet (the e2e plays it
+  with real clicks/keys/taps, and the screenshots were reviewed).
+
+- Under SwiftShader, iterate with `npx playwright test <file> -g "<name>"`
+  after `npm run build` (preview on port 4183).
 
 ## Next Steps
-1. Review the integration result: e2e playthroughs, then play chapter 1 in
-   the browser at 1366×768.
-2. Polish (world backlog above), README, deploy.
+1. Hand-play Chapter 1 at 1366×768 (`npm run dev`), with a real mic if
+   possible.
+2. Polish slice: the world backlog and screenshot issues above (camera
+   occlusion first, since it hides the play area on the title and Square).
+3. README, deploy (`.github/workflows` is present).
