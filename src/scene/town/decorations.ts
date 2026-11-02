@@ -162,19 +162,7 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
       for (const [a, c, sag] of lines) b.wire(a, c, sag, 8, "#8a6a48", 0.035);
     });
     const flags = lines.flatMap(([a, c, sag]) => along(a, c, sag, Math.round(Math.hypot(c[0] - a[0], c[2] - a[2]) / 1.65)).map((position, i) => ({ position, yaw: yawOf(a, c), color: PENNANTS[i % PENNANTS.length] })));
-    // Short strings from the fountain's finial down to its rim, inside its collider.
-    const finial: V3 = [0, 3.1, 0];
-    const crown = Array.from({ length: 8 }, (_, k) => {
-      const a = k / 8 * Math.PI * 2, rim: V3 = [Math.cos(a) * 2.36, 0.78, Math.sin(a) * 2.36];
-      return along(finial, rim, 0.35, 4).map((position, i) => ({ position, yaw: yawOf(finial, rim), scale: 0.62, color: PENNANTS[(i + k) % PENNANTS.length] }));
-    }).flat();
-    statics(s, b => {
-      for (let k = 0; k < 8; k++) {
-        const a = k / 8 * Math.PI * 2;
-        b.wire(finial, [Math.cos(a) * 2.36, 0.78, Math.sin(a) * 2.36], 0.35, 4, "#8a6a48", 0.02);
-      }
-    });
-    batch(s, pennant, sceneryMat(), [...flags, ...crown], 0.25, 1.7);
+    batch(s, pennant, sceneryMat(), flags, 0.25, 1.7);
   }
 
   /* 4 items: paper lanterns on every stall and along the back of the street, on real hooks and wires. */
