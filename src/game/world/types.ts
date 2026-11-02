@@ -1,5 +1,5 @@
 import type { ChapterId, DistrictId, ItemId, NpcId } from "../content/ids";
-import type { RigGesture, RigState } from "../../scene/models/people";
+import type { Expression, RigGesture, RigState } from "../../scene/models/people";
 
 export interface Point { x: number; z: number }
 export interface Position extends Point { y: number }
@@ -24,7 +24,10 @@ export type FxCommand =
   | { kind: "trade" | "give" | "deposit"; item: ItemId; from: Position; to: Position }
   | { kind: "sparkles" | "decoration" | "lock" | "fireworks"; at: Position; index?: number }
   | { kind: "wind"; from: Position; targets: Position[] };
-export interface NpcCommand { gesture?: RigGesture | RigState; held?: ItemId | null; serial: number }
+/** Waiting instructions for a rig; the renderer applies and clears them on its next frame. */
+export interface NpcCommand { gesture?: RigGesture | RigState; held?: ItemId | null; mood?: Expression | null; speak?: number; serial: number }
+/** The chest's big moment: held closed ("armed", "blaze") until the finale opens it. */
+export type FinaleStage = "none" | "armed" | "blaze" | "open";
 export interface WorldRuntime {
   state: WorldState;
   revision: number;
@@ -38,7 +41,13 @@ export interface WorldRuntime {
   pending: Interaction | null;
   focus: Interaction | null;
   npcCommands: Partial<Record<NpcId, NpcCommand>>;
-  kiwi: { mode: "follow" | "perch" | "hint"; target?: Position };
+  playerCommand: NpcCommand | null;
+  /** Chest count that decorations may show; null follows the state. */
+  decorHold: number | null;
+  finale: FinaleStage;
+  /** The cast is gathered and dancing (the finale and free festival roam). */
+  party: boolean;
+  kiwi: { mode: "follow" | "perch" | "hint" | "cheer"; target?: Position; speakUntil?: number };
   effects: (FxCommand & { id: number; started: number })[];
   emitInteract: (target: Interaction) => void;
   emitArrive: (position: Position) => void;

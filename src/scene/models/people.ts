@@ -2,8 +2,9 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import type { ItemId, NpcId } from "../../game/content/ids";
 import { skinnedMat, smoothMat } from "../materials";
-import { ITEM_DISPLAY, buildItem, itemSize } from "./items";
+import { ITEM_DISPLAY, THICKEN, buildItem, itemSize } from "./items";
 import { LOOKS, type Build, type Look, type LookId } from "./looks";
+import { IDLES, type Pose } from "./personality";
 import { RigBuilder, skinnedMesh, type BoneSpec, type V3 } from "./rig";
 
 /* ------------------------------------------------------------ proportions */
@@ -90,8 +91,9 @@ function boneSpecs(f: Frame): BoneSpec[] {
 
 /* ------------------------------------------------------------- the body */
 
-const sph = (r: number, w = 12, h = 9) => new THREE.SphereGeometry(r, w, h);
-const cyl = (rt: number, rb: number, h: number, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg);
+// Limbs and joints stay light so a full cast fits the budget; the head (16 segments) stays round.
+const sph = (r: number, w = 12, h = 9) => new THREE.SphereGeometry(r, w < 16 ? Math.round(w * 0.75) : w, w < 16 ? Math.max(4, Math.round(h * 0.7)) : h);
+const cyl = (rt: number, rb: number, h: number, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg <= 12 ? Math.max(6, Math.round(seg * 0.7)) : Math.round(seg * 0.75));
 const rbox = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 1, r);
 
 function buildBody(look: Look, f: Frame): THREE.BufferGeometry {
@@ -368,10 +370,10 @@ function hat(b: RigBuilder, look: Look, hr: number, hy: number) {
 
 /* -------------------------------------------------------------- the face */
 
-export type Expression = "neutral" | "happy" | "sad" | "surprised";
+export type Expression = "neutral" | "happy" | "sad" | "surprised" | "sorry";
 
-/** Face pieces sit on the head sphere, built in head-bone space. */
-function buildFace(look: Look, f: Frame, expr: Expression, blink: boolean): THREE.BufferGeometry {
+/** Face pieces sit on the head sphere, built in head-bone space. `talk` opens the mouth. */
+function buildFace(look: Look, f: Frame, expr: Expression, blink: boolean, talk: boolean): THREE.BufferGeometry {
   const hr = f.p.headR;
   const cy = f.headY - f.neckY;
   const b = new RigBuilder([{ name: "face", parent: null, pos: [0, 0, 0] }], 1e-6);
@@ -382,46 +384,62 @@ function buildFace(look: Look, f: Frame, expr: Expression, blink: boolean): THRE
   };
   const ink = "#1d1712";
   const brow = shade(look.hair.color === "#f2efe8" || look.hair.color === "#c9c6c2" || look.hair.color === "#bfbab3" ? "#8a8580" : look.hair.color, 0.85);
-  const eyeY = hr * 0.07;
-  const eyeX = hr * 0.36;
+  const eyeY = hr * 0.08;
+  const eyeX = hr * 0.37;
   for (const s of [1, -1]) {
     const e = onHead(s * eyeX, eyeY);
-    if (blink) b.add(new THREE.BoxGeometry(hr * 0.2, hr * 0.03, hr * 0.03), ink, "face", e.pos, e.rot, [1, 1, 1], { flatAo: true });
-    else if (expr === "happy") b.add(new THREE.TorusGeometry(hr * 0.1, hr * 0.03, 4, 10, Math.PI), ink, "face", e.pos, [e.rot[0], e.rot[1], 0], [1, 1, 0.6], { flatAo: true });
+    if (blink) b.add(new THREE.BoxGeometry(hr * 0.22, hr * 0.035, hr * 0.03), ink, "face", e.pos, e.rot, [1, 1, 1], { flatAo: true });
+    else if (expr === "happy") b.add(new THREE.TorusGeometry(hr * 0.115, hr * 0.034, 4, 10, Math.PI), ink, "face", e.pos, [e.rot[0], e.rot[1], 0], [1, 1, 0.6], { flatAo: true });
     else {
-      const big = expr === "surprised" ? 1.25 : 1;
-      b.add(sph(hr * 0.12 * big, 10, 8), ink, "face", e.pos, e.rot, [0.82, 1.12, 0.45], { flatAo: true });
-      const hl = onHead(s * eyeX + hr * 0.04, eyeY + hr * 0.05, 0.012);
-      b.add(sph(hr * 0.035 * big, 6, 4), "#ffffff", "face", hl.pos, hl.rot, [1, 1, 0.5], { flatAo: true });
+      const big = expr === "surprised" ? 1.3 : 1.08;
+      b.add(sph(hr * 0.125 * big, 10, 8), ink, "face", e.pos, e.rot, [0.84, 1.16, 0.45], { flatAo: true });
+      const hl = onHead(s * eyeX + hr * 0.045, eyeY + hr * 0.06, 0.012);
+      b.add(sph(hr * 0.042 * big, 6, 4), "#ffffff", "face", hl.pos, hl.rot, [1, 1, 0.5], { flatAo: true });
     }
-    const bw = onHead(s * eyeX, eyeY + hr * (expr === "surprised" ? 0.36 : 0.28), 0.006);
-    const tilt = expr === "sad" ? s * 0.4 : expr === "surprised" ? 0 : s * -0.08;
-    b.add(new THREE.BoxGeometry(hr * 0.24, hr * 0.05, hr * 0.03), brow, "face", bw.pos, [bw.rot[0], bw.rot[1], tilt], [1, 1, 1], { flatAo: true });
+    const bw = onHead(s * eyeX, eyeY + hr * (expr === "surprised" ? 0.38 : expr === "sorry" ? 0.31 : 0.28), 0.006);
+    const tilt = expr === "sad" ? s * 0.42 : expr === "sorry" ? s * 0.3 : expr === "surprised" ? 0 : expr === "happy" ? s * -0.16 : s * -0.08;
+    b.add(new THREE.BoxGeometry(hr * 0.25, hr * 0.055, hr * 0.03), brow, "face", bw.pos, [bw.rot[0], bw.rot[1], tilt], [1, 1, 1], { flatAo: true });
   }
   const m = onHead(0, -hr * 0.36, 0.004);
-  if (expr === "happy") {
-    b.add(new THREE.CircleGeometry(hr * 0.17, 14, Math.PI, Math.PI), "#7a2a2a", "face", m.pos, m.rot, [1.2, 1, 1], { flatAo: true });
-    const t = onHead(0, -hr * 0.44, 0.006);
-    b.add(new THREE.CircleGeometry(hr * 0.08, 10, Math.PI, Math.PI), "#ff7f8a", "face", t.pos, t.rot, [1.2, 0.8, 1], { flatAo: true });
-  } else if (expr === "sad") b.add(new THREE.TorusGeometry(hr * 0.1, hr * 0.022, 4, 10, Math.PI), "#7a2a2a", "face", onHead(0, -hr * 0.42).pos, m.rot, [1, 0.7, 0.5], { flatAo: true });
-  else if (expr === "surprised") b.add(sph(hr * 0.07, 10, 8), "#5a1f1f", "face", m.pos, m.rot, [0.9, 1.2, 0.3], { flatAo: true });
-  else b.add(new THREE.TorusGeometry(hr * 0.11, hr * 0.022, 4, 10, Math.PI), "#7a2a2a", "face", onHead(0, -hr * 0.3).pos, [m.rot[0], m.rot[1], Math.PI], [1, 0.75, 0.5], { flatAo: true });
+  const lips = "#7a2a2a";
+  if (talk) {
+    // One open mouth per mood: enough with the jaw-less head to read as speech.
+    const wide = expr === "happy" ? 1.18 : expr === "surprised" ? 0.8 : 1;
+    b.add(sph(hr * 0.13, 10, 8), "#5a1f1f", "face", m.pos, m.rot, [wide, expr === "surprised" ? 1.2 : 0.74, 0.3], { flatAo: true });
+    const tongue = onHead(0, -hr * 0.41, 0.008);
+    b.add(sph(hr * 0.07, 8, 6), "#ff7f8a", "face", tongue.pos, tongue.rot, [wide, 0.6, 0.3], { flatAo: true });
+  } else if (expr === "happy") {
+    b.add(new THREE.CircleGeometry(hr * 0.19, 14, Math.PI, Math.PI), lips, "face", m.pos, m.rot, [1.25, 1, 1], { flatAo: true });
+    const t = onHead(0, -hr * 0.45, 0.006);
+    b.add(new THREE.CircleGeometry(hr * 0.09, 10, Math.PI, Math.PI), "#ff7f8a", "face", t.pos, t.rot, [1.2, 0.8, 1], { flatAo: true });
+  } else if (expr === "sad") b.add(new THREE.TorusGeometry(hr * 0.1, hr * 0.024, 4, 10, Math.PI), lips, "face", onHead(0, -hr * 0.42).pos, m.rot, [1, 0.7, 0.5], { flatAo: true });
+  else if (expr === "sorry") b.add(new THREE.BoxGeometry(hr * 0.2, hr * 0.036, hr * 0.02), lips, "face", onHead(0, -hr * 0.38).pos, [m.rot[0], m.rot[1], 0.14], [1, 1, 1], { flatAo: true });
+  else if (expr === "surprised") b.add(sph(hr * 0.085, 10, 8), "#5a1f1f", "face", m.pos, m.rot, [0.9, 1.25, 0.3], { flatAo: true });
+  else b.add(new THREE.TorusGeometry(hr * 0.12, hr * 0.024, 4, 10, Math.PI), lips, "face", onHead(0, -hr * 0.3).pos, [m.rot[0], m.rot[1], Math.PI], [1, 0.8, 0.5], { flatAo: true });
   return b.build();
 }
 
 /* --------------------------------------------------------------- the rig */
 
 /** Looping states. "present" holds an item up until the flow changes state (a line may outlast any timer). */
-export type RigState = "idle" | "walk" | "run" | "talk" | "sit" | "sad" | "think" | "present";
-export type RigGesture = "nod" | "shake" | "cheer" | "give" | "show";
-const GESTURE_TIME: Record<RigGesture, number> = { nod: 0.9, shake: 1.0, cheer: 1.4, give: 1.3, show: 1.6 };
-const EXPRESSIONS: Expression[] = ["neutral", "happy", "sad", "surprised"];
+export type RigState = "idle" | "walk" | "run" | "talk" | "sit" | "sad" | "think" | "present" | "dance";
+export type RigGesture = "nod" | "shake" | "cheer" | "give" | "show" | "wave" | "reach" | "hop" | "clap";
+const GESTURE_TIME: Record<RigGesture, number> = { nod: 0.9, shake: 1.1, cheer: 1.4, give: 1.2, show: 1.6, wave: 1.7, reach: 1.15, hop: 0.85, clap: 1.4 };
 
 let phaseSeed = 0;
 
+const restPose = (): Pose => ({
+  spineX: 0, spineY: 0, spineZ: 0, headX: 0, headY: 0, headZ: 0,
+  armLX: 0.02, armLZ: 0.07, armRX: 0.02, armRZ: -0.07, elbowLX: -0.12, elbowRX: -0.12,
+  legLX: 0, legRX: 0, kneeLX: 0, kneeRX: 0, bob: 0
+});
+const POSE_KEYS = Object.keys(restPose()) as (keyof Pose)[];
+
 /**
  * An animated character: one skinned mesh + a face mesh (geometry swapped for
- * expressions and blinks) + a right-hand socket for held items.
+ * expressions, blinks and speech) + a right-hand socket for held items. Each
+ * frame builds a target pose and eases toward it, so every change of state,
+ * gesture or idle blends by itself.
  */
 export class CharacterRig {
   readonly group = new THREE.Group();
@@ -436,7 +454,9 @@ export class CharacterRig {
   /** Head centre and radius in the group's local (unscaled) space, for framing. */
   readonly headCenterY: number;
   readonly headR: number;
-  private faces: Record<Expression, [THREE.BufferGeometry, THREE.BufferGeometry]>;
+  private look: Look;
+  private frame: Frame;
+  private faces = new Map<number, THREE.BufferGeometry>();
   private base: RigState = "idle";
   private gesture: { kind: RigGesture; t: number } | null = null;
   private expr: Expression = "neutral";
@@ -447,27 +467,36 @@ export class CharacterRig {
   private lookTarget: THREE.Vector3 | null = null;
   private headYaw = 0;
   private headPitch = 0;
+  private speaking = 0;
+  private want = restPose();
+  private now = restPose();
   private readonly phase: number;
   private readonly hunch: number;
   private readonly hipY0: number;
+  private readonly longSkirt: boolean;
+  private readonly danceStyle: number;
   private held: ItemId | null = null;
+  private heldRoot = new THREE.Group();
+  private propRoot = new THREE.Group();
 
   constructor(
     readonly id: LookId,
     look: Look = LOOKS[id]
   ) {
     const f = frameOf(look);
+    this.look = look;
+    this.frame = f;
     const specs = boneSpecs(f);
     const geo = buildBody(look, f);
     const { mesh, bones } = skinnedMesh(geo, specs, skinnedMat(), new THREE.Sphere(new THREE.Vector3(0, f.top / 2, 0), f.top * 0.85));
     this.mesh = mesh;
     this.bones = bones;
-    this.faces = Object.fromEntries(EXPRESSIONS.map((e) => [e, [buildFace(look, f, e, false), buildFace(look, f, e, true)]])) as CharacterRig["faces"];
-    this.face = new THREE.Mesh(this.faces.neutral[0], smoothMat());
+    this.face = new THREE.Mesh(this.faceFor("neutral", false, false), smoothMat());
     bones.head.add(this.face);
     // Hand socket at the right hand (elbowR bone space).
     this.hand.position.set(0, f.handY - f.elbowY - 0.02, 0.06);
     bones.elbowR.add(this.hand);
+    this.hand.add(this.heldRoot, this.propRoot);
     this.shoulder.position.set(f.shoulderX * 0.9, f.shoulderY - (f.hipY + 0.06) + 0.1, -0.02);
     bones.spine.add(this.shoulder);
     this.group.add(mesh);
@@ -477,10 +506,21 @@ export class CharacterRig {
     this.radius = (PROPS[look.build].girth + 0.12) * look.scale;
     this.headCenterY = f.headY;
     this.headR = f.p.headR;
-    this.phase = (phaseSeed++ * 1.7) % (Math.PI * 2);
+    this.phase = (phaseSeed * 1.7) % (Math.PI * 2);
+    this.danceStyle = phaseSeed % 3;
+    phaseSeed++;
     this.hunch = look.hunch ?? 0;
     this.hipY0 = bones.hips.position.y;
+    this.longSkirt = look.bottom.style === "longSkirt";
     this.update(0);
+  }
+
+  /** Faces are built the first time they are needed: most combinations never are. */
+  private faceFor(expr: Expression, blink: boolean, talk: boolean): THREE.BufferGeometry {
+    const key = EXPRESSIONS.indexOf(expr) * 4 + (blink ? 1 : 0) + (talk ? 2 : 0);
+    let g = this.faces.get(key);
+    if (!g) this.faces.set(key, (g = buildFace(this.look, this.frame, expr, blink, talk)));
+    return g;
   }
 
   get state(): RigState {
@@ -489,8 +529,8 @@ export class CharacterRig {
 
   /** Looping states, or a one-shot gesture that returns to the current state. */
   setState(s: RigState | RigGesture): void {
-    if (s === "nod" || s === "shake" || s === "cheer" || s === "give" || s === "show") this.gesture = { kind: s, t: 0 };
-    else this.base = s;
+    if (s in GESTURE_TIME) this.gesture = { kind: s as RigGesture, t: 0 };
+    else this.base = s as RigState;
   }
 
   get gesturing(): boolean {
@@ -503,48 +543,61 @@ export class CharacterRig {
 
   setExpression(e: Expression): void {
     this.expr = e;
-    this.face.geometry = this.faces[e][0];
+  }
+
+  get expression(): Expression {
+    return this.expr;
+  }
+
+  /** Mouth and hands move for about this long, on top of whatever else is going on. */
+  speak(seconds: number): void {
+    this.speaking = seconds;
   }
 
   /** Shows an item in the right hand (null empties it). */
   hold(item: ItemId | null): void {
     if (item === this.held) return;
-    this.hand.clear();
+    this.heldRoot.clear();
     this.held = item;
+    this.propRoot.visible = !item;
     if (!item) return;
     const m = buildItem(item);
     const d = ITEM_DISPLAY[item];
     const size = itemSize(item);
-    m.scale.setScalar(d.hand / this.group.scale.x);
+    const k = d.hand / this.group.scale.x, thick = THICKEN[item] ?? 1;
+    m.scale.set(k, k * thick, k * thick);
     m.position.y = (-size.y / 2) * m.scale.y;
     const pivot = new THREE.Group();
     pivot.rotation.set(...d.holdRot);
     pivot.add(m);
-    this.hand.add(pivot);
+    this.heldRoot.add(pivot);
   }
 
   get holding(): ItemId | null {
     return this.held;
   }
 
+  /** A tool the character keeps in hand when not showing an item: brush, rod, book. */
+  setProp(prop: THREE.Object3D | null): void {
+    this.propRoot.clear();
+    if (prop) this.propRoot.add(prop);
+  }
+
   /** Turns the head toward a world point (null: look ahead). */
   lookAt(point: THREE.Vector3 | null): void {
-    this.lookTarget = point ? point.clone() : null;
+    this.lookTarget = point ? (this.lookTarget ?? new THREE.Vector3()).copy(point) : null;
   }
 
   update(dt: number): void {
     this.t += dt;
     const t = this.t + this.phase;
     const B = this.bones;
-    for (const k of Object.keys(B)) B[k].rotation.set(0, 0, 0);
-    B.root.position.y = 0;
-    let headX = 0;
-    let headY = 0;
-    let headZ = 0;
-    let spineX = this.hunch;
-    let armLX = 0.02, armLZ = 0.07, armRX = 0.02, armRZ = -0.07, elbowLX = -0.12, elbowRX = -0.12;
-    let legLX = 0, legRX = 0, kneeLX = 0, kneeRX = 0;
-    let bob = 0;
+    const p = this.want;
+    Object.assign(p, REST);
+    p.spineX = this.hunch;
+    this.speaking = Math.max(0, this.speaking - dt);
+    const talking = this.base === "talk" || this.speaking > 0;
+    let shake = 0, sitDrop = 0;
 
     switch (this.base) {
       case "walk":
@@ -554,140 +607,240 @@ export class CharacterRig {
         this.walkPhase += dt * speed * (run ? 2.6 : 3.1);
         const s = Math.sin(this.walkPhase);
         const amp = run ? 0.75 : 0.5;
-        legLX = s * amp;
-        legRX = -s * amp;
-        kneeLX = Math.max(0, -Math.cos(this.walkPhase)) * amp * 1.1;
-        kneeRX = Math.max(0, Math.cos(this.walkPhase)) * amp * 1.1;
-        armLX = -s * amp * 0.85;
-        armRX = s * amp * 0.85;
-        elbowLX = elbowRX = -0.35 - run * 0.6;
-        bob = Math.abs(Math.cos(this.walkPhase)) * (run ? 0.06 : 0.035);
-        spineX += 0.05 + run * 0.12;
+        p.legLX = s * amp;
+        p.legRX = -s * amp;
+        p.kneeLX = Math.max(0, -Math.cos(this.walkPhase)) * amp * 1.1;
+        p.kneeRX = Math.max(0, Math.cos(this.walkPhase)) * amp * 1.1;
+        p.armLX = -s * amp * 0.85;
+        p.armRX = s * amp * 0.85;
+        p.elbowLX = p.elbowRX = -0.35 - run * 0.6;
+        p.bob = Math.abs(Math.cos(this.walkPhase)) * (run ? 0.06 : 0.035);
+        p.spineX += 0.05 + run * 0.12;
+        p.spineZ = s * 0.03;
         break;
       }
-      case "talk":
-        headX = Math.sin(t * 5.2) * 0.04;
-        armRX = -0.45 - Math.max(0, Math.sin(t * 2.4)) * 0.35;
-        elbowRX = -0.7;
-        armRZ = -0.15;
-        spineX += Math.sin(t * 1.6) * 0.015;
-        break;
       case "sit":
-        legLX = legRX = -1.45;
-        kneeLX = kneeRX = 1.45;
-        B.root.position.y = -0.02;
-        armLX = armRX = -0.5;
-        elbowLX = elbowRX = -0.9;
-        armLZ = 0.12;
-        armRZ = -0.12;
-        spineX += Math.sin(t * 1.4) * 0.012;
+        // A long skirt hides the legs, so they stay tucked instead of poking through it.
+        p.legLX = p.legRX = this.longSkirt ? -0.42 : -1.45;
+        p.kneeLX = p.kneeRX = this.longSkirt ? 0.42 : 1.45;
+        sitDrop = -0.02;
+        p.armLX = p.armRX = -0.5;
+        p.elbowLX = p.elbowRX = -0.9;
+        p.armLZ = 0.12;
+        p.armRZ = -0.12;
+        p.spineX += Math.sin(t * 1.4) * 0.012;
+        IDLES[this.id]?.(p, t);
         break;
       case "sad":
-        headX = 0.38;
-        spineX += 0.14;
-        armLZ = 0.02;
-        armRZ = -0.02;
+        p.headX = 0.38;
+        p.spineX += 0.14;
+        p.armLZ = 0.02;
+        p.armRZ = -0.02;
         break;
       case "think":
-        armRX = -2.2;
-        armRZ = 0.35;
-        elbowRX = -1.9;
-        headZ = 0.14;
-        headX = -0.08;
+        p.armRX = -2.2;
+        p.armRZ = 0.35;
+        p.elbowRX = -1.9;
+        p.headZ = 0.14;
+        p.headX = -0.08;
         break;
       case "present":
-        armRX = -1.7 + Math.sin(t * 2.2) * 0.04;
-        armRZ = -0.1;
-        elbowRX = -0.35;
-        headX = 0.06;
-        spineX += Math.sin(t * 1.6) * 0.012;
+        p.armRX = -1.7 + Math.sin(t * 2.2) * 0.04;
+        p.armRZ = -0.1;
+        p.elbowRX = -0.35;
+        p.headX = 0.06;
+        p.spineX += Math.sin(t * 1.6) * 0.012;
         break;
+      case "dance": {
+        // Three party styles, offset per person: nobody moves in unison.
+        const beat = t * 5.4, up = Math.abs(Math.sin(beat));
+        p.bob = up * 0.1;
+        p.spineZ = Math.sin(beat) * 0.1;
+        p.headZ = -Math.sin(beat) * 0.09;
+        p.kneeLX = Math.max(0, Math.sin(beat)) * 0.5;
+        p.kneeRX = Math.max(0, -Math.sin(beat)) * 0.5;
+        p.legLX = -p.kneeLX * 0.6;
+        p.legRX = -p.kneeRX * 0.6;
+        if (this.danceStyle === 0) {
+          p.armLX = p.armRX = -2.6;
+          p.armLZ = 0.32 + Math.sin(beat) * 0.28;
+          p.armRZ = -0.32 + Math.sin(beat) * 0.28;
+          p.elbowLX = p.elbowRX = -0.25;
+        } else if (this.danceStyle === 1) {
+          p.armLX = p.armRX = -1.25;
+          p.armLZ = -0.1 + up * 0.28;
+          p.armRZ = 0.1 - up * 0.28;
+          p.elbowLX = p.elbowRX = -0.7;
+        } else {
+          p.armLX = -0.5 - Math.max(0, Math.sin(beat * 0.5)) * 2.2;
+          p.armRX = -0.5 - Math.max(0, -Math.sin(beat * 0.5)) * 2.2;
+          p.elbowLX = p.elbowRX = -0.55;
+          p.armLZ = 0.22;
+          p.armRZ = -0.22;
+        }
+        break;
+      }
       default:
-        spineX += Math.sin(t * 1.6) * 0.018;
-        armLZ += Math.sin(t * 1.6) * 0.02;
-        armRZ -= Math.sin(t * 1.6) * 0.02;
-        headY = Math.sin(t * 0.45) * 0.12;
-        headX = Math.sin(t * 0.7) * 0.03;
+        // Breathing, a little weight shift, then whatever this person likes to do.
+        p.spineX += Math.sin(t * 1.6) * 0.018;
+        p.spineZ = Math.sin(t * 0.41) * 0.014;
+        p.armLZ += Math.sin(t * 1.6) * 0.02;
+        p.armRZ -= Math.sin(t * 1.6) * 0.02;
+        p.headY = Math.sin(t * 0.45) * 0.12;
+        p.headX = Math.sin(t * 0.7) * 0.03;
+        p.bob = Math.sin(t * 1.6) * 0.004;
+        if (!talking) IDLES[this.id]?.(p, t);
         break;
+    }
+
+    if (talking && (this.base === "idle" || this.base === "talk")) {
+      p.headX = Math.sin(t * 5.2) * 0.04;
+      p.headZ = Math.sin(t * 1.3) * 0.045;
+      p.armRX = -0.55 - Math.max(0, Math.sin(t * 2.4)) * 0.42;
+      p.elbowRX = -0.85;
+      p.armRZ = -0.18;
+      p.armLX = -0.28 - Math.max(0, Math.sin(t * 1.7 + 1)) * 0.3;
+      p.elbowLX = -0.7;
+      p.armLZ = 0.14;
+      p.spineX += Math.sin(t * 1.6) * 0.015;
     }
 
     if (this.gesture) {
       const g = this.gesture;
       g.t += dt;
-      const p = Math.min(1, g.t / GESTURE_TIME[g.kind]);
-      const env = Math.sin(Math.PI * p);
+      const u = Math.min(1, g.t / GESTURE_TIME[g.kind]);
+      const env = Math.sin(Math.PI * u);
       switch (g.kind) {
         case "nod":
-          headX = 0.32 * Math.abs(Math.sin(p * Math.PI * 2));
-          headY *= 0.2;
+          p.headX = 0.32 * Math.abs(Math.sin(u * Math.PI * 2));
+          p.headY *= 0.2;
+          p.bob += Math.abs(Math.sin(u * Math.PI * 2)) * 0.02;
           break;
-        case "shake":
-          headY = 0.5 * Math.sin(p * Math.PI * 6) * (1 - p * 0.4);
-          headX = 0.05;
+        case "shake": {
+          // "No" is more than the head: a small open-handed shrug goes with it.
+          shake = 0.5 * Math.sin(u * Math.PI * 6) * (1 - u * 0.4);
+          const k = Math.min(1, env * 2.4);
+          p.headX = 0.05;
+          p.armLZ = 0.48 * k; p.armRZ = -0.48 * k;
+          p.armLX = -0.32 * k; p.armRX = -0.32 * k;
+          p.elbowLX = -1.1 * k; p.elbowRX = -1.1 * k;
           break;
+        }
         case "cheer": {
           const up = Math.min(1, env * 3);
-          armLX = armRX = -2.7 * up;
-          armLZ = 0.35 * up;
-          armRZ = -0.35 * up;
-          elbowLX = elbowRX = -0.2;
-          bob += Math.abs(Math.sin(p * Math.PI * 2)) * 0.12;
-          headX = -0.15 * up;
+          p.armLX = p.armRX = -2.7 * up;
+          p.armLZ = 0.35 * up;
+          p.armRZ = -0.35 * up;
+          p.elbowLX = p.elbowRX = -0.2;
+          p.bob += Math.abs(Math.sin(u * Math.PI * 2)) * 0.12;
+          p.headX = -0.15 * up;
           break;
         }
         case "give":
         case "show": {
           const k = Math.min(1, env * 2.2);
-          armRX = (g.kind === "show" ? -1.75 : -1.25) * k;
-          armRZ = -0.1;
-          elbowRX = (g.kind === "show" ? -0.35 : -0.25) * k;
-          headX = 0.08 * k;
+          p.armRX = (g.kind === "show" ? -1.75 : -1.3) * k;
+          p.armRZ = -0.1;
+          p.elbowRX = (g.kind === "show" ? -0.35 : -0.25) * k;
+          p.headX = 0.08 * k;
+          p.spineX += 0.06 * k;
+          break;
+        }
+        case "reach": {
+          // Both hands out to take what is coming, with a lean toward it.
+          const k = Math.min(1, env * 2.4);
+          p.armLX = p.armRX = -1.2 * k;
+          p.armLZ = 0.1;
+          p.armRZ = -0.1;
+          p.elbowLX = p.elbowRX = -0.38 * k;
+          p.spineX += 0.09 * k;
+          p.headX = 0.12 * k;
+          break;
+        }
+        case "hop": {
+          const k = Math.min(1, env * 2.6);
+          p.bob += Math.abs(Math.sin(u * Math.PI * 2)) * 0.15;
+          p.armLX = p.armRX = -1.75 * k;
+          p.armLZ = 0.45 * k;
+          p.armRZ = -0.45 * k;
+          p.elbowLX = p.elbowRX = -0.5;
+          p.kneeLX = p.kneeRX = Math.abs(Math.sin(u * Math.PI * 2)) * 0.45;
+          p.legLX = p.legRX = -Math.abs(Math.sin(u * Math.PI * 2)) * 0.22;
+          break;
+        }
+        case "wave": {
+          const k = Math.min(1, env * 3);
+          p.armRX = -2.6 * k;
+          p.armRZ = (-0.3 + Math.sin(u * Math.PI * 9) * 0.34) * k;
+          p.elbowRX = -0.35;
+          p.spineZ -= 0.05 * k;
+          break;
+        }
+        case "clap": {
+          const k = Math.min(1, env * 3);
+          p.armLX = p.armRX = -1.25 * k;
+          p.armLZ = (-0.1 + Math.abs(Math.sin(u * Math.PI * 7)) * 0.28) * k;
+          p.armRZ = (0.1 - Math.abs(Math.sin(u * Math.PI * 7)) * 0.28) * k;
+          p.elbowLX = p.elbowRX = -0.65 * k;
           break;
         }
       }
-      if (p >= 1) this.gesture = null;
+      if (u >= 1) this.gesture = null;
     }
 
+    // Everything eases toward its target, so idle, walk, talk and cheer run together.
+    const fast = this.base === "walk" || this.base === "run" || this.base === "dance";
+    const k = dt <= 0 ? 1 : 1 - Math.exp(-dt * (fast ? 26 : this.gesture ? 16 : 11));
+    const n = this.now;
+    for (const key of POSE_KEYS) n[key] += (p[key] - n[key]) * k;
+
     // Head turn toward a target, eased.
-    let wantYaw = headY;
+    let wantYaw = n.headY;
     let wantPitch = 0;
     if (this.lookTarget && this.group.parent) {
-      const local = this.group.worldToLocal(this.lookTarget.clone());
+      const local = this.group.worldToLocal(scratchPoint.copy(this.lookTarget));
       const yaw = Math.atan2(local.x, local.z);
       wantYaw = THREE.MathUtils.clamp(yaw, -0.9, 0.9);
       wantPitch = THREE.MathUtils.clamp(-Math.atan2(local.y - this.height * 0.85 / this.group.scale.x, Math.hypot(local.x, local.z)) * 0.5, -0.3, 0.3);
     }
-    const ease = 1 - Math.exp(-dt * 8);
+    const ease = dt <= 0 ? 1 : 1 - Math.exp(-dt * 8);
     this.headYaw += (wantYaw - this.headYaw) * ease;
     this.headPitch += (wantPitch - this.headPitch) * ease;
 
-    B.hips.position.y = this.hipY0 + bob;
-    B.spine.rotation.x = spineX;
-    B.head.rotation.set(headX + this.headPitch, this.gesture?.kind === "shake" ? headY : this.headYaw, headZ);
-    B.armL.rotation.set(armLX, 0, armLZ);
-    B.armR.rotation.set(armRX, 0, armRZ);
-    B.elbowL.rotation.x = elbowLX;
-    B.elbowR.rotation.x = elbowRX;
-    B.legL.rotation.x = legLX;
-    B.legR.rotation.x = legRX;
-    B.kneeL.rotation.x = kneeLX;
-    B.kneeR.rotation.x = kneeRX;
+    B.root.position.y = sitDrop;
+    B.hips.position.y = this.hipY0 + n.bob;
+    B.spine.rotation.set(n.spineX, n.spineY, n.spineZ);
+    B.head.rotation.set(n.headX + this.headPitch, this.headYaw + shake, n.headZ);
+    B.armL.rotation.set(n.armLX, 0, n.armLZ);
+    B.armR.rotation.set(n.armRX, 0, n.armRZ);
+    B.elbowL.rotation.set(n.elbowLX, 0, 0);
+    B.elbowR.rotation.set(n.elbowRX, 0, 0);
+    B.legL.rotation.set(n.legLX, 0, 0);
+    B.legR.rotation.set(n.legRX, 0, 0);
+    B.kneeL.rotation.set(n.kneeLX, 0, 0);
+    B.kneeR.rotation.set(n.kneeRX, 0, 0);
 
-    // Blinking.
+    // Blinking, now and then twice in quick succession as people really do.
     this.blinkT -= dt;
     const blinking = this.blinkT < 0.12;
-    if (this.blinkT < 0) this.blinkT = 2.4 + ((Math.sin(t * 13.7) + 1) / 2) * 2.6;
-    this.face.geometry = this.faces[this.expr][blinking && this.expr !== "happy" ? 1 : 0];
+    if (this.blinkT < 0) {
+      const chance = (Math.sin(t * 13.7) + 1) / 2;
+      this.blinkT = chance > 0.82 ? 0.24 : 2.4 + chance * 2.6;
+    }
+    const mouthOpen = talking && Math.sin(t * 11) + Math.sin(t * 7.3) > 0.1;
+    const geometry = this.faceFor(this.expr, blinking && this.expr !== "happy", mouthOpen);
+    if (this.face.geometry !== geometry) this.face.geometry = geometry;
   }
 
   dispose(): void {
     this.mesh.geometry.dispose();
-    for (const [a, bb] of Object.values(this.faces)) {
-      a.dispose();
-      bb.dispose();
-    }
+    for (const g of this.faces.values()) g.dispose();
   }
 }
+
+const EXPRESSIONS: Expression[] = ["neutral", "happy", "sad", "surprised", "sorry"];
+const REST = restPose();
+const scratchPoint = new THREE.Vector3();
 
 /** Builds a character rig for a person (or the player). */
 export function buildCharacter(id: LookId): CharacterRig {

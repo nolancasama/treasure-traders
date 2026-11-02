@@ -49,7 +49,9 @@ export function createGame() {
     if (state().hintLevel < 1) for (const npc of Object.values(snapshot.npcs)) if (npc?.indicator === '?') npc.indicator = null;
     world.setState(snapshot);
     if (game.finished && endingPresented) presenter.gather();
-    for (const id of NPC_IDS) if (game.memory[id]?.helped || game.memory[id]?.traded) world.gesture(id, 'cheer');
+    // People you have helped keep a happy face; one cheer happens when you help them, in the beats.
+    const festive = game.finished && endingPresented;
+    if (!active) for (const id of NPC_IDS) world.mood(id, festive || game.memory[id]?.helped || game.memory[id]?.traded ? 'happy' : null);
     ui.setGame(game, objectives(game)[0] ?? null);
   }
   function lock() {
@@ -62,9 +64,14 @@ export function createGame() {
   }
   function save() { state().persist(world.runtime.player); }
   function cancelTalk() {
-    epoch++; active = null; ui.cancel();
+    epoch++; ui.cancel();
+    // Whoever was talking relaxes and puts away whatever they were showing.
+    if (active?.kind === 'npc') { world.gesture(active.id, 'idle'); world.hold(active.id, null); }
+    active = null;
+    world.playerHold(null); world.playerMood(null);
+    world.holdDecorations(null);
     if (state().game) state().setGame(leave(state().game!));
-    state().setBusy(false); world.setCamera({ mode: 'follow' }); world.setKiwi('follow');
+    state().setBusy(false); world.setCamera({ mode: 'follow' }); world.setKiwi(state().game?.finished && endingPresented ? 'perch' : 'follow');
     if (state().phase === 'playing') { save(); sync(); }
     lock();
   }
@@ -96,6 +103,7 @@ export function createGame() {
     if (disposed) return;
     state().setPhase('playing'); save();
     if (game.mode === 'replay') {
+      presenter.reset();
       state().setGame(state().campaign); state().setPhase('title');
       if (state().campaign) ui.setGame(state().campaign!);
       ui.screen('chapters');
@@ -114,6 +122,10 @@ export function createGame() {
     state().setBusy(true); lock();
     while (alive()) {
       const old = state().game;
+      // State applies before its presentation, so what a deposit will reveal has to wait for the item to land.
+      if (old && step.beats.some(beat => beat.kind === 'event' && beat.event.type === 'chestDeposit')) world.holdDecorations(worldStateFromGame(old).chestCount);
+      // The last deposit plays on the chest itself, not the conversation with the Mayor.
+      if (step.beats.some(beat => beat.kind === 'event' && beat.event.type === 'finale')) { world.setFinale('armed'); active = null; world.playCutscene('finale'); }
       state().setGame(step.state);
       if (!old || JSON.stringify([old.holdings, old.flags, old.journal]) !== JSON.stringify([step.state.holdings, step.state.flags, step.state.journal])) {
         progressAt = Date.now(); hintOffered = false; state().setHintLevel(0); ui.hint(undefined);
@@ -131,6 +143,13 @@ export function createGame() {
       const input = await ui.prompt(step.prompt);
       if (!alive()) return;
       if (input.kind === 'cancelled') break;
+      // The child's own "Yes" or "No" shows on their character too.
+      if (input.kind === 'ask') world.playerGesture('talk');
+      else {
+        world.playerGesture(input.answer === 'yes' ? 'nod' : 'shake');
+        world.playerMood(input.answer === 'yes' ? 'happy' : 'sorry');
+        setTimeout(() => { if (token === epoch) world.playerMood(null); }, 1600);
+      }
       const game = state().game!;
       step = input.kind === 'ask' ? ask(game, step.prompt.target, input.item)
         : step.prompt.kind === 'answer' ? answer(game, step.prompt.target, step.prompt.questionId, input.answer)
@@ -168,6 +187,7 @@ export function createGame() {
     if (action === 'explore') { ui.screen(null); state().setPhase('playing'); world.setCamera({ mode: 'follow' }); lock(); return; }
     if (action === 'chapters' || action === 'replay') { ui.screen('chapters'); return; }
     cancelTalk();
+    presenter.reset();
     if (action === 'reset') { state().reset(); ui.screen('title'); ui.notice('Your adventure was reset. はじめからあそべるよ。'); lock(); return; }
     if (action === 'title') { state().setPhase('title'); if (state().campaign) ui.setGame(state().campaign!); ui.screen('title'); lock(); return; }
     if (action === 'chapter') {
@@ -191,7 +211,7 @@ export function createGame() {
     const game = state().game!;
     world.teleport(game.position ?? { x: 0, z: 8, yaw: Math.PI });
     if (action === 'continue') {
-      if (game.finished) { world.teleport(game.position ?? { x: -48, z: 4 }); world.setKiwi('perch'); }
+      if (game.finished) { presenter.gather(); world.teleport(game.position ?? { x: -48, z: 4 }); }
       else if (game.chapterComplete) { await finishChapter(); return; }
       else if (game.question) {
         const q = game.question, line = q.kind === 'libraryReturn' ? L.askMyNotebooks : L.ask(q.item);

@@ -1,9 +1,9 @@
-# World API — frozen v1 (2026-10-27)
+# World API — frozen v1 (2026-10-27), additive v1.1 (2026-11-03)
 
 Import `createWorld`, `worldStateFromGame`, and types from `src/game/world`.
 Create one API instance per world, then mount `<World world={world} />` from
-`src/scene/World.tsx` inside an R3F Canvas (perspective camera, fov 46,
-near 0.1, far 180, dpr `Math.min(devicePixelRatio, 1.5)`). The world owns
+`src/scene/World.tsx` inside an R3F Canvas (`flat`, perspective camera, fov 46,
+near 0.1, far 420, dpr `Math.min(devicePixelRatio, 1.5)`). The world owns
 lighting, movement, camera, scenery, actors, and effects. No HUD, dialogue,
 audio, chapter transitions, or model mutations occur here.
 
@@ -40,9 +40,16 @@ at z=28–37 and pier ending z=49; all five district centres are within about
 | `setCamera({mode:"conversation",target:{x,y,z}})` | Three-quarter view over the player's shoulder. Lock input separately. |
 | `setCamera({mode:"path",elapsed:0,keys})` | Each key has `{position,target,duration}`. Duration is seconds to the next key; last key holds, then follow resumes. |
 | `playCutscene(name)` | Preset `intro`, `cart`, `school`, `bridge`, `arch`, or `finale` camera path. Lock input and trigger FX separately. |
-| `gesture(npc,state)` | Art-kit gesture or loop (`nod`, `shake`, `cheer`, `give`, `show`, `idle`, `talk`, `think`, `sad`, `sit`, `present`, `walk`, `run`). |
+| `gesture(npc,state)` | Art-kit gesture (`nod`, `shake`, `cheer`, `give`, `show`, `wave`, `reach`, `hop`, `clap`) or loop (`think`, `sad`, `sit`, `present`, `walk`, `run`, `dance`). `idle` returns to the person's resting pose; `talk` moves mouth and hands for about 2.4 s, then stops by itself. |
 | `hold(npc,itemOrNull)` | Show an art-kit item in hand, or clear it. |
-| `setKiwi(mode,target?)` | `follow`, shoulder `perch`, or `hint` flight to a world position. |
+| `mood(npc,expressionOrNull)` | Face until told otherwise: `happy`, `sad`, `surprised`, `sorry`; null is neutral. |
+| `speak(npc,seconds)` | Mouth and hands move for this long, over whatever else they are doing. |
+| `playerGesture` / `playerHold` / `playerMood` | The same three for the player's character. |
+| `setKiwi(mode,target?)` | `follow`, shoulder `perch`, `hint` flight to a world position, or delighted `cheer` circles. |
+| `kiwiSpeak(seconds)` | Kiwi's head bobs along with its line. |
+| `holdDecorations(levelOrNull)` | Decorations show at most this chest count. The flow holds a deposit's reveal until the item has landed. |
+| `setFinale(stage)` | `armed`: chest stays shut and dusk waits, even at 9/9. `blaze`: gold light on a shut chest. `open`: lid opens. `none`: follows state. |
+| `setParty(boolean)` | Everyone's resting pose becomes `dance`; ambient festival folk make way. |
 | `fx(command)` | Starts an independent effect; returns its numeric ID. See below. |
 | `walkTo({x,z},interaction?)` | Plans a collision-safe path; returns false when locked or no path. Optional target interacts on approach. |
 | `teleport({x,z,yaw?})` | Safe relocation and cancellation of the current walk. |
@@ -62,8 +69,11 @@ FX commands (all positions `{x,y,z}`):
 - `{kind:"sparkles"|"decoration"|"lock"|"fireworks",at,index?}` — particle bursts. State drives lock opening; `index` is available to the flow for bookkeeping.
 - `{kind:"wind",from,targets:Position[]}` — nine art-kit items scatter to the supplied district targets.
 
-Effects expire themselves; none mutate game state. Decoration pop-ins and gate
-animations happen automatically from state. Gate collision switches immediately
+Effects expire themselves; none mutate game state. Fireworks are one salvo of
+four shells per command, launched from `at`. Decoration pop-ins and gate
+animations happen automatically from state (decorations within `holdDecorations`,
+one piece at a time, so they arrive in about two seconds rather than appearing).
+Gate collision switches immediately
 with state; visual opening eases over the following second. A camera path does
 not implicitly start wind, fireworks, or a model transition.
 
@@ -81,7 +91,11 @@ but should use commands for writes. Per-frame state lives outside React.
 Unsubscribe listeners on flow disposal; unmounting World removes input listeners
 and releases owned GPU resources. Cached art-kit geometry/materials remain shared.
 
-Review at `?gallery=world`; optional `view=square|market|school|harbor|festival|library`,
-`chapter=1..5`, and `chest=2|4|6|8|9`. Gallery controls and renderer probe are
-development tools, not a game HUD. `npm run shots` writes district PNGs and
-renderer metric JSON to `.tmp/shots/world/` at 1366×768.
+Review at `?gallery=world`; optional `view=` (districts, `*-play` follow views,
+`conversation`, `stall-talk`, `bench`, `title`, `finale`, `fireworks`, `wind`, `trade`,
+`deposit`, `chest-close`, `sea-chest`, `sky`, gate views), `chapter=1..5`, `chest=2|4|6|8|9`,
+`age=` (holds an effect at this many seconds) and `clean=1` (no review overlay).
+Gallery controls and renderer probe are development tools, not a game HUD.
+`npm run shots` writes PNGs and renderer metric JSON to `.tmp/shots/world/` at
+1366×768. `PERF_LABEL=x npx playwright test --config=playwright.shots.config.ts
+tests/shots/perf.spec.ts` writes relative frame cost to `.tmp/shots/perf/x.json`.

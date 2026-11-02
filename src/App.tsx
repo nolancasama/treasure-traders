@@ -40,8 +40,9 @@ function GameBridge({ game }: { game: Game }) {
   }, [game, camera, gl, size]);
   useFrame(({ clock }) => {
     if (game.store.getState().phase === 'title') {
-      const angle = clock.elapsedTime * 0.035;
-      game.world.setCamera({ mode: 'path', elapsed: 0, keys: [{ position: { x: Math.sin(angle) * 24, y: 22, z: Math.cos(angle) * 24 }, target: { x: 0, y: 0, z: -3 }, duration: 1e8 }] });
+      // High enough to clear every roof, and starting off to the side of the raised bridge.
+      const angle = 0.75 + clock.elapsedTime * 0.03;
+      game.world.setCamera({ mode: 'path', elapsed: 0, keys: [{ position: { x: Math.sin(angle) * 30, y: 15, z: Math.cos(angle) * 30 }, target: { x: 0, y: 0.5, z: -3 }, duration: 1e8 }] });
     }
     const hook = Reflect.get(window, '__tt') as { updateRenderer?(): void } | undefined;
     hook?.updateRenderer?.();
@@ -56,7 +57,7 @@ export function App() {
   const presentation = useSyncExternalStore(game.ui.subscribe, game.ui.getSnapshot);
   useEffect(() => () => game.dispose(), [game]);
   return <main style={{ position: 'fixed', inset: 0 }} data-bag-check={presentation.bagCheck ? 'true' : undefined}>
-    <Canvas dpr={Math.min(devicePixelRatio, 1.5)} gl={{ antialias: true }} camera={{ position: [4, 8, 18], fov: 46, near: 0.1, far: 180 }}>
+    <Canvas flat dpr={Math.min(devicePixelRatio, 1.5)} gl={{ antialias: true }} camera={{ position: [4, 8, 18], fov: 46, near: 0.1, far: 420 }}>
       <World world={game.world} />
       <GameBridge game={game} />
     </Canvas>

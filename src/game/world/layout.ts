@@ -53,6 +53,8 @@ export const SOLIDS: readonly Solid[] = [
   box("notice-board", "square", 11.5, 6, 0.35, 1.5, 2.1),
   box("flower-bed", "square", -8, -5, 1.6, 1.2, 0.4),
   box("festival-chest-base", "square", 0, -8, 1.5, 0.7, 0.15),
+  // Corner planters keep the middle of the square open for walking and tapping.
+  ...([[-15.5, -15.5], [15.5, -15.5], [-15.5, 15.5], [15.5, 15.5]] as const).map(([x, z], i): Solid => ({ id: `square-planter-${i}`, district: "square", kind: "circle", x, z, r: 1.15, y: 0, height: 0.75 })),
   box("bakery-stall", "market", 30, -7, 3.3, 1.8, 1.1),
   box("flowers-stall", "market", 30, 7, 3.3, 1.8, 1.1),
   box("toys-stall", "market", 45, -7, 3.3, 1.8, 1.1),
@@ -79,6 +81,14 @@ export const SOLIDS: readonly Solid[] = [
   box("festival-stall-south", "festival", -43, 12, 3, 1.5, 1.1),
   box("grounds-crate", "festival", -54, -10, 0.8, 0.8, 0.7),
   box("grounds-basket", "festival", -33, 10, 0.7, 0.7, 0.5),
+  // Festival Grounds furniture keeps to the edges so the field stays a gathering space.
+  box("prize-tent", "festival", -57, -15, 3.4, 2.4, 2.6),
+  box("drawing-booth", "festival", -35.5, -15, 3, 2, 1.1),
+  box("picnic-west", "festival", -52, 14.5, 2.2, 1.25, 0.8),
+  box("picnic-east", "festival", -34, 15, 2.2, 1.25, 0.8),
+  { id: "festival-maypole", district: "festival", kind: "circle", x: -47, z: 0, r: 0.4, y: 0, height: 7 },
+  { id: "stage-planter-north", district: "festival", kind: "circle", x: -58.2, z: -5, r: 0.7, y: 0, height: 0.7 },
+  { id: "stage-planter-south", district: "festival", kind: "circle", x: -58.2, z: 5, r: 0.7, y: 0, height: 0.7 },
   { id: "harbor-barrel", district: "harbor", kind: "circle", x: 20, z: 33, r: 1, y: 0, height: 0.75 },
   ...Object.entries(LAMP_POSITIONS).flatMap(([district, points]) => points.map((p, i): Solid => ({
     id: `lamp-${district}-${i}`, district: district as DistrictId, kind: "circle", ...p, r: 0.21, y: 0, height: 3.8
@@ -117,14 +127,60 @@ export const SPOTS: Record<string, Position> = {
   "grounds-5": { x: -35, y: 0, z: 3 }, "grounds-6": { x: -49, y: 0, z: -3 }
 };
 
-const home = (district: DistrictId, x: number, z: number, y = 0, yaw = Math.PI): NpcPlacement => ({ district, x, y, z, yaw });
+// +z faces the follow camera, which always looks north; faces read from a distance.
+const home = (district: DistrictId, x: number, z: number, y = 0, yaw = 0): NpcPlacement => ({ district, x, y, z, yaw });
 export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
-  pom: home("square", 2.6, -8), ume: home("square", -10, 5), ken: home("square", 9, 6),
+  pom: home("square", 2.6, -8), ume: home("square", -10, 5), ken: home("square", 9, 6, 0, Math.PI / 2),
   bruno: home("market", 30, -4), lily: home("market", 30, 4), max: home("market", 45, -4), sara: home("market", 45, 4),
   green: home("school", 5, -36), page: home("school", -14.4, -40.5, 0.12), yuki: home("school", -4, -35),
-  tom: home("school", 9, -30), emma: home("school", 9, -44), bo: home("harbor", 5, 33, 0.12), finn: home("harbor", 8, 47, 0.12),
-  mia: home("harbor", 19, 34), leo: home("harbor", -8, 32), dan: home("festival", -52, -4), aya: home("festival", -44, 8)
+  tom: home("school", 9, -30), emma: home("school", 9, -44), bo: home("harbor", 5, 33, 0.12), finn: home("harbor", 8, 47, 0.12, -Math.PI / 2),
+  mia: home("harbor", 19, 34), leo: home("harbor", -8, 32, 0, -Math.PI / 2), dan: home("festival", -52, -4, 0, 0.6), aya: home("festival", -44, 8)
 };
+
+/** Grandma sits on her bench while at home; her interaction point stays walkable. */
+export const UME_SEAT = { x: -10, y: 0.42, z: 4.12 };
+
+/** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
+export const CHEST_SCALE = 1.5;
+export const chestPose = (chapter: ChapterId) => chapter === 5
+  ? { x: -60.7, y: 0.6, z: 0, yaw: Math.PI * 0.3 }
+  : { x: 0, y: 0.15, z: -8, yaw: 0 };
+
+/** The ending's framing: from the open east of the field, with the sky over the stage. */
+export const FINALE_VIEW = { position: { x: -33.5, y: 3.3, z: 3.8 }, target: { x: -56, y: 7, z: -0.8 } };
+/** The cast in a crescent before the stage, facing it and the view; clear of the maypole and the lens. */
+export const FINALE_CREW: Partial<Record<NpcId, { x: number; z: number; yaw: number }>> = {
+  pom: { x: -56.4, z: -1.9, yaw: 1.2 },
+  ...Object.fromEntries(NPC_IDS.filter(id => id !== "pom").map((id, index, all) => {
+    const a = -0.98 + index / (all.length - 1) * 1.96, r = index % 2 ? 10.2 : 7.6;
+    return [id, { x: -59 + Math.cos(a) * r, z: 0.4 + Math.sin(a) * r, yaw: a * 0.35 + (index % 2 ? 1.1 : 1.5) }];
+  }))
+};
+
+export type TreeKind = "round" | "pine" | "blossom";
+export interface Tree { x: number; z: number; s: number; kind: TreeKind }
+const tree = (x: number, z: number, s = 1, kind: TreeKind = "round"): Tree => ({ x, z, s, kind });
+/** Decorative: none has a collider, so all stand outside WALK_AREAS. South of a play area stays low. */
+export const TREES: Record<DistrictId, readonly Tree[]> = {
+  square: [tree(-20, -13.5), tree(-20.2, 11, 1.05, "blossom"), tree(20, -14.5, 1.05), tree(20.4, 12.5, 0.95, "blossom"), tree(-12, -20.2, 0.95), tree(12, -20.2)],
+  market: [tree(25, -15.5), tree(33.5, -16.5, 1.1, "pine"), tree(40.5, -15.5, 1.05), tree(50, -16.5, 1.15, "pine"), tree(58.5, -14.5), tree(60.5, -4, 1.2, "pine"), tree(60, 7, 0.95)],
+  school: [tree(-15.8, -29.5, 0.9), tree(-29, -33, 1.05), tree(-30, -46), tree(-15, -58, 1.1, "pine"), tree(5, -60.5, 1.2, "pine"), tree(19, -57), tree(27, -45, 1.05), tree(28, -33, 1.1, "blossom")],
+  harbor: [tree(-21, 31, 1, "pine"), tree(-20, 36.5, 0.85), tree(28.5, 36.5, 0.9, "pine")],
+  festival: [tree(-69, -14), tree(-70, 11, 1.05), tree(-71.5, -1, 1.2, "pine"), tree(-65, -20.5, 1.05, "blossom"), tree(-46, -20.6, 0.95), tree(-30, -20, 1.05, "blossom"), tree(-26, -9.5, 0.85), tree(-26, 13, 0.8)]
+};
+
+export interface House { x: number; z: number; w: number; d: number; h: number; style: number; ridgeAlongX: boolean; district: DistrictId }
+const house = (x: number, z: number, w: number, d: number, h: number, style: number, ridgeAlongX: boolean, district: DistrictId): House => ({ x, z, w, d, h, style, ridgeAlongX, district });
+/** Backdrop cottages north of the play areas: the camera looks at them, never through them. */
+export const HOUSES: readonly House[] = [
+  house(-21, -25.4, 7, 5, 3.2, 0, true, "square"), house(-31, -24.6, 6.4, 5.2, 3.5, 1, false, "square"),
+  house(-41, -25.2, 7, 5, 3.2, 2, true, "festival"), house(-50.5, -24.6, 6.2, 5.4, 3.6, 3, false, "festival"),
+  house(-60, -25.4, 7, 5, 3.2, 1, true, "festival"), house(-70, -24.5, 6.2, 5.2, 3.4, 0, false, "festival"),
+  house(20.5, -24.8, 6.4, 5, 3.3, 2, false, "market"), house(29.5, -23.6, 7, 5, 3.2, 3, true, "market"),
+  house(38.5, -24.2, 6.2, 5.2, 3.6, 0, false, "market"), house(47.5, -23.4, 7, 5, 3.2, 1, true, "market"),
+  house(56.5, -24.2, 6.4, 5.2, 3.4, 2, false, "market"),
+  house(27.8, 32.4, 5.2, 4.6, 2.8, 1, true, "harbor")
+];
 
 /** Maps the core's abstract placements without changing chapter behavior. */
 export function npcPosition(chapter: ChapterId, npc: NpcId, placement: Placement): NpcPlacement {

@@ -428,3 +428,87 @@ is executed directly, in the same order. The worktrees were removed.
   during a tapped approach could strand the player. WORLD_API.md now states
   that unlocking leaves an active walk alone. Rejected: diffing the lock state
   in the flow, which leaves the world API trap in place for other callers.
+
+## 2026-11-03 — Graphics and visual polish
+
+The teacher supplied a 14-section upgrade plan ("a living 3D storybook"). It was
+accepted with these changes. Gameplay, English, chapters, saves and collision
+behaviour are unchanged except where noted.
+
+- **The muddy look had two causes, and neither was the art.** R3F's default ACES
+  tone mapping desaturates everything, so all canvases are now `flat`: authored
+  colours reach the screen, at no shader cost. And `PartBuilder(0)`, meant as "no
+  ambient occlusion", darkened anything at or below y = 0 to 58%, which covered
+  all paving, grass, bunting and the lower half of every lantern. Fixed at source.
+  Rejected: brightening every colour to compensate.
+- **The "beige beam" was the raised drawbridge,** a 13.6 m leaf at 78° standing
+  right where the follow camera sits. The plan asked both to remove the beam and
+  to keep the drawbridge animation unchanged. Hinge, easing and collision are
+  unchanged; the raised angle drops to about 29°. At that angle the follow camera
+  clears it everywhere, because a ray from the camera to the player climbs faster
+  than the leaf does. Rejected: fading a 13 m slab in and out of the main view.
+- **Occlusion is a dithered hole, not transparency.** Scenery shaders discard a
+  stipple pattern in a screen-space circle around the player and their partner
+  (or the two nearest people), only for fragments more than 1.1 m in front of
+  them, and fade anything within 3 m of the lens. This costs no draw calls and has
+  no sort problems, and it works on one merged mesh holding a whole district.
+  Depth and pixel position are computed once per frame; the fragment test is about
+  20 operations, on scenery only. Rejected: per-object alpha fades, which would
+  mean splitting the merged meshes (draw calls) and sorting transparency.
+- **The conversation camera chooses its side.** `cameraRig.ts` tries both sides at
+  several distances against a list of solids, trees, cottages, awnings and posts,
+  and takes the best view of both heads. The old fixed side was blocked in 9 of
+  174 approaches; the new one in 0 (unit tested, with the old formula kept as the
+  known-bad control). It is chosen once per pairing so the view never jumps.
+- **Merged scenery is split into map-cell chunks.** One district-sized mesh has a
+  bounding sphere that is never culled, so every district drew every frame.
+  `PartBuilder.buildChunks` gives frustum culling something to work with. Roughly
+  three times the scenery now costs about the same triangles per view as before.
+- **Nothing is strung south of the player or across the middle of a play area.**
+  The camera looks north, so anything south of the player hangs between them and
+  the lens, right across the screen. First renders with lantern wires crossing the
+  market street proved it. Market lanterns hang on stalls and along the north
+  fence; the festival's pennants run north from the maypole and along both edges.
+- **New colliders, festival and square only.** Four corner planters in the square;
+  in the grounds a prize tent, drawing booth, two picnic tables, a maypole and two
+  stage planters. "Keep the collision unchanged" and "add a stage, stalls, a tent
+  and tables" cannot both hold if furniture is to be solid, and walking through
+  a visible table is worse. All stand at the edges away from routes, spots and
+  placements; the unit tests re-solve every chapter's routes through them. Fences
+  that stood inside walk areas moved just outside them, with no collision change.
+- **The chest stands on the stage in Chapter 5,** as SPEC §6.5 always said, instead
+  of beside it on open grass where players could walk through it. It is also 1.5×
+  larger (inside its existing footprint in the square) so its medallions can be read.
+- **Reject: stationery on display at the stalls.** The plan offered it "where
+  appropriate" and warned against spoilers. It would show which trader has what
+  before the child asks, which removes the reason to ask ("Ask before you get",
+  and the earlier rejection of visible giveaways). A trader shows the item in hand
+  once asked, as before.
+- **State still applies first; what a deposit reveals waits for the item to land.**
+  `holdDecorations` and `setFinale` hold the chest lid, dusk and decorations back
+  during the beats, then each chapter's clear plays a short camera shot of the town
+  getting more festive. Previously the lid opened and the lanterns appeared before
+  the pen had left the player's hand. World API v1.1 adds these and a few character
+  commands (see WORLD_API.md); nothing existing changed meaning.
+- **Dusk comes with the ninth item.** Fireworks and lanterns need a dark sky, and
+  additive sparks on a pale one are what read as "faint confetti". The day also
+  warms slightly with each deposit. Only light colours and fog change, so it adds
+  no lights. Kept bright enough to play in, since free roam stays at dusk.
+- **Fireworks run on the GPU.** Every spark's whole flight is vertex data and one
+  uniform drives it: a salvo of four shells (about 1,300 points) is one draw call
+  and no per-frame CPU work. Rejected: more instanced matrices per frame.
+- **Characters ease toward a target pose every frame,** so all state changes blend
+  without a transition table. Faces build lazily (expression × blink × talking) since
+  most combinations never appear. Limb segments were reduced so a full cast of 19 fits
+  the triangle budget; the head stays round for portraits and conversations.
+- **Fixed in passing:** helped NPCs re-cheered on every state sync and never strolled
+  (they now keep a happy face and cheer once, when helped); the `talk` state never
+  ended (it is now timed); NPCs faced away from the camera by default (they now face
+  it unless busy); coplanar grass slabs z-fought at the edges of the square.
+- **The interface draws its own icons.** Emoji render differently per OS and some
+  managed Chromebooks lack the glyphs. `UiIcon` matches the item icons' ink and
+  stroke. ✓ and ✗ stay as text so Yes and No are never colour-only. The empty-slot
+  silhouettes of pen, marker and pencil got separate drawings, since a one-colour
+  outline loses the only thing that told them apart.
+- **Pushing to `main` deploys,** because the Pages workflow runs on push. The plan
+  said not to deploy; the teacher then explicitly approved pushing to `main`.

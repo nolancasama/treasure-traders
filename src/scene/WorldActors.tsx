@@ -2,13 +2,15 @@ import { useEffect, useMemo } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { ITEM_IDS, NPC_IDS, type NpcId } from "../game/content/ids";
-import { SPOTS } from "../game/world/layout";
-import type { WorldRuntime } from "../game/world/types";
-import { blobShadow, glowMat, shadowMat } from "./materials";
+import { festivalRevealed } from "../game/runtime";
+import { CHEST_SCALE, chestPose, NPC_HOMES, SPOTS, UME_SEAT } from "../game/world/layout";
+import type { NpcCommand, WorldRuntime } from "../game/world/types";
+import { blobShadow, glowMat, shadowMat, starTexture } from "./materials";
 import { FestivalChest } from "./models/festivalChest";
-import { buildItem, ITEM_DISPLAY } from "./models/items";
+import { buildItem, ITEM_DISPLAY, THICKEN } from "./models/items";
 import { KiwiRig } from "./models/kiwi";
-import { buildCharacter } from "./models/people";
+import { buildCharacter, type CharacterRig } from "./models/people";
+import { props } from "./models/props";
 import { SeaChest } from "./models/seaChest";
 import { textSprite } from "./textSprite";
 
@@ -32,6 +34,37 @@ function disposeSeaChest(chest: SeaChest) {
   lockGeometries.forEach(geometry => geometry.dispose());
 }
 
+/** People's tools, held in the right hand whenever no item is being shown. */
+function equip(id: NpcId, rig: CharacterRig) {
+  if (id === "ken" || id === "leo") {
+    const brush = props.brush();
+    brush.rotation.x = 3.8;
+    brush.position.z = 0.02;
+    brush.scale.setScalar(1.6);
+    rig.setProp(brush);
+  } else if (id === "finn") {
+    const rod = props.fishingRod();
+    rod.rotation.x = 2.1;
+    rod.scale.setScalar(1.15);
+    rig.setProp(rod);
+  } else if (id === "ume") {
+    const knitting = props.knitting();
+    knitting.rotation.x = 2.1;
+    knitting.position.set(0.06, 0.04, 0.05);
+    knitting.scale.setScalar(1.15);
+    rig.setProp(knitting);
+  } else if (id === "page") {
+    const book = props.book();
+    book.rotation.set(1.9, 0, 0.1);
+    book.position.set(0.1, 0, 0.1);
+    rig.setProp(book);
+  }
+}
+
+const atHome = (id: NpcId, x: number, z: number) => NPC_HOMES[id].x === x && NPC_HOMES[id].z === z;
+const STROLLERS = new Set<NpcId>(["finn", "aya"]);
+const TWINKLES = 28;
+
 export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
   const actors = useMemo(() => {
     const group = new THREE.Group();
@@ -40,6 +73,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     const shadows = new THREE.InstancedMesh(shadowGeometry, shadowMat(), NPC_IDS.length + 1);
     shadows.frustumCulled = false;
     shadows.renderOrder = 1;
+    shadows.raycast = () => {};
     group.add(player.group, shadows);
     const kiwi = new KiwiRig();
     group.add(kiwi.group);
@@ -51,6 +85,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     };
     const npcs = NPC_IDS.map(id => {
       const rig = buildCharacter(id);
+      equip(id, rig);
       const cell = new THREE.Group();
       const marker = new THREE.Sprite(indicators["!"].material);
       marker.position.y = rig.height + 0.48;
@@ -61,23 +96,34 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       return { id, rig, cell, marker, serial: -1 };
     });
     const festival = new FestivalChest();
+    festival.setScale(CHEST_SCALE);
     festival.group.userData.interaction = { kind: "npc", id: "pom" satisfies NpcId };
-    const festivalShadow = blobShadow(1.8);
+    const festivalShadow = blobShadow(2.2);
     const festivalRoot = new THREE.Group();
     festivalRoot.add(festival.group, festivalShadow);
     group.add(festivalRoot);
     const itemRoot = new THREE.Group();
     const seaRoot = new THREE.Group();
     seaRoot.position.set(10, 0.12, 36);
+    seaRoot.scale.setScalar(1.3);
     seaRoot.userData.interaction = { kind: "seaChest" };
-    const seaShadow = blobShadow(0.8);
+    const seaShadow = blobShadow(0.95);
     seaRoot.add(seaShadow);
     group.add(itemRoot, seaRoot);
+    // Twinkles on anything to collect: one batch of camera-facing stars for the whole world.
+    const starMaterial = new THREE.MeshBasicMaterial({ map: starTexture(), transparent: true, depthWrite: false, depthTest: false, fog: false, color: "#fff4b0" });
+    const stars = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), starMaterial, TWINKLES);
+    stars.frustumCulled = false;
+    stars.renderOrder = 5;
+    stars.raycast = () => {};
+    stars.count = 0;
+    group.add(stars);
     return {
       group, player, shadows, kiwi, npcs, indicators, festival, festivalRoot, festivalShadow,
-      seaRoot, seaShadow, sea: null as SeaChest | null, seaKey: "", itemRoot,
-      items: [] as { cell: THREE.Group; hidden: boolean; marker: THREE.Sprite | null }[],
-      itemKey: "", itemMaterials: [] as THREE.SpriteMaterial[], lastKiwiMode: ""
+      seaRoot, seaShadow, sea: null as SeaChest | null, seaKey: "", itemRoot, stars, starMaterial,
+      items: [] as { cell: THREE.Group; hidden: boolean; collect: boolean; mesh: THREE.Mesh | null; rest: number; marker: THREE.Sprite | null; glow: THREE.Sprite | null }[],
+      itemKey: "", itemRevision: -1, itemMaterials: [] as THREE.SpriteMaterial[], lastKiwiMode: "", pulsed: new Set<number>(), playerSerial: -1,
+      scratch: { matrix: new THREE.Matrix4(), rotation: new THREE.Quaternion(), scale: new THREE.Vector3(), position: new THREE.Vector3(), point: new THREE.Vector3(), direction: new THREE.Vector3(), center: new THREE.Vector3(), kiwi: new THREE.Vector3() }
     };
   }, []);
 
@@ -97,37 +143,55 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       marker.material.dispose();
     }
     for (const material of actors.itemMaterials) material.dispose();
+    actors.festival.dispose();
     disposeChest(actors.festival.group);
     if (actors.sea) disposeSeaChest(actors.sea);
     actors.festivalShadow.geometry.dispose();
     actors.seaShadow.geometry.dispose();
+    actors.stars.geometry.dispose();
+    actors.stars.dispose();
+    actors.starMaterial.dispose();
   }, [actors]);
 
   useFrame(({ camera }, dt) => {
     const player = runtime.player;
-    const playerPoint = new THREE.Vector3(player.x, player.y + actors.player.height * 0.85, player.z);
+    const { matrix, rotation, scale, position, point, direction, center, kiwi: kiwiTarget } = actors.scratch;
+    const apply = (rig: CharacterRig, command: NpcCommand, restState: "idle" | "sit" | "dance") => {
+      if (command.held !== undefined) rig.hold(command.held);
+      if (command.mood !== undefined) rig.setExpression(command.mood ?? "neutral");
+      if (command.speak !== undefined) rig.speak(command.speak);
+      if (command.gesture === "talk") {
+        // Talking is a timed overlay; a person who was sulking or thinking stops to do it.
+        if (rig.state !== restState) rig.setState(restState);
+        if (command.speak === undefined) rig.speak(2.4);
+      } else if (command.gesture === "idle") rig.setState(restState);
+      else if (command.gesture) rig.setState(command.gesture);
+    };
+    const playerCommand = runtime.playerCommand;
+    if (playerCommand && playerCommand.serial !== actors.playerSerial) {
+      actors.playerSerial = playerCommand.serial;
+      apply(actors.player, playerCommand, "idle");
+      runtime.playerCommand = null;
+    }
+    point.set(player.x, player.y + actors.player.height * 0.85, player.z);
     actors.player.group.position.set(player.x, player.y, player.z);
     actors.player.group.rotation.y = player.yaw;
     const moving = player.speed > 0.08;
     actors.player.setWalkSpeed(player.speed);
     if (actors.player.state !== (moving ? "walk" : "idle")) actors.player.setState(moving ? "walk" : "idle");
     actors.player.update(dt);
-    const shadowMatrix = new THREE.Matrix4();
-    const shadowRotation = new THREE.Quaternion();
-    const shadowScale = new THREE.Vector3();
-    const shadowPosition = new THREE.Vector3();
     const placeShadow = (index: number, x: number, y: number, z: number, radius: number) => {
-      shadowPosition.set(x, y + 0.015, z);
-      shadowScale.set(radius * 2, 1, radius * 2);
-      shadowMatrix.compose(shadowPosition, shadowRotation, shadowScale);
-      actors.shadows.setMatrixAt(index, shadowMatrix);
+      position.set(x, y + 0.015, z);
+      scale.set(radius * 2, 1, radius * 2);
+      matrix.compose(position, rotation.identity(), scale);
+      actors.shadows.setMatrixAt(index, matrix);
     };
-    placeShadow(0, player.x, player.y, player.z, 0.4);
+    placeShadow(0, player.x, player.y, player.z, 0.42);
 
     // Cull around the camera's ground target, including fixed gallery shots.
-    const direction = camera.getWorldDirection(new THREE.Vector3());
-    const center = camera.position.clone().addScaledVector(direction, direction.y < -0.05 ? -camera.position.y / direction.y : 15);
-    const nearby = (point: THREE.Vector3, radius = 28) => Math.hypot(point.x - center.x, point.z - center.z) < radius;
+    camera.getWorldDirection(direction);
+    center.copy(camera.position).addScaledVector(direction, direction.y < -0.05 ? -camera.position.y / direction.y : 15);
+    const nearby = (p: { x: number; z: number }, radius = 28) => Math.hypot(p.x - center.x, p.z - center.z) < radius;
     for (const [index, npc] of actors.npcs.entries()) {
       const placement = runtime.state.npcs[npc.id];
       npc.cell.visible = Boolean(placement);
@@ -137,11 +201,13 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       }
       npc.cell.position.set(placement.x, placement.y, placement.z);
       npc.cell.visible = nearby(npc.cell.position);
+      const seated = npc.id === "ume" && atHome(npc.id, placement.x, placement.z) && !runtime.party;
+      const restState = runtime.party ? "dance" : seated ? "sit" : "idle";
       const command = runtime.npcCommands[npc.id];
       if (command && command.serial !== npc.serial) {
         npc.serial = command.serial;
-        if (command.gesture) npc.rig.setState(command.gesture);
-        if (command.held !== undefined) npc.rig.hold(command.held);
+        apply(npc.rig, command, restState);
+        delete runtime.npcCommands[npc.id];
       }
       if (!npc.cell.visible) {
         placeShadow(index + 1, 0, 0, 0, 0);
@@ -150,22 +216,28 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       const distance = Math.hypot(player.x - placement.x, player.z - placement.z);
       // Small home-centred strolls stop well before the interaction radius.
       // Their <0.6 m offset stays within the same reachable home/interaction area.
-      const strolling = (npc.id === "ken" || npc.id === "finn" || npc.id === "aya") && distance > 7 && !runtime.locked && !command?.gesture;
+      const free = npc.rig.state === "idle" || npc.rig.state === "walk";
+      const strolling = STROLLERS.has(npc.id) && distance > 7 && !runtime.locked && free && !npc.rig.gesturing && !runtime.party;
       const phase = runtime.time * 0.7 + index;
       const walking = strolling && Math.sin(phase * 0.35) > 0;
-      const offsetX = walking ? Math.sin(phase) * 0.5 : 0;
-      const offsetZ = walking ? Math.cos(phase) * 0.4 : 0;
+      const offsetX = seated ? UME_SEAT.x - placement.x : walking ? Math.sin(phase) * 0.5 : 0;
+      const offsetZ = seated ? UME_SEAT.z - placement.z : walking ? Math.cos(phase) * 0.4 : 0;
       npc.rig.group.position.x = THREE.MathUtils.damp(npc.rig.group.position.x, offsetX, 3, dt);
       npc.rig.group.position.z = THREE.MathUtils.damp(npc.rig.group.position.z, offsetZ, 3, dt);
-      if (!command?.gesture && npc.rig.state !== (walking ? "walk" : "idle")) npc.rig.setState(walking ? "walk" : "idle");
+      // Seated, the hips rest on the bench rather than the feet on the ground.
+      npc.rig.group.position.y = seated ? UME_SEAT.y + 0.04 - 0.48 * npc.rig.group.scale.y : 0;
+      if (free && !seated && !npc.rig.gesturing && npc.rig.state !== (walking ? "walk" : "idle")) npc.rig.setState(walking ? "walk" : "idle");
+      if (seated && npc.rig.state !== "sit" && npc.rig.state !== "think" && npc.rig.state !== "sad") npc.rig.setState("sit");
+      if (runtime.party && npc.rig.state !== "dance") npc.rig.setState("dance");
+      if (!runtime.party && npc.rig.state === "dance") npc.rig.setState(restState);
       npc.rig.setWalkSpeed(walking ? 0.7 : 0);
       placeShadow(index + 1, placement.x + npc.rig.group.position.x, placement.y, placement.z + npc.rig.group.position.z, npc.rig.radius * 1.35);
-      let yaw = placement.yaw ?? Math.PI;
+      let yaw = placement.yaw ?? 0;
       if (walking) yaw = Math.atan2(Math.cos(phase) * 0.5, -Math.sin(phase) * 0.4);
-      if (distance < 7) yaw = Math.atan2(player.x - placement.x, player.z - placement.z);
+      if (distance < 7 && !seated) yaw = Math.atan2(player.x - placement.x, player.z - placement.z);
       const delta = Math.atan2(Math.sin(yaw - npc.rig.group.rotation.y), Math.cos(yaw - npc.rig.group.rotation.y));
       npc.rig.group.rotation.y += delta * Math.min(1, dt * 4);
-      npc.rig.lookAt(distance < 8 ? playerPoint : null);
+      npc.rig.lookAt(distance < 8 ? point : null);
       npc.rig.update(dt);
       const indicator = placement.indicator;
       npc.marker.visible = Boolean(indicator);
@@ -175,7 +247,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
         npc.marker.scale.copy(template.scale);
         npc.marker.position.x = npc.rig.group.position.x;
         npc.marker.position.z = npc.rig.group.position.z;
-        npc.marker.position.y = npc.rig.height + 0.48 + Math.sin(runtime.time * 2.8) * 0.07;
+        npc.marker.position.y = npc.rig.height + 0.48 + npc.rig.group.position.y + Math.sin(runtime.time * 2.8) * 0.07;
       }
     }
     actors.shadows.instanceMatrix.needsUpdate = true;
@@ -189,78 +261,124 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       else actors.group.attach(actors.kiwi.group);
       actors.kiwi.flap();
     }
+    const kiwiTalking = (runtime.kiwi.speakUntil ?? 0) > runtime.time;
     if (kiwiMode === "perch") {
       actors.kiwi.group.position.set(0, 0, 0);
       actors.kiwi.group.rotation.set(0, 0, 0);
-      actors.kiwi.setState("perch");
+      actors.kiwi.group.scale.setScalar(1.1);
+      actors.kiwi.setState(kiwiTalking ? "talk" : "perch");
     } else {
+      // Big enough to read as a parrot, not a green speck, from the follow camera.
+      actors.kiwi.group.scale.setScalar(1.55);
       const hint = kiwiMode === "hint" ? runtime.kiwi.target : undefined;
-      const target = hint ? new THREE.Vector3(hint.x, hint.y + 1.35, hint.z) : new THREE.Vector3(player.x - Math.cos(player.yaw) * 0.85, player.y + actors.player.height + 0.35, player.z + Math.sin(player.yaw) * 0.85);
-      target.y += Math.sin(runtime.time * 3.6) * 0.12;
-      const distance = actors.kiwi.group.position.distanceTo(target);
+      if (hint) kiwiTarget.set(hint.x, hint.y + 1.35, hint.z);
+      else if (kiwiMode === "cheer") {
+        // Delighted circles over the player's head.
+        const a = runtime.time * 4.2;
+        kiwiTarget.set(player.x + Math.cos(a) * 1.15, player.y + actors.player.height + 0.75 + Math.sin(a * 2.3) * 0.4, player.z + Math.sin(a) * 1.15);
+      } else kiwiTarget.set(player.x - Math.cos(player.yaw) * 0.85, player.y + actors.player.height + 0.35, player.z + Math.sin(player.yaw) * 0.85);
+      kiwiTarget.y += Math.sin(runtime.time * 3.6) * 0.12;
+      const distance = actors.kiwi.group.position.distanceTo(kiwiTarget);
       const travel = Math.min(1, dt * 5, dt * 10 / Math.max(0.01, distance));
-      if (!hint && distance > 6) actors.kiwi.group.position.copy(target);
-      else actors.kiwi.group.position.lerp(target, travel);
-      actors.kiwi.group.rotation.y = Math.atan2(target.x - actors.kiwi.group.position.x, target.z - actors.kiwi.group.position.z);
-      actors.kiwi.setState(distance > 0.7 ? "fly" : "hover");
+      if (!hint && distance > 6) actors.kiwi.group.position.copy(kiwiTarget);
+      else actors.kiwi.group.position.lerp(kiwiTarget, travel);
+      actors.kiwi.group.rotation.y = Math.atan2(kiwiTarget.x - actors.kiwi.group.position.x, kiwiTarget.z - actors.kiwi.group.position.z);
+      actors.kiwi.setState(kiwiTalking ? "talk" : distance > 0.7 || kiwiMode === "cheer" ? "fly" : "hover");
     }
     actors.kiwi.update(dt);
 
-    const itemKey = JSON.stringify(runtime.state.items);
-    if (itemKey !== actors.itemKey) {
-      actors.itemKey = itemKey;
-      actors.itemRoot.clear();
-      actors.items = [];
-      actors.itemMaterials.forEach(material => material.dispose());
-      actors.itemMaterials = [];
-      for (const item of runtime.state.items) {
-        const spot = SPOTS[item.spotId];
-        if (!spot || !item.active) continue;
-        const cell = new THREE.Group();
-        cell.position.set(spot.x, spot.y, spot.z);
-        cell.userData.interaction = { kind: "spot", id: item.spotId };
-        let marker: THREE.Sprite | null = null;
-        if (item.kind === "collect") {
-          const mesh = buildItem(item.item);
-          mesh.scale.setScalar(ITEM_DISPLAY[item.item].world);
-          mesh.position.y = -mesh.geometry.boundingBox!.min.y * mesh.scale.y + 0.015;
-          cell.add(mesh);
-        } else if (item.kind === "hidden") {
-          const material = glowMat("#fff0a0", 0.8);
-          actors.itemMaterials.push(material);
-          marker = new THREE.Sprite(material);
-          marker.position.y = 0.18;
-          marker.scale.setScalar(0.35);
-          cell.add(marker);
-        } else {
-          marker = new THREE.Sprite(actors.indicators["?"].material);
-          marker.scale.set(0.26, 0.3, 1);
-          marker.position.y = 0.25;
-          cell.add(marker);
+    if (runtime.revision !== actors.itemRevision) {
+      actors.itemRevision = runtime.revision;
+      const itemKey = JSON.stringify(runtime.state.items);
+      if (itemKey !== actors.itemKey) {
+        actors.itemKey = itemKey;
+        actors.itemRoot.clear();
+        actors.items = [];
+        actors.itemMaterials.forEach(material => material.dispose());
+        actors.itemMaterials = [];
+        for (const item of runtime.state.items) {
+          const spot = SPOTS[item.spotId];
+          if (!spot || !item.active) continue;
+          const cell = new THREE.Group();
+          cell.position.set(spot.x, spot.y, spot.z);
+          cell.userData.interaction = { kind: "spot", id: item.spotId };
+          let marker: THREE.Sprite | null = null, mesh: THREE.Mesh | null = null, glow: THREE.Sprite | null = null, rest = 0;
+          if (item.kind === "collect") {
+            mesh = buildItem(item.item);
+            // Bigger than a hidden item would be, and fatter if it is one of the thin ones.
+            const k = ITEM_DISPLAY[item.item].world * 1.2, thick = THICKEN[item.item] ?? 1;
+            mesh.scale.set(k, k * thick, k * thick);
+            rest = -mesh.geometry.boundingBox!.min.y * mesh.scale.y + 0.05;
+            mesh.position.y = rest;
+            if (item.spotId === "square-pencil") mesh.rotation.y = Math.PI / 2;
+            cell.add(mesh);
+            const material = glowMat("#ffe9a0", 0.6);
+            actors.itemMaterials.push(material);
+            glow = new THREE.Sprite(material);
+            glow.position.y = 0.18;
+            glow.scale.setScalar(1.1);
+            cell.add(glow);
+          } else if (item.kind === "hidden") {
+            const material = glowMat("#fff0a0", 0.8);
+            actors.itemMaterials.push(material);
+            marker = new THREE.Sprite(material);
+            marker.position.y = 0.18;
+            marker.scale.setScalar(0.35);
+            cell.add(marker);
+          } else {
+            marker = new THREE.Sprite(actors.indicators["?"].material);
+            marker.scale.set(0.26, 0.3, 1);
+            marker.position.y = 0.25;
+            cell.add(marker);
+          }
+          actors.items.push({ cell, hidden: item.kind === "hidden", collect: item.kind === "collect", mesh, rest, marker, glow });
+          actors.itemRoot.add(cell);
         }
-        actors.items.push({ cell, hidden: item.kind === "hidden", marker });
-        actors.itemRoot.add(cell);
       }
     }
+    let twinkle = 0;
     for (const item of actors.items) {
       item.cell.visible = nearby(item.cell.position) && (!item.hidden || Math.hypot(player.x - item.cell.position.x, player.z - item.cell.position.z) < 5);
+      if (!item.cell.visible) continue;
       if (item.hidden && item.marker) {
         const pulse = Math.pow(Math.max(0, Math.sin(runtime.time * 4 + item.cell.position.x)), 4);
         item.marker.material.opacity = 0.3 + pulse * 0.7;
         item.marker.scale.setScalar(0.18 + pulse * 0.24);
       }
+      if (item.collect && item.mesh && item.glow) {
+        // Things to collect float a little and catch the light, so a child's eye goes there first.
+        item.mesh.position.y = item.rest + 0.03 + Math.sin(runtime.time * 2.2 + item.cell.position.x) * 0.03;
+        item.glow.material.opacity = 0.34 + Math.sin(runtime.time * 3) * 0.14;
+      }
+      if (item.collect || item.hidden) {
+        for (let i = 0; i < 4 && twinkle < TWINKLES; i++) {
+          const phase = (runtime.time * 0.62 + i * 0.25 + item.cell.position.x * 0.13) % 1;
+          const a = i * 1.57 + Math.floor(runtime.time * 0.62 + i * 0.25) * 2.4;
+          position.set(item.cell.position.x + Math.cos(a) * 0.42, item.cell.position.y + 0.18 + phase * 0.42, item.cell.position.z + Math.sin(a) * 0.42);
+          scale.setScalar(Math.sin(phase * Math.PI) * (item.collect ? 0.36 : 0.22) + 0.001);
+          matrix.compose(position, camera.quaternion, scale);
+          actors.stars.setMatrixAt(twinkle++, matrix);
+        }
+      }
     }
+    actors.stars.count = twinkle;
+    actors.stars.visible = twinkle > 0;
+    if (twinkle) actors.stars.instanceMatrix.needsUpdate = true;
 
-    actors.festivalRoot.position.set(runtime.state.chapter === 5 ? -55 : 0, runtime.state.chapter === 5 ? 0 : 0.15, runtime.state.chapter === 5 ? 0 : -8);
-    actors.festivalRoot.visible = nearby(actors.festivalRoot.position, 30);
-    const depositing = runtime.effects.filter(effect => effect.kind === "deposit" && runtime.time - effect.started > 0.7);
-    ITEM_IDS.forEach(item => actors.festival.setSlot(item, depositing.some(effect => "item" in effect && effect.item === item) ? "glowing" : runtime.state.chestItems.includes(item) ? "filled" : "empty"));
-    actors.festival.setLidOpen(runtime.state.chestCount >= 9 ? 1 : 0);
-    actors.festival.update(dt);
-    // Empty art-kit glows have opacity zero but still cost a draw call unless hidden.
-    actors.festival.group.traverse(object => {
-      if (object instanceof THREE.Sprite) object.visible = object.material.opacity > 0.005;
+    const pose = chestPose(runtime.state.chapter);
+    actors.festivalRoot.position.set(pose.x, pose.y, pose.z);
+    actors.festivalRoot.rotation.y = pose.yaw;
+    actors.festivalRoot.visible = nearby(actors.festivalRoot.position, 32);
+    // A deposited item only fills its slot when it lands there, with a flash and a little jolt.
+    ITEM_IDS.forEach(item => {
+      const flying = runtime.effects.find(effect => effect.kind === "deposit" && effect.item === item);
+      const landed = flying && runtime.time - flying.started > 0.62;
+      if (flying && landed && !actors.pulsed.has(flying.id)) { actors.pulsed.add(flying.id); actors.festival.pulse(); }
+      actors.festival.setSlot(item, flying ? (landed ? "glowing" : "empty") : runtime.state.chestItems.includes(item) ? "filled" : "empty");
     });
+    actors.festival.setLidOpen(festivalRevealed(runtime) ? 1 : 0);
+    actors.festival.setBlaze(runtime.finale === "blaze" ? 1 : runtime.finale === "open" ? 0.8 : festivalRevealed(runtime) ? 0.28 : 0);
+    actors.festival.update(dt);
     const seaKey = runtime.state.seaChest.items.join(",");
     if (seaKey !== actors.seaKey || !actors.sea) {
       if (actors.sea) {
@@ -272,7 +390,8 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       actors.seaRoot.add(actors.sea.group);
     }
     actors.seaRoot.visible = nearby(actors.seaRoot.position, 28);
-    runtime.state.seaChest.locks.forEach((open, i) => actors.sea?.setLockOpen(i, open));
+    runtime.state.seaChest.locks.forEach((open, i) => { if (actors.sea!.isLockOpen(i) !== open) actors.sea!.setLockOpen(i, open); });
+    actors.sea.update(dt);
     const targetAngle = runtime.state.seaChest.open ? -1.6 : 0;
     actors.sea.lid.rotation.x = THREE.MathUtils.damp(actors.sea.lid.rotation.x, targetAngle, 4, dt);
   });

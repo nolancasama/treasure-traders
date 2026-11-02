@@ -224,6 +224,13 @@ export const ITEM_DISPLAY: Record<ItemId, ItemDisplay> = {
   pencilCase: { world: 2.8, hand: 1.9, holdRot: [0, Math.PI / 2, 0], flat: false }
 };
 
+/**
+ * True to scale, a pen is a hairline from the game camera. These thicken the
+ * long thin items across their width, the way the icons draw them.
+ */
+export const THICKEN: Partial<Record<ItemId, number>> = { pen: 1.75, pencil: 2, marker: 1.25 };
+const PLAQUE_THICKEN: Partial<Record<ItemId, number>> = { pen: 2.5, pencil: 2.8, marker: 1.6, ruler: 1.35 };
+
 /** Real-scale size of an item's bounding box (x = length). */
 export function itemSize(id: ItemId): THREE.Vector3 {
   const g = itemGeometry(id);
@@ -234,12 +241,15 @@ export function itemSize(id: ItemId): THREE.Vector3 {
  * Item geometry posed for a plaque facing +z (or +y with `up`), fitted inside
  * a square of side `size`. Long items lie diagonally like the icons.
  * `silhouette` flattens it and paints it one colour (engravings, empty slots).
+ * `chunky` fattens thin items, for the small medallions they must read from.
  */
-export function plaqueGeometry(id: ItemId, size: number, opts: { silhouette?: string; up?: boolean } = {}): THREE.BufferGeometry {
+export function plaqueGeometry(id: ItemId, size: number, opts: { silhouette?: string; up?: boolean; chunky?: boolean } = {}): THREE.BufferGeometry {
   const g = itemGeometry(id).clone();
   const box = g.boundingBox!;
   const center = box.getCenter(new THREE.Vector3());
   g.translate(-center.x, -center.y, -center.z);
+  const thick = opts.chunky ? PLAQUE_THICKEN[id] : undefined;
+  if (thick) g.scale(1, thick, thick);
   // Present the most recognisable outline toward +z.
   if (ITEM_DISPLAY[id].flat || id === "pencilCase" || id === "eraser") g.rotateX(Math.PI / 2);
   if (id === "ruler" || id === "pen" || id === "pencil" || id === "marker") g.rotateZ(Math.PI / 4);

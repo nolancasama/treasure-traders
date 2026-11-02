@@ -48,7 +48,7 @@ export function GalleryCanvas({
   const [info, setInfo] = useState("");
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <Canvas dpr={[1, 1.5]} gl={{ antialias: true }} camera={{ position: camera, fov, near: 0.05, far: 300 }}>
+      <Canvas flat dpr={[1, 1.5]} gl={{ antialias: true }} camera={{ position: camera, fov, near: 0.05, far: 300 }}>
         <LookAt target={target} />
         <Lighting fogNear={60} fogFar={200} />
         {ground && <Ground />}

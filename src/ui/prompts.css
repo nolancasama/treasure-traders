@@ -1,8 +1,12 @@
-.tt-prompt { padding: 18px 24px; background: var(--paper); border: 3px solid var(--line); border-radius: 26px 26px 0 0; box-shadow: 0 -8px 24px #31363d25; color: var(--ink); }
-.tt-prompt button { font: inherit; min-height: 44px; min-width: 44px; border: 2px solid var(--line); border-radius: 14px; color: var(--ink); background: white; cursor: pointer; }
-.tt-prompt button:focus-visible { outline: 4px solid var(--teal); outline-offset: 3px; }
+/* Same paper, border and shadow as every other panel, floating over the world instead of bolted to its edge. */
+.tt-prompt { margin: 0 12px 10px; padding: 16px 22px; background: var(--paper); border: 2px solid var(--line); border-radius: 24px; box-shadow: 0 6px 0 #493b3720, 0 16px 40px #493b3728; color: var(--ink); font-family: var(--font); animation: tt-prompt-in .22s ease-out both; }
+.tt-prompt button { font: inherit; min-height: 44px; min-width: 44px; border: 2px solid var(--line); border-radius: 14px; color: var(--ink); background: white; cursor: pointer; box-shadow: 0 3px 0 #61422216; touch-action: manipulation; }
+.tt-prompt button:hover:not(:disabled) { background: #fff0c2; border-color: #d6b167; }
+.tt-prompt button:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+.tt-prompt button:focus-visible { outline: 3px solid #2187ac; outline-offset: 3px; }
 .tt-prompt-header { display: flex; align-items: center; gap: 14px; }
 .tt-prompt-header button:first-of-type { margin-left: auto; }
+.tt-prompt-header button { padding: 4px 12px; font-weight: 700; }
 .tt-turn { background: var(--sun); border-radius: 24px; padding: 8px 18px; font-weight: 800; }
 .tt-prompt-partner { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .tt-prompt-main { display: flex; gap: 20px; align-items: center; margin-top: 8px; }
@@ -10,15 +14,26 @@
 .tt-prompt h2 { font-size: 28px; margin: 0 0 6px; }
 .tt-prompt-jp { color: var(--ja); font-size: 16px; margin: 0 0 12px; }
 .tt-ask-choices, .tt-answer-choices { display: flex; gap: 8px; }
-.tt-choice { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px; flex: 1; font-size: 16px; }
-.tt-choice:disabled { cursor: default; background: #f5efe2; color: #62616a; border-style: dashed; }
-.tt-choice:disabled svg { opacity: .7; }
-.tt-choice-key { align-self: flex-end; font-size: 16px; color: var(--ink-soft); }
-.tt-answer-choices .tt-choice { padding: 12px 24px; }
+.tt-choice { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 8px; flex: 1; font-size: 18px; font-weight: 700; }
+.tt-prompt .tt-choice:disabled { cursor: default; background: #fbf5e7; color: #55535d; border-style: dashed; box-shadow: none; }
+.tt-choice:disabled svg { opacity: .8; }
+.tt-choice-key { position: absolute; right: 8px; bottom: 4px; font-size: 16px; font-weight: 400; color: var(--ink-soft); }
+.tt-answer-choices .tt-choice { padding: 12px 24px; font-weight: 400; font-size: 16px; }
 .tt-answer-choices .tt-choice > span:first-child { font-size: 28px; font-weight: 750; }
+/* Yes and No differ by mark and wording first; the colour only backs that up. */
+.tt-answer-mark { font-weight: 900; }
+.tt-prompt .tt-answer-yes { background: #f0faeb; border-color: #9fd48f; }
+.tt-prompt .tt-answer-no { background: #fff1ec; border-color: #efb2a4; }
+.tt-prompt .tt-answer-yes:hover:not(:disabled) { background: #e1f5d8; border-color: #6fb95f; }
+.tt-prompt .tt-answer-no:hover:not(:disabled) { background: #ffe3da; border-color: #df8571; }
+.tt-prompt .tt-answer-yes:disabled { background: #f5fbf1; border-color: #bfe0b3; }
+.tt-prompt .tt-answer-no:disabled { background: #fff6f2; border-color: #f3cabf; }
+.tt-answer-yes .tt-answer-mark { color: #378762; }
+.tt-answer-no .tt-answer-mark { color: #b95349; }
 .tt-mic-area { width: 150px; flex: 0 0 150px; display: flex; align-items: center; flex-direction: column; gap: 8px; text-align: center; font-size: 16px; }
 .tt-prompt .tt-mic { width: 80px; height: 80px; border-radius: 50%; border: 0; padding: 4px; background: var(--festival-red); box-shadow: 0 5px 0 var(--festival-red-dark); }
-.tt-mic span { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 50%; background: var(--festival-red); font-size: 36px; }
+.tt-prompt .tt-mic:hover:not(:disabled) { background: var(--festival-red); }
+.tt-mic span { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 50%; background: var(--festival-red); }
 .tt-mic.is-listening { background: conic-gradient(var(--leaf) var(--remaining), #e8dfce 0); box-shadow: none; }
 .tt-mic.is-listening span { background: white; }
 .tt-mic:disabled { opacity: .55; }
@@ -33,5 +48,6 @@
 .tt-coach-preview { margin-top: 10px; padding: 10px 16px; border: 2px solid #ddb854; border-radius: 14px; background: #fff4c8; font-size: 16px; }
 .tt-coach-preview p { margin: 4px 0; }
 @keyframes tt-listen { to { transform: scaleY(.35); } }
+@keyframes tt-prompt-in { from { opacity: 0; transform: translateY(12px); } }
 @media (max-width: 1000px) { .tt-ask-choices { flex-wrap: wrap; } .tt-choice { flex: 1 0 70px; } .tt-prompt { padding: 12px; } .tt-mic-area { flex-basis: 108px; width: 108px; } }
-@media (prefers-reduced-motion: reduce) { .tt-listening-bars i { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tt-listening-bars i, .tt-prompt { animation: none; } }

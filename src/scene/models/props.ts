@@ -64,6 +64,14 @@ export function brushGeometry(): THREE.BufferGeometry {
   return b.build();
 }
 
+export function bookGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0);
+  b.box(0.3, 0.018, 0.22, 0, 0, 0, "#8a3f4e");
+  b.box(0.135, 0.03, 0.2, -0.072, 0.012, 0, "#fff6dd");
+  b.box(0.135, 0.03, 0.2, 0.072, 0.012, 0, "#f8efd2");
+  return b.build();
+}
+
 const cache = new Map<string, THREE.BufferGeometry>();
 function cached(key: string, make: () => THREE.BufferGeometry): THREE.Mesh {
   let g = cache.get(key);
@@ -76,5 +84,6 @@ export const props = {
   knitting: () => cached("knitting", knittingGeometry),
   easel: () => cached("easel", easelGeometry),
   fishingRod: () => cached("rod", fishingRodGeometry),
-  brush: () => cached("brush", brushGeometry)
+  brush: () => cached("brush", brushGeometry),
+  book: () => cached("book", bookGeometry)
 };

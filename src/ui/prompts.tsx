@@ -4,6 +4,7 @@ import type { Prompt } from "../game/logic";
 import { ITEMS } from "../game/content/items";
 import { Portrait } from "./icons/Portrait";
 import { ItemIcon } from "./icons/ItemIcon";
+import { UiIcon } from "./icons/UiIcon";
 import { speakerName } from "../game/content/cast";
 import "./prompts.css";
 
@@ -50,17 +51,17 @@ export function PromptPanel(props: PromptPanelProps) {
   const disabled = !state.choicesEnabled || state.modelling || state.speaking;
   const name = prompt.target === "seaChest" ? "Sea chest" : speakerName(prompt.target).en;
   return <section className="tt-prompt" data-testid={`${prompt.kind}-prompt`} aria-label={prompt.kind === "ask" ? "Ask a question" : "Answer the question"}>
-    <header className="tt-prompt-header"><span className="tt-turn">きみの番！</span><span className="tt-prompt-partner"><Portrait id={prompt.target} size={48} />{name}</span><button data-testid="prompt-replay" onClick={onReplay} disabled={state.listening || state.modelling || state.speaking} aria-label="Hear the question">🔊</button><button data-testid="prompt-bye" onClick={onClose}>Bye ×</button></header>
+    <header className="tt-prompt-header"><span className="tt-turn">きみの番！</span><span className="tt-prompt-partner"><Portrait id={prompt.target} size={48} />{name}</span><button data-testid="prompt-replay" onClick={onReplay} disabled={state.listening || state.modelling || state.speaking} aria-label="Hear the question"><UiIcon name="speaker" size={26} /></button><button data-testid="prompt-bye" onClick={onClose}>Bye ×</button></header>
     <div className="tt-prompt-main"><div className="tt-prompt-content">
       <h2>{prompt.kind === "ask" ? "Do you have a ___?" : prompt.questionEn}</h2>
       {japanese && <p className="tt-prompt-jp">{prompt.kind === "ask" ? "何を持っているか、聞いてみよう！" : prompt.questionJa}</p>}
-      {prompt.kind === "ask" ? <div className="tt-ask-choices">{prompt.cards.map((item, index) => <button data-testid={`ask-choice-${item}`} className="tt-choice" key={item} disabled={disabled} onClick={() => onChoose(item)}><ItemIcon id={item} size={48} /><span>{ITEMS[item].en}</span><span className="tt-choice-key">{index + 1}</span></button>)}</div> : <div className="tt-answer-choices">{(["yes", "no"] as const).map((answer, index) => <button data-testid={`answer-choice-${answer}`} className="tt-choice" key={answer} disabled={disabled} onClick={() => onChoose(answer)}><span>{answer === "yes" ? "✓ Yes, I do." : "✗ No, I don't."}</span>{japanese && <span>{answer === "yes" ? "持っているよ。" : "持っていないよ。"}</span>}<span className="tt-choice-key">{index + 1}</span></button>)}</div>}
-    </div><div className="tt-mic-area">{!state.micFree && <button data-testid="prompt-mic" className={`tt-mic ${state.listening ? "is-listening" : ""}`} style={{ "--remaining": `${progress * 360}deg` } as CSSProperties} onClick={onMic} disabled={state.speaking || state.modelling} aria-label={state.listening ? "Stop listening" : "Start listening"}><span>🎤</span></button>}
+      {prompt.kind === "ask" ? <div className="tt-ask-choices">{prompt.cards.map((item, index) => <button data-testid={`ask-choice-${item}`} className="tt-choice" key={item} disabled={disabled} onClick={() => onChoose(item)}><ItemIcon id={item} size={48} /><span>{ITEMS[item].en}</span><span className="tt-choice-key">{index + 1}</span></button>)}</div> : <div className="tt-answer-choices">{(["yes", "no"] as const).map((answer, index) => <button data-testid={`answer-choice-${answer}`} className={`tt-choice tt-answer-${answer}`} key={answer} disabled={disabled} onClick={() => onChoose(answer)}><span><b className="tt-answer-mark" aria-hidden="true">{answer === "yes" ? "✓" : "✗"}</b> {answer === "yes" ? "Yes, I do." : "No, I don't."}</span>{japanese && <span>{answer === "yes" ? "持っているよ。" : "持っていないよ。"}</span>}<span className="tt-choice-key">{index + 1}</span></button>)}</div>}
+    </div><div className="tt-mic-area">{!state.micFree && <button data-testid="prompt-mic" className={`tt-mic ${state.listening ? "is-listening" : ""}`} style={{ "--remaining": `${progress * 360}deg` } as CSSProperties} onClick={onMic} disabled={state.speaking || state.modelling} aria-label={state.listening ? "Stop listening" : "Start listening"}><span><UiIcon name="mic" size={46} /></span></button>}
       <span>{state.micFree ? "マイクなしモード" : state.modelling ? "Kiwi is speaking…" : state.listening ? "Listening…" : "Tap / Space"}</span>
       {state.listening && <div className="tt-listening-bars" aria-label="Listening"><i /><i /><i /><i /><i /></div>}
     </div></div>
     <div className="tt-prompt-feedback" role="status">{state.tip ? <><strong>{state.tip.en}</strong>{japanese && <span>{state.tip.ja}</span>}</> : <span>{state.micFree ? "Tap a card to answer!" : state.choicesEnabled ? "Tap a card or say it!" : "Say it with the microphone."}</span>}</div>
-    <div ref={coach} className="tt-coach" data-testid="pronunciation-coach">{!onCoachContainer && state.coach && <aside className="tt-coach-preview"><strong>{state.coach.target}</strong><p>{state.coach.hint}</p><button data-testid="coach-preview-listen" onClick={onReplay}>🔊 Listen / 聞く</button></aside>}</div>
+    <div ref={coach} className="tt-coach" data-testid="pronunciation-coach">{!onCoachContainer && state.coach && <aside className="tt-coach-preview"><strong>{state.coach.target}</strong><p>{state.coach.hint}</p><button data-testid="coach-preview-listen" onClick={onReplay}><UiIcon name="speaker" size={22} /> Listen / 聞く</button></aside>}</div>
   </section>;
 }
 export function AskPrompt(props: PromptPanelProps & { prompt: Extract<NonNullable<Prompt>, { kind: "ask" }> }) { return <PromptPanel {...props} />; }

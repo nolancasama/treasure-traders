@@ -20,6 +20,48 @@ function strokeOf(m: Mode): string {
   return m.sil ?? INK;
 }
 
+/** Cuts through a silhouette; it only needs to separate the shapes on a pale slot. */
+const CUT = "#fffaf0";
+
+/**
+ * Empty-slot shapes for the three long items. Their icons differ by colour, which
+ * a one-colour outline loses, so each gets its own build: the pen is slim with a
+ * clip, the marker short and very fat, the pencil long with a sharpened tip and a ferrule.
+ */
+const THIN_SILHOUETTES: Partial<Record<ItemId, (color: string) => ReactElement>> = {
+  pen: (color) => (
+    <g transform="rotate(-45 32 32)" fill={color}>
+      <polygon points="3,32 13,28.5 13,35.5" />
+      <rect x="13" y="28" width="32" height="8" />
+      <rect x="44" y="26.5" width="16" height="11" rx="3" />
+      <rect x="44" y="20" width="14" height="3.6" rx="1.6" />
+      <rect x="45" y="20" width="3" height="8" />
+      <rect x="43.2" y="26" width="1.8" height="12" fill={CUT} />
+    </g>
+  ),
+  marker: (color) => (
+    <g transform="rotate(-45 32 32)" fill={color}>
+      <polygon points="7,27 15,22 15,42 7,37" />
+      <rect x="15" y="19.5" width="25" height="25" rx="3" />
+      <rect x="41" y="18" width="16" height="28" rx="5" />
+      <rect x="39.8" y="17" width="2.2" height="30" fill={CUT} />
+    </g>
+  ),
+  pencil: (color) => (
+    <g transform="rotate(-45 32 32)" fill={color}>
+      <polygon points="1,32 16,26.5 16,37.5" />
+      <rect x="16" y="26.5" width="34" height="11" />
+      <rect x="51" y="26" width="5" height="12" />
+      <rect x="57" y="26.5" width="6" height="11" rx="3" />
+      <rect x="49.8" y="25" width="1.6" height="14" fill={CUT} />
+      <rect x="55.8" y="25" width="1.6" height="14" fill={CUT} />
+      <rect x="9" y="26" width="1.6" height="12" fill={CUT} />
+      <rect x="18" y="30.2" width="31" height="1.2" fill={CUT} />
+      <rect x="18" y="33" width="31" height="1.2" fill={CUT} />
+    </g>
+  )
+};
+
 const DRAW: Record<ItemId, (m: Mode) => ReactElement> = {
   pen: (m) => {
     const c = ITEM_COLORS.pen;
@@ -156,10 +198,10 @@ export function ItemIcon({ id, size = 48, title = true }: { id: ItemId; size?: n
 }
 
 /** One-colour outline of an item (empty slots, engravings). */
-export function ItemSilhouette({ id, size = 48, color = "#c8c2b6" }: { id: ItemId; size?: number; color?: string }) {
+export function ItemSilhouette({ id, size = 48, color = "#b9ae9c" }: { id: ItemId; size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" className="item-silhouette">
-      {DRAW[id]({ sil: color })}
+      {THIN_SILHOUETTES[id]?.(color) ?? DRAW[id]({ sil: color })}
     </svg>
   );
 }
