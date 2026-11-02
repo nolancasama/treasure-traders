@@ -197,8 +197,7 @@ export function libraryGeometry(solids: readonly Solid[], cutaway: boolean): THR
   const b = new PartBuilder(0.7, true), walls = "#f7e3b9", cap = "#a9694a", base = "#c98f68";
   for (const s of solids.filter(s => s.kind === "box" && s.id.includes("library") && (s.id.includes("wall") || s.id.includes("east-")))) {
     if (s.kind !== "box") continue;
-    // Keep both entrance-side wall sections standing; only the camera-facing south wall cuts away.
-    const cutFace = s.id.includes("south");
+    const cutFace = s.id.includes("south") || s.id.includes("east");
     if (cutaway && cutFace) {
       // Cut walls stay as a low outline, so the open room still reads as a room.
       b.box(s.hx * 2, 0.5, s.hz * 2, s.x, s.y, s.z, walls);
@@ -209,10 +208,6 @@ export function libraryGeometry(solids: readonly Solid[], cutaway: boolean): THR
     b.box(s.hx * 2 + 0.04, 0.55, s.hz * 2 + 0.04, s.x, s.y, s.z, base);
     if (cutaway) b.box(s.hx * 2 + 0.04, 0.05, s.hz * 2 + 0.04, s.x, s.y + s.height, s.z, cap);
   }
-  // The library door is hinged open against the north side of the entrance.
-  // Keep the central passage clear while making the entrance visually legible.
-  b.box(0.12, 2.45, 1.25, -11.88, 0.12, -43.92, "#9a6244");
-  b.box(0.16, 0.11, 0.11, -11.78, 1.26, -43.45, PALETTE.gold);
   if (!cutaway) {
     const y = 3.62, z = -42, width = 14;
     // The east gable faces the courtyard door; its ridge runs east to west.
@@ -346,11 +341,6 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
     b.cylAt(0.11, 1.1, [-0.05, 1.86, -1.1], [Math.PI / 2, 0.3, 0], PALETTE.cream, 7);
     b.boxAt(0.46, 0.34, 0.46, [0, 1.92, 1.4], [0, 0.5, 0], "#ff8fa8");
   } else if (kind === "school") {
-    // Sliding gate, with rollers mounted on its lower rail.
-    for (const x of [-3.15, 3.15]) {
-      b.cylAt(0.23, 0.12, [x, 0.19, 0], [Math.PI / 2, 0, 0], PALETTE.darkWood, 10);
-      b.cylAt(0.08, 0.13, [x, 0.19, 0], [Math.PI / 2, 0, 0], PALETTE.gold, 8);
-    }
     for (let x = -3.9; x <= 3.9; x += 0.6) { b.box(0.1, 1.9, 0.1, x, 0, 0, PALETTE.teal); b.cone(0.09, 0.18, x, 1.9, 0, PALETTE.gold, 5); }
     for (const y of [0.4, 1.5]) b.box(8.4, 0.12, 0.15, 0, y, 0, PALETTE.teal);
   } else {
