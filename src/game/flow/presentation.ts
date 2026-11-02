@@ -321,6 +321,12 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
   }
 
   async function finale(): Promise<void> {
+    // The empty bar would sit directly over the opening chest.
+    ui.setBackpackHidden(true);
+    try { await playFinale(); } finally { ui.setBackpackHidden(false); }
+  }
+
+  async function playFinale(): Promise<void> {
     const pose = chestPose(5);
     world.mood("pom", "happy");
     // 1. Every slot lights in turn; 2. gold light spreads across the chest.

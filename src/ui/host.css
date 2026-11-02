@@ -3,6 +3,7 @@
 .tt-host-bottom { position: absolute; bottom: 0; left: 0; width: 100%; pointer-events: auto; }
 .tt-host-bottom:empty { pointer-events: none; }
 .tt-host-backpack { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); pointer-events: auto; }
+.tt-host-backpack-hidden { visibility: hidden; }
 .tt-host-backpack > .tt-backpack-bar { position: relative; bottom: auto; left: auto; transform: none; }
 .tt-host-bottom > .tt-dialogue { position: relative; bottom: auto; left: auto; transform: none; margin: 0 auto 16px; }
 .tt-no-japanese .tt-ja { display: none; }

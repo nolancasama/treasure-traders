@@ -55,6 +55,8 @@ describe("frozen presentation commands", () => {
     expect(h.ui.getSnapshot().tip).toBeNull(); expect(h.onSettingsChange).toHaveBeenCalledOnce();
     h.ui.setBottomPanel(203.7); h.ui.setBottomPanel(204); h.ui.setBottomPanel(-1);
     expect(h.onBottomPanel.mock.calls).toEqual([[204], [0]]);
+    h.ui.setBackpackHidden(true); expect(h.ui.getSnapshot().backpackHidden).toBe(true);
+    h.ui.setBackpackHidden(false); expect(h.ui.getSnapshot().backpackHidden).toBe(false);
     expect(Object.isFrozen(h.ui)).toBe(true);
     unsubscribe(); const calls = listener.mock.calls.length; h.ui.notice("hello"); expect(listener).toHaveBeenCalledTimes(calls); h.ui.dispose();
   });

@@ -30,6 +30,7 @@ export interface Presentation {
   tip: Tip | null;
   kiwiHint: string | undefined;
   bottomPanel: number;
+  backpackHidden: boolean;
 }
 export interface UIOptions {
   settings?: Settings;
@@ -47,7 +48,7 @@ export function createUI(options: UIOptions = {}) {
   let state: Presentation = {
     game: null, objective: null, settings: { ...DEFAULT_SETTINGS, ...options.settings, seenTips: [...(options.settings?.seenTips ?? [])] },
     screen: null, journalTab: "Festival", inspect: undefined, bagCheck: undefined,
-    beat: null, card: null, notice: null, tip: null, kiwiHint: undefined, bottomPanel: 0
+    beat: null, card: null, notice: null, tip: null, kiwiHint: undefined, bottomPanel: 0, backpackHidden: false
   };
   let slots: Partial<Record<ItemId, DOMRectReadOnly>> = {};
   let resolveSay: (() => void) | null = null;
@@ -140,6 +141,7 @@ export function createUI(options: UIOptions = {}) {
       if (height === state.bottomPanel) return;
       publish({ bottomPanel: height }); options.onBottomPanel?.(height);
     },
+    setBackpackHidden(hidden: boolean) { if (hidden !== state.backpackHidden) publish({ backpackHidden: hidden }); },
     setDistrict(district: DistrictId) { audio.setDistrict(district); },
     action(action: Parameters<NonNullable<UIOptions["onAction"]>>[0], chapter?: ChapterId) { options.onAction?.(action, chapter); },
     cancel() { stopSay(); speech.cancel(); api.dismissCard(); },

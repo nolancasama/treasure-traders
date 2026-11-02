@@ -510,5 +510,9 @@ behaviour are unchanged except where noted.
   stroke. ✓ and ✗ stay as text so Yes and No are never colour-only. The empty-slot
   silhouettes of pen, marker and pencil got separate drawings, since a one-colour
   outline loses the only thing that told them apart.
+- **The backpack bar hides during the finale.** Final review of real game renders
+  found the empty bar sitting over the opening chest. `setBackpackHidden` keeps its
+  layout, so slot rects stay valid, and it comes back for free roam. Rejected:
+  moving the finale camera, since the dialogue panel leaves little room to frame it.
 - **Pushing to `main` deploys,** because the Pages workflow runs on push. The plan
   said not to deploy; the teacher then explicitly approved pushing to `main`.

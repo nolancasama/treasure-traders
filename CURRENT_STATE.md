@@ -3,7 +3,8 @@
 ## Status
 Playable end to end, with the graphics upgrade in place (2026-11-03): a colourful
 storybook town with sky, cottages, paving, living background and a real finale.
-Next is hand-playing it on a real Chromebook, then the README.
+Live at https://nolancasama.github.io/treasure-traders/. Next is hand-playing it on a
+real Chromebook.
 
 ## What Exists
 - `docs/BRIEF.md` — the teacher's original brief. `SPEC.md` — frozen v1
@@ -58,4 +59,3 @@ None in flight. No delegated work is pending.
 1. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
    Watch frame rate at the Festival Grounds and whether the dithered see-through looks
    right at the school's device pixel ratio.
-2. README (classroom setup, controls).

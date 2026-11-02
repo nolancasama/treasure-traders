@@ -58,6 +58,7 @@ sentence in Kiwi's voice and keeps the mic closed until both finish.
 | `slotRects()` | Returns a fresh partial map `ItemId → DOMRectReadOnly`, in viewport CSS pixels, for world pickup/give/trade FX. |
 | `setSlotRects(rects)` | BackpackBar measurement sink; copies the map. |
 | `setBottomPanel(pixels)` | Measured bottom panel height, rounded/nonnegative; calls `onBottomPanel` only when changed. |
+| `setBackpackHidden(hidden)` | Hides the backpack bar for a staged moment. It keeps its layout, so slot rects stay valid. Additive. |
 | `setDistrict(district)` | Delegates district music selection, safe before audio unlock. |
 | `action(action, chapter?)` | Forwards a menu action to integration. |
 | `cancel()` | Clears line/prompt/card; settles their promises (`cancelled` for input). |

@@ -48,7 +48,7 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
   return <div className="tt-ui" onPointerDown={() => { audio.unlock(); }}>
     {game && state.screen !== "title" && <>
       {state.objective && <Hud objective={state.objective} chestCount={itemsOf(game.holdings, "chest").length} japanese={state.settings.japanese} kiwiHint={state.kiwiHint} onJournal={openJournal} onHint={() => ui.action("hint")} onSettings={() => ui.screen("settings")} onReplay={() => void ui.hear(state.objective?.sentence ?? state.objective?.en ?? "")} />}
-      <div className={`tt-host-backpack ${activePanel ? "tt-host-compact" : ""}`} style={activePanel ? { bottom: state.bottomPanel + 8 } : undefined}><BackpackBar inventory={game.holdings.player ?? {}} compact={activePanel} onOpen={() => ui.screen("backpack")} onInspect={item => ui.screen("backpack", { inspect: item })} onSlotRects={ui.setSlotRects} measureKey={state.bottomPanel} /></div>
+      <div className={`tt-host-backpack ${activePanel ? "tt-host-compact" : ""} ${state.backpackHidden ? "tt-host-backpack-hidden" : ""}`} style={activePanel ? { bottom: state.bottomPanel + 8 } : undefined}><BackpackBar inventory={game.holdings.player ?? {}} compact={activePanel} onOpen={() => ui.screen("backpack")} onInspect={item => ui.screen("backpack", { inspect: item })} onSlotRects={ui.setSlotRects} measureKey={state.bottomPanel} /></div>
     </>}
     <div className="tt-host-bottom" ref={panel}>
       {state.beat && <DialoguePanel beat={state.beat} japanese={state.settings.japanese} speaking={speech.speaking} onReplay={() => void ui.replay()} onContinue={ui.advance} />}
