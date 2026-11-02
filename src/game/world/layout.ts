@@ -138,7 +138,7 @@ export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
 };
 
 /** Grandma sits on her bench while at home; her interaction point stays walkable. */
-export const UME_SEAT = { x: -10, y: 0.42, z: 4.12 };
+export const UME_SEAT = { x: -10, y: 0.42, z: 4.27 };
 
 /** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
 export const CHEST_SCALE = 1.5;
