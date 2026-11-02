@@ -341,6 +341,11 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
     b.cylAt(0.11, 1.1, [-0.05, 1.86, -1.1], [Math.PI / 2, 0.3, 0], PALETTE.cream, 7);
     b.boxAt(0.46, 0.34, 0.46, [0, 1.92, 1.4], [0, 0.5, 0], "#ff8fa8");
   } else if (kind === "school") {
+    // Sliding gate, with rollers mounted on its lower rail.
+    for (const x of [-3.15, 3.15]) {
+      b.cylAt(0.23, 0.12, [x, 0.19, 0], [Math.PI / 2, 0, 0], PALETTE.darkWood, 10);
+      b.cylAt(0.08, 0.13, [x, 0.19, 0], [Math.PI / 2, 0, 0], PALETTE.gold, 8);
+    }
     for (let x = -3.9; x <= 3.9; x += 0.6) { b.box(0.1, 1.9, 0.1, x, 0, 0, PALETTE.teal); b.cone(0.09, 0.18, x, 1.9, 0, PALETTE.gold, 5); }
     for (const y of [0.4, 1.5]) b.box(8.4, 0.12, 0.15, 0, y, 0, PALETTE.teal);
   } else {
