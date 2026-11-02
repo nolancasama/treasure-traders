@@ -341,8 +341,16 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
     b.cylAt(0.11, 1.1, [-0.05, 1.86, -1.1], [Math.PI / 2, 0.3, 0], PALETTE.cream, 7);
     b.boxAt(0.46, 0.34, 0.46, [0, 1.92, 1.4], [0, 0.5, 0], "#ff8fa8");
   } else if (kind === "school") {
-    for (let x = -3.9; x <= 3.9; x += 0.6) { b.box(0.1, 1.9, 0.1, x, 0, 0, PALETTE.teal); b.cone(0.09, 0.18, x, 1.9, 0, PALETTE.gold, 5); }
-    for (const y of [0.4, 1.5]) b.box(8.4, 0.12, 0.15, 0, y, 0, PALETTE.teal);
+    // A single rigid gate panel that translates sideways on visible rollers.
+    // Raised pickets leave clearance for the wheels and their ground track.
+    for (let x = -3.9; x <= 3.9; x += 0.6) {
+      b.box(0.1, 1.62, 0.1, x, 0.31, 0, PALETTE.teal);
+      b.cone(0.09, 0.18, x, 1.93, 0, PALETTE.gold, 5);
+    }
+    for (const y of [0.44, 1.5]) b.box(8.4, 0.12, 0.15, 0, y, 0, PALETTE.teal);
+    b.box(8.4, 0.11, 0.2, 0, 0.31, 0, PALETTE.darkWood);
+    // Roller mounting arms are part of the gate, not the fixed gateposts.
+    for (const x of [-3.2, 3.2]) b.box(0.17, 0.19, 0.24, x, 0.29, 0.06, PALETTE.darkWood);
   } else {
     // Roped off: the board hangs from the rope, its lettering added by the caller.
     b.wire([0, 1.25, -4.2], [0, 1.25, 4.2], 0.3, 10, "#e8604c", 0.09);
@@ -351,8 +359,23 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
   return b.build();
 }
 
+/** Independently rotating school-gate roller, centered on its axle. */
+export function schoolGateWheelGeometry(): THREE.BufferGeometry {
+  const b = new PartBuilder(0.25, true);
+  // The axle points along Z; the wheel rolls about that axis as the gate moves in X.
+  b.cylAt(0.25, 0.17, [0, 0, 0], [Math.PI / 2, 0, 0], PALETTE.darkWood, 12);
+  b.cylAt(0.12, 0.19, [0, 0, 0], [Math.PI / 2, 0, 0], PALETTE.stone, 12);
+  b.cylAt(0.055, 0.21, [0, 0, 0], [Math.PI / 2, 0, 0], PALETTE.gold, 8);
+  b.boxAt(0.36, 0.04, 0.04, [0, 0, 0.107], [0, 0, 0], PALETTE.gold);
+  b.boxAt(0.36, 0.04, 0.04, [0, 0, 0.107], [0, 0, Math.PI / 2], PALETTE.gold);
+  return b.build();
+}
+
 export function gatePosts(): THREE.BufferGeometry {
   const b = new PartBuilder(0.5, true);
+  // Low-profile runner extends to the right-hand parking position. The gate
+  // rolls on it; the track is decorative and leaves the passage walkable.
+  b.box(17.7, 0.035, 0.10, 4.35, -0.01, -21.82, PALETTE.darkStone);
   // School gate: stone posts and a crossbar that carries the school's sign.
   for (const x of [-4, 4]) {
     b.box(0.86, 3.5, 0.86, x, 0, -22, PALETTE.stone);
