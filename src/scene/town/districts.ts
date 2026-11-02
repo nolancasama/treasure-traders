@@ -168,7 +168,9 @@ function stall(low: B, tall: B, signs: SignBatch, id: string, sign: Parameters<S
   // The shop sign stands on the awning's high edge, facing the camera.
   const width = SignBatch.width(sign, 0.82);
   tall.box(width + 0.2, 0.98, 0.1, x, yHigh, zHigh - 0.02, PALETTE.darkWood);
-  signs.add(sign, x, yHigh + 0.49, zHigh + 0.04, 0.82);
+  // The flower and fruit stalls face the opposite direction (180 degrees).
+  const reversed = id === "flowers-stall" || id === "fruit-stall";
+  signs.add(sign, x, yHigh + 0.49, reversed ? 2 * z - (zHigh + 0.04) : zHigh + 0.04, 0.82, reversed ? Math.PI : 0);
   return { x, z, hx, hz, top, north };
 }
 
@@ -290,9 +292,9 @@ function fruitShop(low: B, tall: B, signs: SignBatch) {
 function market(low: B, tall: B, signs: SignBatch) {
   const rand = seeded(5);
   bakery(low, tall, signs);
-  flowerShop(low, tall, signs);
+  low.at(60, 0, 14, Math.PI, () => tall.at(60, 0, 14, Math.PI, () => flowerShop(low, tall, signs)));
   toyShop(low, tall, signs);
-  fruitShop(low, tall, signs);
+  low.at(90, 0, 14, Math.PI, () => tall.at(90, 0, 14, Math.PI, () => fruitShop(low, tall, signs)));
   // Fences stand just outside the walkable street, with hanging flower baskets.
   for (const z of [-12.2, 12.2]) for (let x = 24; x <= 54; x += 3.75) {
     tall.box(0.16, 1.18, 0.16, x, GRASS_Y, z, PALETTE.wood);
