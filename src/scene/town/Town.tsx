@@ -9,7 +9,7 @@ import { PartBuilder } from "../partBuilder";
 import { flatMat, glowTexture, sceneryMat, sceneUniforms, shadowMat, softBoxMat } from "../materials";
 import { props } from "../models/props";
 import { createAmbient, type Ambient } from "./ambient";
-import { boatGeometry, gateGeometry, gatePosts, libraryFurniture, libraryGeometry, PALETTE, rowboatGeometry } from "./builders";
+import { boatGeometry, gateGeometry, gatePosts, libraryFurniture, libraryGeometry, PALETTE, rowboatGeometry, schoolGateWheelGeometry } from "./builders";
 import { createDecorations, type Decorations } from "./decorations";
 import { districtParts, forestGeometry } from "./districts";
 import { GRASS_Y, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
@@ -20,6 +20,7 @@ interface TownScene {
   districts: Record<DistrictId, THREE.Group>;
   gates: Record<GateId, THREE.Group>;
   gateProgress: Record<GateId, number>;
+  schoolGateWheels: THREE.Mesh[];
   library: { open: THREE.Mesh; closed: THREE.Mesh; label: THREE.Mesh };
   boats: THREE.Object3D[];
   water: THREE.ShaderMaterial;
@@ -86,15 +87,27 @@ function makeTown(runtime: WorldRuntime): TownScene {
   mesh(schoolBoard.build(), root, sceneryMat());
   const gates = {} as TownScene["gates"];
   const gateProgress = {} as TownScene["gateProgress"];
+  const schoolGateWheels: THREE.Mesh[] = [];
   for (const id of ["cart", "school", "bridge", "arch"] as const) {
     const group = new THREE.Group();
     gates[id] = group;
     root.add(group);
     const g = gateGeometry(id);
-    if (id === "school") g.translate(4.2, 0, 0);
     mesh(g, group, sceneryMat());
+    if (id === "school") {
+      // Independent roller meshes rotate as the entire panel slides sideways.
+      const rollerGeometry = schoolGateWheelGeometry();
+      ownedGeometries.add(rollerGeometry);
+      for (const x of [-3.2, 3.2]) {
+        const roller = new THREE.Mesh(rollerGeometry, sceneryMat());
+        roller.position.set(x, 0.255, 0.18);
+        roller.raycast = noRaycast;
+        group.add(roller);
+        schoolGateWheels.push(roller);
+      }
+    }
     if (id === "cart") group.position.set(18, 0, 0);
-    if (id === "school") group.position.set(-4.2, 0, -22);
+    if (id === "school") group.position.set(0, 0, -22);
     if (id === "bridge") group.position.set(0, 0.12, 17.2);
     if (id === "arch") group.position.set(-22, 0, 0);
     gateProgress[id] = runtime.state.gates[id] ? 1 : 0;
@@ -180,7 +193,7 @@ function makeTown(runtime: WorldRuntime): TownScene {
     for (const g of ownedGeometries) g.dispose();
     for (const m of ownedMaterials) m.dispose();
   };
-  return { root, districts, gates, gateProgress, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
+  return { root, districts, gates, gateProgress, schoolGateWheels, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
 }
 
 const nearCamera = new Map<DistrictId, boolean>();
@@ -207,7 +220,13 @@ export function Town({ runtime, mood }: { runtime: WorldRuntime; mood: () => { g
       const p = town.gateProgress[id] += (target - town.gateProgress[id]) * smooth;
       const g = town.gates[id];
       if (id === "bridge") g.rotation.x = -(1 - p) * BRIDGE_RAISED;
-      if (id === "school") g.rotation.y = -p * Math.PI / 2;
+      if (id === "school") {
+        // Move completely clear of the two schoolhouse posts before settling.
+        const displacement = 8.7 * p;
+        g.position.x = displacement;
+        g.rotation.y = 0;
+        for (const wheel of town.schoolGateWheels) wheel.rotation.z = -displacement / 0.25;
+      }
       if (id === "cart") { g.position.set(18 + p * 4, p * 0.35, p * 9); g.rotation.x = 0.15 * (1 - p); g.scale.setScalar(1 - Math.max(0, p - 0.7) / 0.3); }
       if (id === "arch") { g.position.y = -p * 2; g.scale.y = 1 - p * 0.95; }
       g.visible = (id !== "cart" && id !== "arch") || p < 0.995;
