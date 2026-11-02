@@ -23,10 +23,7 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1), p = rt.player, c = rt.camera;
     const { position, target, look } = scratch;
-    // Square uses a cardinal view to align the paving with the screen edges.
-    // Other districts retain their existing diagonal composition.
-    const inSquare = Math.abs(p.x) < 18 && Math.abs(p.z) < 18;
-    position.set(p.x + (inSquare ? -12 : 4), p.y + 8, p.z + (inSquare ? 0 : 11));
+    position.set(p.x + 4, p.y + 8, p.z + 11);
     target.set(p.x, p.y + 0.8, p.z);
     if (c.mode === "conversation") {
       // Chosen once per pairing: re-picking while they talk would make the view jump.
