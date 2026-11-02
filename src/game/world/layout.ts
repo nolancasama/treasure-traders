@@ -59,6 +59,9 @@ export const SOLIDS: readonly Solid[] = [
   box("flowers-stall", "market", 30, 7, 3.3, 1.8, 1.1),
   box("toys-stall", "market", 45, -7, 3.3, 1.8, 1.1),
   box("fruit-stall", "market", 45, 7, 3.3, 1.8, 1.1),
+  // Bridge side rails: keep the player capsule inside the visible deck.
+  box("bridge-rail-west", "harbor", -2.45, 24, 0.12, 6.8, 1.05, 0.12),
+  box("bridge-rail-east", "harbor", 2.45, 24, 0.12, 6.8, 1.05, 0.12),
   box("school-building", "school", 2, -52, 12, 3, 5),
   box("lost-found", "school", 5, -39, 2, 1, 1),
   box("school-flowers-west", "school", -8, -29, 2.5, 0.65, 0.4),
