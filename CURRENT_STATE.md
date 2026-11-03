@@ -1,10 +1,9 @@
 # Current State
 
 ## Status
-Playable end to end, with the graphics upgrade and four implementation batches of
-the 22 visual, collision and interaction fixes. Batch 4 is uncommitted; controller
-acceptance is pending. The deployed site at
-https://nolancasama.github.io/treasure-traders/ does not include this working tree.
+Playable end to end, with the graphics upgrade and the 22 visual, collision and
+interaction fixes, live at https://nolancasama.github.io/treasure-traders/. Next is
+hand-playing it on a real Chromebook.
 
 ## What Exists
 - `docs/BRIEF.md` — the teacher's original brief. `SPEC.md` — frozen v1
@@ -42,6 +41,8 @@ https://nolancasama.github.io/treasure-traders/ does not include this working tr
   `npm run e2e`; `npm run e2e:short`,
   `npm run e2e:campaign`. Campaign screenshots land in `.tmp/shots/game/`.
   `npm run e2e:gate` exercises the school unlock animation and effective collision.
+  `tests/e2e/game.collision.spec.ts` drives the bridge, harbor chest, stage steps and E
+  with real keys and taps; it fails against the old bridge and chest colliders.
 - **Review galleries:** `?gallery=items|people|ui|world`; `npm run shots` renders them to
   `.tmp/shots/`. `tests/shots/perf.spec.ts` measures relative frame cost.
 - **Fix review harness:** controller-owned `npm run shots:fixes` produces paired
@@ -65,10 +66,14 @@ https://nolancasama.github.io/treasure-traders/ does not include this working tr
   posts/spans, and a prize sign on a front counter board below the tent hem.
 
 ## Current Work
-Implementation and unit/type validation are complete. Controller visual/behavioral
-acceptance of the four batches remains pending; no acceptance result is claimed.
+None in flight. No delegated work is pending. All four batches passed review: 230 unit
+tests, the 12 existing e2e specs, 6 real-input collision specs, and the rendered views
+under SwiftShader.
 
 ## Known Issues
+- The z-fight audit covers static geometry with empty chest slots. Filled chest slots
+  have overlaps inherited from the item models, left alone because the slots were to
+  stay unchanged; they show no flicker in the still frames reviewed.
 - Real microphones, real TTS voices and real Chromebook GPUs are untested: everything
   so far ran headless under SwiftShader, which says nothing absolute about frame rate.
 - Chapter 1 has not been hand-played in a real browser yet (the e2e plays it with real

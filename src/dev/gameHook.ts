@@ -2,7 +2,7 @@ import type { UIOptions } from '../ui';
 import type { RecognizerOptions } from '../audio/vendor';
 import type { WorldAPI } from '../game/runtime';
 import { navigationGates } from '../game/runtime';
-import type { Interaction, Point } from '../game/world/types';
+import type { GateId, Interaction, Point } from '../game/world/types';
 import { findPath } from '../game/world/collision';
 
 /** Installed on __tt only by the explicit e2e bridge, never normal play. */
@@ -10,6 +10,7 @@ export function createWorldControls(world: WorldAPI) {
   if (new URLSearchParams(location.search).get('e2e') !== '1') return {};
   return {
     teleport(position: Point & { yaw?: number }) { world.teleport(position); },
+    setGate(id: GateId, open: boolean) { world.setState({ ...world.runtime.state, gates: { ...world.runtime.state.gates, [id]: open } }); },
     approachPath(target: Interaction) {
       const at = world.positionOf(target);
       return at ? structuredClone(findPath(world.runtime.player, at, navigationGates(world.runtime))) : [];
