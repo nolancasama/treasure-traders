@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { DistrictId } from "../../game/content/ids";
-import { HOUSES, LAMP_POSITIONS, SOLIDS, TREES, WALK_AREAS } from "../../game/world/layout";
+import { HOUSES, LAMP_POSITIONS, SOLIDS, STAGE, TREES, WALK_AREAS } from "../../game/world/layout";
 import { PartBuilder, wirePoint } from "../partBuilder";
 import { addAwning, addCottage, addFarTree, addFlowerBox, addFlowers, addHipRoof, addLamp, addPebble, addShrub, addTree, addTuft, addWindow, FLOWERS, PALETTE } from "./builders";
 import { GRASS_Y, seeded } from "./ground";
@@ -22,6 +22,7 @@ const solid = (id: string) => {
   return s;
 };
 const boxOf = (id: string) => {
+  if (id === "stage") return STAGE;
   const s = solid(id);
   if (s.kind !== "box") throw new Error(`${id} is not a box`);
   return s;
@@ -522,7 +523,21 @@ function stage(low: B, tall: B, signs: SignBatch) {
     g.setAttribute("position", new THREE.Float32BufferAttribute([0, 0.5, 0.4, 0, 0.5, -0.4, 0, 0.1, 0], 3));
     low.add(g, i % 2 ? PALETTE.gold : PALETTE.red, [front + 0.09, 0, -5.54 + i * 0.92]);
   }
-  for (let i = 0; i < 3; i++) low.box(0.6, 0.2 * (i + 1), 3.4, front + 1.5 - i * 0.55, 0, 0, i % 2 ? "#cf9558" : "#bb7d45");
+  // Exterior faces of the union of the three 0.6m treads. Their original
+  // 0.05m overlap must not leave coplanar side faces of different colours.
+  for (let i = 0; i < 3; i++) {
+    const east = front + 1.8 - i * 0.55, west = i === 2 ? east - 0.6 : east - 0.55;
+    const height = 0.2 * (i + 1), previous = 0.2 * i, positions: number[] = [];
+    const quad = (a: number[], b: number[], c: number[], d: number[]) => positions.push(...a, ...b, ...d, ...b, ...c, ...d);
+    quad([west, height, -1.7], [west, height, 1.7], [east, height, 1.7], [east, height, -1.7]);
+    quad([west, 0, -1.7], [west, height, -1.7], [east, height, -1.7], [east, 0, -1.7]);
+    quad([east, 0, 1.7], [east, height, 1.7], [west, height, 1.7], [west, 0, 1.7]);
+    quad([east, previous, -1.7], [east, height, -1.7], [east, height, 1.7], [east, previous, 1.7]);
+    if (i === 2) quad([west, 0, 1.7], [west, height, 1.7], [west, height, -1.7], [west, 0, -1.7]);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    low.add(geometry, i % 2 ? "#cf9558" : "#bb7d45", [0, 0, 0]);
+  }
   // Back wall with a golden sun, gathered curtains and a proscenium.
   tall.box(0.35, 5.4, s.hz * 2 + 0.6, s.x - s.hx, 0, s.z, "#b84a52");
   tall.cylAt(2, 0.1, [s.x - s.hx + 0.22, 3.1, 0], [0, 0, Math.PI / 2], PALETTE.gold, 18);

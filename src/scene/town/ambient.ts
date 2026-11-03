@@ -127,6 +127,7 @@ export function createAmbient(root: THREE.Group, districts: Record<DistrictId, T
   for (let i = 0; i < gullCount + BIRD_HOMES.length; i++) flyers.setColorAt(i, color.set(i < gullCount ? "#ffffff" : "#aab2c6"));
 
   const fish = instanced(fishGeometry(), 3, districts.harbor);
+  fish.name = "harbor-fish";
 
   const dropBuilder = new PartBuilder(0);
   dropBuilder.add(new THREE.OctahedronGeometry(0.07), "#c8f1f3", [0, 0, 0], [0, 0, 0], [1, 1.6, 1], { flatAo: true });

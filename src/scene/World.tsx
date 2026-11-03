@@ -1,6 +1,7 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { festivalRevealed, type WorldAPI } from "../game/runtime";
+import type { GateId } from "../game/world/types";
 import { Atmosphere } from "./Atmosphere";
 import { Lighting } from "./Lighting";
 import { Town } from "./town/Town";
@@ -10,7 +11,7 @@ import { AdaptiveDpr, WorldCamera } from "./WorldCamera";
 import { WorldController } from "./WorldController";
 
 /** Mount inside an R3F Canvas; no UI, model transitions, audio or chapter flow. */
-export function World({ world }: { world: WorldAPI }) {
+export function World({ world, reviewGateProgress }: { world: WorldAPI; reviewGateProgress?: Partial<Record<GateId, number>> }) {
   // The day deepens toward golden hour with each deposit, and dusk comes with the finale.
   const mood = useMemo(() => ({ gold: 0, dusk: 0 }), []);
   const started = useRef(false);
@@ -28,7 +29,7 @@ export function World({ world }: { world: WorldAPI }) {
     <Atmosphere mood={read} />
     <WorldController world={world} />
     <WorldCamera runtime={world.runtime} />
-    <Town runtime={world.runtime} mood={read} />
+    <Town runtime={world.runtime} mood={read} reviewGateProgress={reviewGateProgress} />
     <WorldActors runtime={world.runtime} />
     <WorldEffects runtime={world.runtime} />
     <AdaptiveDpr />

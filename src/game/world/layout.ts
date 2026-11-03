@@ -9,6 +9,13 @@ export interface Area {
 }
 interface SolidBase { id: string; district: DistrictId; x: number; z: number; y: number; height: number }
 export type Solid = (SolidBase & { kind: "box"; hx: number; hz: number; yaw: number }) | (SolidBase & { kind: "circle"; r: number });
+/** Visual platform dimensions; only its edges obstruct walking. */
+export const STAGE = { id: "stage", district: "festival", kind: "box", x: -62, z: 0, hx: 3, hz: 6, height: 0.6, y: 0, yaw: 0 } as const;
+/** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
+export const CHEST_SCALE = 1.5;
+export const chestPose = (chapter: ChapterId) => chapter === 5
+  ? { x: -60.7, y: 0.6, z: 0, yaw: Math.PI * 0.3 }
+  : { x: 0, y: 0.15, z: -8, yaw: 0 };
 export const DISTRICTS: Record<DistrictId, Point> = {
   square: { x: 0, z: 0 }, market: { x: 37, z: 0 }, school: { x: 0, z: -36 },
   harbor: { x: 8, z: 34 }, festival: { x: -48, z: 0 }
@@ -41,10 +48,13 @@ export const WALK_AREAS: readonly Area[] = [
   { id: "harbor-bank", district: "harbor", x: 3.5, z: 32.5, hx: 20.5, hz: 4.5, y: 0, gate: "bridge" },
   { id: "pier", district: "harbor", x: 8, z: 41, hx: 3, hz: 8, y: 0.12, gate: "bridge" },
   { id: "festival-neck", district: "festival", x: -24, z: 0, hx: 8, hz: 4, y: 0, gate: "arch" },
-  { id: "festival", district: "festival", x: -47, z: 0, hx: 19, hz: 18, y: 0, gate: "arch" }
+  { id: "festival", district: "festival", x: -47, z: 0, hx: 19, hz: 18, y: 0, gate: "arch" },
+  // The top landing includes the 0.1m join between the last tread and platform.
+  { id: "stage-top", district: "festival", x: -61.95, z: 0, hx: 3.05, hz: 6, y: 0.6, gate: "arch" },
+  ...[0, 1, 2].map((i): Area => ({ id: `stage-step-${i + 1}`, district: "festival", x: STAGE.x + STAGE.hx + 1.5 - i * 0.55, z: 0, hx: 0.3, hz: 1.7, y: 0.2 * (i + 1), gate: "arch" }))
 ];
 
-const box = (id: string, district: DistrictId, x: number, z: number, hx: number, hz: number, height: number, y = 0): Solid =>
+const box = (id: string, district: DistrictId, x: number, z: number, hx: number, hz: number, height: number, y = 0): Extract<Solid, { kind: "box" }> =>
   ({ id, district, kind: "box", x, z, hx, hz, y, height, yaw: 0 });
 /** Render these footprints directly; decorative roofs/awnings may overhang them. */
 export const SOLIDS: readonly Solid[] = [
@@ -76,7 +86,22 @@ export const SOLIDS: readonly Solid[] = [
   box("library-globe", "school", -16.2, -38.2, 0.6, 0.6, 0.95, 0.12),
   box("library-basket", "school", -14, -44.7, 0.55, 0.55, 0.4, 0.12),
   box("harbor-easel", "harbor", -10, 32, 0.65, 0.5, 1.7),
-  box("stage", "festival", -62, 0, 3, 6, 0.6),
+  // SeaChest body, lid trim, handles and locks at scale 1.3. Static through opening.
+  box("sea-chest", "harbor", 10, 36.02, 0.66, 0.43, 0.75, 0.12),
+  // Bridge rope/post footprint: the player stays inside the visible 4.9m rails.
+  box("bridge-rail-west", "harbor", -2.45, 24, 0.12, 6.8, 1.2, 0.12),
+  box("bridge-rail-east", "harbor", 2.45, 24, 0.12, 6.8, 1.2, 0.12),
+  box("stage-back-edge", "festival", -65, 0, 0.175, 6.3, 5.4),
+  box("stage-north-edge", "festival", -62, -6, 3, 0.08, 0.6),
+  box("stage-south-edge", "festival", -62, 6, 3, 0.08, 0.6),
+  ...[-1, 1].flatMap((side) => [
+    box(`stage-front-${side}`, "festival", -59, side * 3.85, 0.08, 2.15, 0.6),
+    box(`stage-step-side-${side}`, "festival", -58.05, side * 1.74, 0.95, 0.04, 0.6),
+    box(`stage-curtain-${side}`, "festival", -64.58, side * 4.3, 0.34, 1.34, 4.4, 0.6),
+    box(`stage-drum-${side}`, "festival", -63, side * 3.4, 0.45, 0.5, 1.24, 0.6),
+    ...[-60.5, -64.4].map((x) => box(`stage-post-${side}-${x}`, "festival", x, side * 5.2, 0.35, 0.35, 5.1))
+  ]),
+  { ...box("stage-chest", "festival", chestPose(5).x, chestPose(5).z, 0.84 * CHEST_SCALE, 0.5 * CHEST_SCALE, 1.2 * CHEST_SCALE, 0.6), yaw: chestPose(5).yaw },
   box("festival-stall-north", "festival", -43, -12, 3, 1.5, 1.1),
   box("festival-stall-south", "festival", -43, 12, 3, 1.5, 1.1),
   box("grounds-crate", "festival", -54, -10, 0.8, 0.8, 0.7),
@@ -95,11 +120,11 @@ export const SOLIDS: readonly Solid[] = [
   })))
 ];
 
-/** Closed barriers share the exact visual gate centres; the bridge also removes its deck. */
+/** Closed barriers match the visuals; the bridge blocks its hinge and removes its deck. */
 export const GATE_SOLIDS: Record<GateId, Solid> = {
   cart: box("gate-cart", "market", 18, 0, 0.45, 4.2, 1.5),
   school: box("gate-school", "school", 0, -22, 4.2, 0.35, 2.2),
-  bridge: box("gate-bridge", "harbor", 0, 24, 2.6, 0.4, 2.8),
+  bridge: box("gate-bridge", "harbor", 0, 18.6, 2.6, 1.4, 2.8),
   arch: box("gate-arch", "festival", -22, 0, 0.3, 4.2, 1.4)
 };
 
@@ -139,12 +164,6 @@ export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
 
 /** Grandma sits on her bench while at home; her interaction point stays walkable. */
 export const UME_SEAT = { x: -10, y: 0.42, z: 4.12 };
-
-/** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
-export const CHEST_SCALE = 1.5;
-export const chestPose = (chapter: ChapterId) => chapter === 5
-  ? { x: -60.7, y: 0.6, z: 0, yaw: Math.PI * 0.3 }
-  : { x: 0, y: 0.15, z: -8, yaw: 0 };
 
 /** The ending's framing: from the open east of the field, with the sky over the stage. */
 export const FINALE_VIEW = { position: { x: -33.5, y: 3.3, z: 3.8 }, target: { x: -56, y: 7, z: -0.8 } };

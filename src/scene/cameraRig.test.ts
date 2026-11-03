@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NPC_IDS, type NpcId } from "../game/content/ids";
 import { CLOSED, OPEN, isWalkable } from "../game/world/collision";
-import { HOUSES, NPC_HOMES, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, SOLIDS, chestPose } from "../game/world/layout";
+import { HOUSES, NPC_HOMES, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose } from "../game/world/layout";
 import { DISTRICT_IDS } from "../game/content/ids";
 import { blockedHeads, CAMERA_BLOCKERS, conversationShot, segmentHits, type Blocker } from "./cameraRig";
 
@@ -95,8 +95,8 @@ describe("finale staging", () => {
   });
 
   it("the chest stands on the stage, so nobody can walk through it", () => {
-    const pose = chestPose(5), stage = SOLIDS.find(s => s.id === "stage")!;
-    expect(pose.y).toBeCloseTo(stage.height);
+    const pose = chestPose(5);
+    expect(pose.y).toBeCloseTo(STAGE.height);
     expect(isWalkable(pose.x, pose.z, OPEN)).toBe(false);
     expect(isWalkable(chestPose(1).x, chestPose(1).z, CLOSED)).toBe(false);
   });

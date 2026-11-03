@@ -4,9 +4,12 @@ import type { ChapterId } from "../content/ids";
 import { GROUNDS_SPOTS, LIBRARY_SPOTS, SQUARE_SPOTS } from "../logic/generator";
 import { placement } from "../logic/objectives";
 import { startChapter } from "../logic/state";
+import { createWorld, navigationGates, worldStateFromGame } from "../runtime";
+import { activateInteraction, approachInteraction, stepController, updateFocus } from "../../scene/WorldController";
 import { CLOSED, OPEN, findPath, isWalkable, moveCircle, nearestWalkable, standY } from "./collision";
-import { DISTRICTS, NPC_HOMES, SOLIDS, SPOTS, SURFACES, npcPosition } from "./layout";
-import type { Gates, Point } from "./types";
+import { canInteract, interactionFocus } from "./interaction";
+import { DISTRICTS, GATE_SOLIDS, NPC_HOMES, SOLIDS, SPOTS, STAGE, SURFACES, npcPosition } from "./layout";
+import type { Gates, Interaction, Point } from "./types";
 
 const gatesFor = (chapter: ChapterId): Gates => ({ cart: chapter >= 2, school: chapter >= 3, bridge: chapter >= 4, arch: chapter >= 5 });
 const spawn = { x: 0, z: 7 };
@@ -35,10 +38,23 @@ describe("world collision", () => {
     expect(isWalkable(0, 24, OPEN)).toBe(true);
     expect(isWalkable(8, 24, OPEN)).toBe(false);
     expect(isWalkable(18, 43, OPEN)).toBe(false);
-    const stopped = moveCircle(0, 17, 0, 35, 0.35, CLOSED);
-    expect(stopped.z).toBeLessThan(20);
-    const crossed = moveCircle(0, 17, 0, 35, 0.35, OPEN);
+    const bridge = GATE_SOLIDS.bridge;
+    expect(bridge.kind).toBe("box");
+    if (bridge.kind === "box") {
+      expect(bridge.z - bridge.hz).toBeCloseTo(17.2);
+      expect(bridge.z + bridge.hz).toBeCloseTo(20);
+    }
+    expect(isWalkable(0, 16.84, CLOSED)).toBe(true);
+    expect(isWalkable(0, 16.86, CLOSED)).toBe(false);
+    const stopped = moveCircle(0, 16, 0, 35, 0.35, CLOSED);
+    expect(stopped.z).toBeGreaterThan(16.7);
+    expect(stopped.z).toBeLessThanOrEqual(16.85);
+    const crossed = moveCircle(0, 16, 0, 35, 0.35, OPEN);
     expect(crossed.z).toBeCloseTo(35);
+    expect(moveCircle(0, 35, 0, 16, 0.35, OPEN).z).toBeCloseTo(16);
+    checkRoute(findPath({ x: 0, z: 16 }, { x: 0, z: 35 }, OPEN), OPEN, { x: 0, z: 16 });
+    expect(isWalkable(2.1, 24, OPEN)).toBe(false);
+    expect(moveCircle(0, 24, 4, 26, 0.35, OPEN).x).toBeLessThanOrEqual(1.98 + 1e-5);
   });
 
   it("slides along land edges while preserving movement along the edge", () => {
@@ -74,6 +90,189 @@ describe("world collision", () => {
     checkRoute(findPath({ x: -7, z: 0 }, { x: 7, z: 0 }, OPEN), OPEN, { x: -7, z: 0 });
     checkRoute(findPath(spawn, SPOTS["library-1"], OPEN), OPEN);
     checkRoute(findPath(spawn, SPOTS["grounds-1"], OPEN), OPEN);
+  });
+
+  it("keeps the harbor chest solid while preserving access on every side and the pier route", () => {
+    const chest = SOLIDS.find(s => s.id === "sea-chest")!;
+    expect(chest.x).toBe(10);
+    expect(isWalkable(10, 36, OPEN)).toBe(false);
+    expect(moveCircle(8, 36, 12, 36, 0.35, OPEN).x).toBeLessThan(9);
+    const bo = NPC_HOMES.bo, finn = NPC_HOMES.finn;
+    checkRoute(findPath(bo, finn, OPEN), OPEN, bo);
+    for (const side of [{ x: 8.9, z: 36 }, { x: 11.1, z: 36 }, { x: 10, z: 35.1 }, { x: 10, z: 36.9 }]) {
+      expect(isWalkable(side.x, side.z, OPEN)).toBe(true);
+      checkRoute(findPath(bo, side, OPEN), OPEN, bo);
+    }
+  });
+
+  it("uses the stage steps as the route up and down, with solid edges and stage furniture", () => {
+    expect(SOLIDS.some(s => s.id === "stage")).toBe(false);
+    expect(STAGE.hx * 2).toBe(6);
+    expect(STAGE.hz * 2).toBe(12);
+    expect(isWalkable(-62, 1.8, OPEN)).toBe(true);
+    expect(isWalkable(-62, 1.8, { ...OPEN, arch: false })).toBe(false);
+    expect(standY(-57.5, 0)).toBeCloseTo(0.2);
+    expect(standY(-58.05, 0)).toBeCloseTo(0.4);
+    expect(standY(-58.6, 0)).toBeCloseTo(0.6);
+    expect(standY(-62, 1.8)).toBeCloseTo(0.6);
+    expect(standY(-62, 1.8, CLOSED)).toBe(0);
+    expect(standY(-58.95, 0)).toBeCloseTo(0.6);
+    expect(moveCircle(-57, 3, -62, 3, 0.35, OPEN).x).toBeGreaterThan(-58.6);
+    for (const id of ["stage-chest", "stage-drum-1", "stage-curtain--1", "stage-post-1--60.5"]) {
+      const prop = SOLIDS.find(s => s.id === id)!;
+      expect(prop, id).toBeDefined();
+      expect(isWalkable(prop.x, prop.z, OPEN), id).toBe(false);
+    }
+    const field = { x: -54, z: 4 }, top = { x: -62, z: 1.8 };
+    for (const [from, to] of [[field, top], [top, field]]) {
+      const path = findPath(from, to, OPEN);
+      checkRoute(path, OPEN, from);
+      expect(path[path.length - 1]).toEqual(to);
+      let previous = from, crossedOpening = false;
+      for (const next of path) {
+        if ((previous.x + 59) * (next.x + 59) <= 0 && previous.x !== next.x) {
+          const z = previous.z + (next.z - previous.z) * (-59 - previous.x) / (next.x - previous.x);
+          if (Math.abs(z) < 1.35) crossedOpening = true;
+        }
+        previous = next;
+      }
+      expect(crossedOpening).toBe(true);
+    }
+  });
+});
+
+describe("world interaction", () => {
+  it("focuses nearby targets behind the player, rejects distant ones and uses facing only for equal distances", () => {
+    const player = { x: 6, y: 0, z: 8, yaw: Math.PI / 2 };
+    const behind = { target: { kind: "npc", id: "ken" } as const, position: { x: 4, y: 0, z: 8 } };
+    const ahead = { target: { kind: "npc", id: "ume" } as const, position: { x: 8, y: 0, z: 8 } };
+    expect(interactionFocus(player, [behind], OPEN)).toEqual(behind.target);
+    expect(interactionFocus(player, [behind, ahead], OPEN)).toEqual(ahead.target);
+    expect(interactionFocus(player, [{ ...behind, position: { x: 5, y: 0, z: 8 } }, ahead], OPEN)).toEqual(behind.target);
+    expect(interactionFocus(player, [{ ...ahead, position: { x: 8.41, y: 0, z: 8 } }], OPEN)).toBeNull();
+    expect(interactionFocus({ ...player, x: 0 }, [{ ...ahead, position: { x: 2.4, y: 0, z: 8 } }], OPEN)).toEqual(ahead.target);
+  });
+
+  it("blocks item and NPC sight through walls while leaving shelf and fountain items reachable", () => {
+    const shelf = { target: { kind: "spot", id: "library-1" } as const, position: SPOTS["library-1"] };
+    expect(canInteract({ x: -23.5, y: 0.12, z: -47.8 }, shelf, OPEN)).toBe(false);
+    expect(canInteract({ x: -23.5, y: 0.12, z: -43.5 }, shelf, OPEN)).toBe(true);
+    const npc = { target: { kind: "npc", id: "page" } as const, position: { x: -21, y: 0.12, z: -45.7 } };
+    expect(canInteract({ x: -21, y: 0.12, z: -47.8 }, npc, OPEN)).toBe(false);
+    expect(canInteract({ x: 3, y: 0, z: 0 }, { target: { kind: "spot", id: "square-pencil" }, position: SPOTS["square-pencil"] }, OPEN)).toBe(true);
+  });
+
+  function interactionWorld() {
+    const state = worldStateFromGame(startChapter(4, { mode: "campaign", campaignSeed: 1234, seed: 17 }));
+    state.gates = { ...OPEN };
+    state.npcs = { ken: { x: 6, y: 0, z: 8, district: "square" } };
+    state.items = [];
+    state.seaChest = { items: ["pen"], locks: [false], open: false };
+    return createWorld(state);
+  }
+
+  it("interacts with the solid harbor chest from every reachable side, closed or open", () => {
+    for (const open of [false, true]) for (const point of [{ x: 8.7, z: 36 }, { x: 11.3, z: 36 }, { x: 10, z: 34.8 }, { x: 10, z: 37.2 }]) {
+      const world = interactionWorld(), received: Interaction[] = [];
+      world.runtime.state.seaChest.open = open;
+      expect(isWalkable(point.x, point.z, OPEN)).toBe(true);
+      world.teleport(point);
+      world.onInteract(target => received.push(target));
+      updateFocus(world);
+      expect(world.runtime.focus).toEqual({ kind: "seaChest" });
+      expect(activateInteraction(world, { kind: "seaChest" })).toBe(true);
+      expect(received).toEqual([{ kind: "seaChest" }]);
+    }
+  });
+
+  it("fires an already-in-range tap immediately and suppresses repeated input and locked interactions", () => {
+    const world = interactionWorld(), received: Interaction[] = [], target = { kind: "npc", id: "ken" } as const;
+    world.teleport({ x: 5, z: 8, yaw: -Math.PI / 2 });
+    world.onInteract(entry => received.push(entry));
+    approachInteraction(world, target);
+    approachInteraction(world, target);
+    expect(activateInteraction(world, target)).toBe(false);
+    expect(received).toEqual([target]);
+    world.runtime.time += 1;
+    world.setInputLocked(true);
+    approachInteraction(world, target);
+    expect(activateInteraction(world, target)).toBe(false);
+    updateFocus(world);
+    expect(world.runtime.focus).toBeNull();
+    expect(received).toEqual([target]);
+  });
+
+  it("walks a distant tap into range and fires once without requiring another tap", () => {
+    const world = interactionWorld(), received: Interaction[] = [], target = { kind: "npc", id: "ken" } as const;
+    world.teleport({ x: 0, z: 8 });
+    world.onInteract(entry => received.push(entry));
+    expect(activateInteraction(world, target)).toBe(false);
+    approachInteraction(world, target);
+    expect(world.runtime.pending).toEqual(target);
+    expect(received).toEqual([]);
+    for (let frame = 0; frame < 100 && !received.length; frame++) stepController(world, 1 / 30);
+    expect(received).toEqual([target]);
+    expect(Math.hypot(world.runtime.player.x - 6, world.runtime.player.z - 8)).toBeLessThanOrEqual(2.4);
+    expect(world.runtime.pending).toBeNull();
+    expect(world.runtime.path).toEqual([]);
+    stepController(world, 1 / 30);
+    expect(received).toEqual([target]);
+  });
+});
+
+describe("rendered gate timing", () => {
+  function bridgeWorld() {
+    const state = worldStateFromGame(startChapter(4, { mode: "campaign", campaignSeed: 1234 }));
+    state.gates = { ...OPEN };
+    const world = createWorld(state);
+    world.teleport({ x: 0, z: 16 });
+    return world;
+  }
+
+  it("treats gates as settled without a renderer and keeps restored gates at their final pose", () => {
+    const world = bridgeWorld();
+    expect(world.runtime.gateProgress).toBeNull();
+    expect(navigationGates(world.runtime)).toEqual(OPEN);
+    world.runtime.gateProgress = { cart: 0, school: 0.25, bridge: 0.5, arch: 0.75 };
+    world.setState(world.runtime.state, { settleGates: true });
+    expect(world.runtime.gateProgress).toEqual({ cart: 1, school: 1, bridge: 1, arch: 1 });
+    world.teleport({ x: 8, z: 47 });
+    expect(world.runtime.player.z).toBe(47);
+  });
+
+  it("blocks keyboard crossing until the last rendered increment and closes immediately", () => {
+    const world = bridgeWorld(), rt = world.runtime;
+    rt.gateProgress = { cart: 1, school: 1, bridge: 0.999, arch: 1 };
+    expect(navigationGates(rt).bridge).toBe(false);
+    for (let frame = 0; frame < 30; frame++) stepController(world, 0.1, { x: 0, y: -1 });
+    expect(rt.player.z).toBeLessThanOrEqual(16.85);
+    rt.gateProgress.bridge = 1;
+    expect(navigationGates(rt).bridge).toBe(true);
+    for (let frame = 0; frame < 30; frame++) stepController(world, 0.1, { x: 0, y: -1 });
+    expect(rt.player.z).toBeGreaterThan(29);
+    rt.state.gates.bridge = false;
+    expect(navigationGates(rt).bridge).toBe(false);
+    expect(isWalkable(0, 24, navigationGates(rt))).toBe(false);
+  });
+
+  it("retains a walk requested just after unlock and starts it only once rendered open", () => {
+    const world = bridgeWorld(), rt = world.runtime;
+    rt.gateProgress = { cart: 1, school: 1, bridge: 0.5, arch: 1 };
+    expect(world.walkTo({ x: 0, z: 35 })).toBe(true);
+    expect(rt.deferredWalk?.point).toEqual({ x: 0, z: 35 });
+    stepController(world, 0.1);
+    expect(rt.player.z).toBe(16);
+    expect(rt.path).toEqual([]);
+    rt.gateProgress.bridge = 1;
+    for (let frame = 0; frame < 100; frame++) stepController(world, 0.1);
+    expect(rt.deferredWalk).toBeNull();
+    expect(Math.abs(rt.player.z - 35)).toBeLessThan(0.15);
+    expect(rt.path).toEqual([]);
+    world.teleport({ x: 0, z: 16 });
+    rt.gateProgress.bridge = 0.5;
+    world.walkTo({ x: 0, z: 35 });
+    world.setInputLocked(true);
+    expect(rt.deferredWalk).toBeNull();
   });
 });
 

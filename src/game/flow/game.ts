@@ -199,7 +199,7 @@ export function createGame() {
     } else if (action === 'continue') {
       const game = state().load();
       if (!game) { ui.notice(state().loadNotice); return; }
-      world.setState(worldStateFromGame(game));
+      world.setState(worldStateFromGame(game), { settleGates: true });
       const loaded = state().load(undefined, world.relocate);
       if (!loaded) return;
     } else if (action === 'new-game') {

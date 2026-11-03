@@ -516,3 +516,60 @@ behaviour are unchanged except where noted.
   moving the finale camera, since the dialogue panel leaves little room to frame it.
 - **Pushing to `main` deploys,** because the Pages workflow runs on push. The plan
   said not to deploy; the teacher then explicitly approved pushing to `main`.
+
+## 2026-11-03: the 22 visual, collision and interaction fixes
+
+The teacher's list of 22 problems, reviewed against the source before work began.
+
+- **The bench turns to the follow camera; the camera stays.** The follow camera sits at
+  offset (+4, +8, +11), a yaw of `atan2(4, 11)` (about 20 degrees). A line along the
+  camera's right vector projects level on screen from anywhere, so Grandma Ume's bench,
+  its collider and her seat use exactly that yaw, as one constant. Rejected: rotating the
+  square's camera, which was tried and deliberately reverted.
+- **A raised bridge is stopped at its hinge.** The leaf hinges at z=17.2 and rises over
+  `bridge-approach`, which is ungated and walkable to z=20, so players walked under and
+  through it; the old collider at z=24 was out of reach. The closed collider now covers
+  z=17.2 to z=20. Rejected: gating the whole approach area, which leaves no boundary to
+  match the visible hinge.
+- **Gate collision opens when the animation finishes, not when the state flips.** Skipping
+  an intro next to a gate could otherwise let a player cross while it was still moving.
+  Closing is immediate. With no renderer (unit tests) gates count as settled.
+- **The school gate has a slot through its east post and slides at a watchable pace.** The
+  post becomes a stone portal: piers in front and behind, solid above the panel. The panel
+  parks with its west end still in the slot. It eases over about 3 s rather than the shared
+  exponential, which moved 8 m in about a second and hid the wheels; the unlock shot must
+  cover it.
+- **The stage steps are a real route.** Rejected: solid steps. A stone path leads to them,
+  so a wall there reads as a bug, and the stage is a good place for a child to stand. Each
+  step is a walk area at its visible height and the player's y eases between them. The
+  stage's edges become thin solids with the step opening left clear. The stage is reachable
+  only once the arch opens (Chapter 5), which is also when the Festival Chest stands on it,
+  so that chest's stage collider can be a static solid.
+- **E no longer depends on which way the player faces.** The facing cone made E look
+  unreliable; facing now only breaks ties. Items also need a line of sight, since E could
+  reach a library item through the wall from outside. A target's own collider does not
+  count as blocking it.
+- **The harbor chest's collider is static,** because its model is visible in every chapter
+  and only its interaction depends on Chapter 4.
+- **Z-fighting is audited, not eyeballed.** A headless screenshot cannot show flicker
+  during movement, so a unit test scans built static geometry for overlapping coplanar
+  faces of different colours. Rejected: polygon offset or global depth changes, which the
+  teacher ruled out.
+
+### Batch 1 implementation details
+
+- **Gate progress has an exact settled endpoint.** The existing exponential
+  animation snaps its last 0.001 to the target; navigation opens only at 1 and
+  closing blocks immediately. Walk requests made while a gate opens wait for
+  settlement. Continue sets restored gates to their final pose before relocation;
+  no gate timing enters the save format. With no renderer, logical gates are
+  settled. The e2e hook reads the actual progress and effective navigation gates.
+- **Interaction visibility tests the direct segment.** Items ignore their own
+  supporting furniture, and the sea chest ignores its own footprint; walls and
+  other scenery still block them. Facing only resolves equal-distance focus.
+  Keyboard and tap approaches share a short duplicate-input cooldown and the
+  same range and visibility checks, with an E/Enter marker on the focused target.
+- **Review snapshots can hold rendered gate poses.** Only the world gallery
+  passes this override, allowing exact quarter-progress school-gate views without
+  altering normal animation. Gameplay review views retain the specified follow
+  offset, including inside the library; normal library camera behavior is unchanged.

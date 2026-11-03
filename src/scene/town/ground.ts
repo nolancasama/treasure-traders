@@ -287,7 +287,8 @@ function festivalLawn(q: QuadWriter, a: Area, earlier: readonly Area[], rand: ()
 export function pavingGeometry(district: DistrictId): THREE.BufferGeometry {
   const base = new PartBuilder(0), q = new QuadWriter(), rand = seeded(district.length * 991 + 13);
   WALK_AREAS.forEach((a, index) => {
-    if (a.district !== district || a.id === "bridge") return;
+    // The moving bridge and stage's timber supports have their own geometry.
+    if (a.district !== district || a.id === "bridge" || a.id.startsWith("stage-")) return;
     const earlier = WALK_AREAS.slice(0, index).filter(e => e.id !== "bridge");
     const style = STYLES[a.id];
     const grout = a.id === "library" ? "#8d6a48" : a.id === "pier" ? "#6e5236" : a.id === "festival" ? "#94bd70" : style.grout;

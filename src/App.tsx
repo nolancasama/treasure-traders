@@ -6,6 +6,7 @@ import { World } from './scene/World';
 import { UIHost } from './ui';
 import { createGame, type Game } from './game/flow/game';
 import type { Interaction } from './game/world/types';
+import { createWorldControls } from './dev/gameHook';
 
 function GameBridge({ game }: { game: Game }) {
   const { camera, gl, size } = useThree();
@@ -13,6 +14,7 @@ function GameBridge({ game }: { game: Game }) {
     if (!game.stubs) return;
     let renderer = { calls: 0, triangles: 0, dpr: 1 };
     const hook = {
+      ...createWorldControls(game.world),
       read() {
         const state = game.store.getState(), presentation = game.ui.getSnapshot();
         return structuredClone({
@@ -21,7 +23,8 @@ function GameBridge({ game }: { game: Game }) {
           focus: game.world.runtime.focus, prompt: game.ui.speech.getSnapshot().prompt,
           speech: game.ui.speech.getSnapshot(), presentation,
           busy: state.busy, phase: state.phase, renderer, intents: game.intents(),
-          navigation: { path: game.world.runtime.path, pending: game.world.runtime.pending, locked: game.world.runtime.locked }
+          navigation: { path: game.world.runtime.path, pending: game.world.runtime.pending, deferredWalk: game.world.runtime.deferredWalk, locked: game.world.runtime.locked },
+          gates: { logical: game.world.runtime.state.gates, progress: game.world.runtime.gateProgress }
         });
       },
       intent: game.intent,

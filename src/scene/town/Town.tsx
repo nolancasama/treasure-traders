@@ -198,8 +198,12 @@ function makeTown(runtime: WorldRuntime): TownScene {
 
 const nearCamera = new Map<DistrictId, boolean>();
 
-export function Town({ runtime, mood }: { runtime: WorldRuntime; mood: () => { gold: number; dusk: number } }) {
+export function Town({ runtime, mood, reviewGateProgress }: { runtime: WorldRuntime; mood: () => { gold: number; dusk: number }; reviewGateProgress?: Partial<Record<GateId, number>> }) {
   const town = useMemo(() => makeTown(runtime), [runtime]);
+  useEffect(() => {
+    runtime.gateProgress = town.gateProgress;
+    return () => { if (runtime.gateProgress === town.gateProgress) runtime.gateProgress = null; };
+  }, [runtime, town]);
   useEffect(() => () => town.dispose(), [town]);
   useFrame(({ camera }, delta) => {
     const t = runtime.time;
@@ -217,7 +221,9 @@ export function Town({ runtime, mood }: { runtime: WorldRuntime; mood: () => { g
     const smooth = 1 - Math.exp(-delta * 4);
     for (const id of ["cart", "school", "bridge", "arch"] as const) {
       const target = runtime.state.gates[id] ? 1 : 0;
-      const p = town.gateProgress[id] += (target - town.gateProgress[id]) * smooth;
+      const next = town.gateProgress[id] + (target - town.gateProgress[id]) * smooth;
+      // Exponential motion needs an exact endpoint for collision to open.
+      const p = town.gateProgress[id] = reviewGateProgress?.[id] ?? (Math.abs(target - next) < 0.001 ? target : next);
       const g = town.gates[id];
       if (id === "bridge") g.rotation.x = -(1 - p) * BRIDGE_RAISED;
       if (id === "school") {

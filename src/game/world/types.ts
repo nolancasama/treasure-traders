@@ -32,6 +32,8 @@ export interface WorldRuntime {
   state: WorldState;
   revision: number;
   time: number;
+  /** Actual rendered positions; null means no scenery renderer is mounted. */
+  gateProgress: Record<GateId, number> | null;
   player: Position & { yaw: number; speed: number };
   locked: boolean;
   bottomPanel: number;
@@ -39,6 +41,8 @@ export interface WorldRuntime {
   cameraYaw: number;
   path: Point[];
   pending: Interaction | null;
+  /** A requested walk waiting for an opening gate to finish rendering. */
+  deferredWalk: { point: Point; interact?: Interaction } | null;
   focus: Interaction | null;
   npcCommands: Partial<Record<NpcId, NpcCommand>>;
   playerCommand: NpcCommand | null;

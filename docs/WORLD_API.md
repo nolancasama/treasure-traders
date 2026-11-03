@@ -99,3 +99,25 @@ Gallery controls and renderer probe are development tools, not a game HUD.
 `npm run shots` writes PNGs and renderer metric JSON to `.tmp/shots/world/` at
 1366×768. `PERF_LABEL=x npx playwright test --config=playwright.shots.config.ts
 tests/shots/perf.spec.ts` writes relative frame cost to `.tmp/shots/perf/x.json`.
+
+## Batch 1 collision and interaction additions (2026-11-03)
+
+The gate timing and focus descriptions above are superseded as follows. Closing
+blocks immediately; opening permits movement and pathfinding only at rendered
+progress 1. `navigationGates(runtime)` returns those effective gates. The renderer
+publishes `runtime.gateProgress` (0 closed, 1 open), or null without a renderer;
+headless worlds treat logical gates as settled. `setState(state,
+{settleGates:true})` initializes restored gates at their final positions, as used
+by Continue. The default continues to animate state changes. A requested walk
+waits in `runtime.deferredWalk` while an opening gate settles, and is cancelled by
+the same commands as an active walk.
+
+E/Enter focus uses the nearest visible target within 2.4m regardless of facing;
+facing only breaks equal-distance ties. Spot items also require line of sight,
+excluding their own support. The focused target has a visible E/Enter marker.
+Interaction emissions share a short cooldown to suppress rapid duplicate input.
+
+Only `?e2e=1` exposes `__tt.teleport({x,z,yaw?})` and `__tt.readGates()` (copied
+rendered progress and effective navigation gates). `__tt.read()` also includes
+gate progress and any deferred walk. Review-only World/Town gate-progress props
+hold gallery poses without changing the game's animation or progression.

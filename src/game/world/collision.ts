@@ -92,9 +92,9 @@ export function nearestWalkable(x: number, z: number, gates: Gates = CLOSED, r =
 }
 
 /** Walker height; item support heights are separately listed in SURFACES. */
-export function standY(x: number, z: number): number {
+export function standY(x: number, z: number, gates: Gates = OPEN): number {
   let y = 0;
-  for (const a of WALK_AREAS) if (Math.abs(x - a.x) <= a.hx && Math.abs(z - a.z) <= a.hz) y = Math.max(y, a.y);
+  for (const a of WALK_AREAS) if ((!a.gate || gates[a.gate]) && Math.abs(x - a.x) <= a.hx && Math.abs(z - a.z) <= a.hz) y = Math.max(y, a.y);
   return y;
 }
 

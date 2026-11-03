@@ -1,5 +1,19 @@
 import type { UIOptions } from '../ui';
 import type { RecognizerOptions } from '../audio/vendor';
+import type { WorldAPI } from '../game/runtime';
+import { navigationGates } from '../game/runtime';
+import type { Point } from '../game/world/types';
+
+/** Installed on __tt only by the explicit e2e bridge, never normal play. */
+export function createWorldControls(world: WorldAPI) {
+  if (new URLSearchParams(location.search).get('e2e') !== '1') return {};
+  return {
+    teleport(position: Point & { yaw?: number }) { world.teleport(position); },
+    readGates() {
+      return structuredClone({ progress: world.runtime.gateProgress, open: navigationGates(world.runtime) });
+    }
+  };
+}
 
 export type SpeechInjection = { kind: 'text'; text: string; interim?: boolean } | { kind: 'unavailable' | 'transient' | 'fallbackSuggested' };
 

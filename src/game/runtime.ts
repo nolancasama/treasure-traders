@@ -2,7 +2,7 @@ import { ITEM_IDS, NPC_IDS, type NpcId } from "./content/ids";
 import { indicators, objectives, placement, spotActive, unasked, type GameState } from "./logic";
 import { findPath, nearestWalkable, standY } from "./world/collision";
 import { CHEST_SCALE, chestPose, GATE_POSITIONS, npcPosition, SPOTS } from "./world/layout";
-import type { CameraCommand, CameraKey, FinaleStage, FxCommand, Interaction, NpcCommand, Point, Position, WorldRuntime, WorldState } from "./world/types";
+import type { CameraCommand, CameraKey, FinaleStage, FxCommand, GateId, Gates, Interaction, NpcCommand, Point, Position, WorldRuntime, WorldState } from "./world/types";
 import type { Expression, RigGesture, RigState } from "../scene/models/people";
 import { CHEST_SLOTS } from "../scene/models/festivalChest";
 
@@ -30,10 +30,16 @@ export const decorationLevel = (rt: WorldRuntime) => rt.decorHold === null ? rt.
 /** All nine in the chest and its lid is allowed to be open: dusk and the lanterns follow. */
 export const festivalRevealed = (rt: WorldRuntime) => rt.state.chestCount >= 9 && rt.finale !== "armed" && rt.finale !== "blaze";
 
+/** Closing blocks immediately; opening waits for the visible barrier to settle. */
+export function navigationGates(rt: WorldRuntime): Gates {
+  return Object.fromEntries((Object.keys(rt.state.gates) as GateId[]).map(id =>
+    [id, rt.state.gates[id] && (rt.gateProgress === null || rt.gateProgress[id] === 1)])) as Gates;
+}
+
 export interface WorldAPI {
   /** Renderer handle; consumers should use commands for mutations. */
   readonly runtime: WorldRuntime;
-  setState(state: WorldState): void;
+  setState(state: WorldState, options?: { settleGates?: boolean }): void;
   setInputLocked(locked: boolean): void;
   setBottomPanel(height: number): void;
   setCamera(command: CameraCommand): void;
@@ -88,10 +94,10 @@ export function createWorld(initial: WorldState): WorldAPI {
   const arrivals = new Set<(position: Position) => void>();
   let serial = 0;
   const runtime: WorldRuntime = {
-    state: structuredClone(initial), revision: 0, time: 0,
+    state: structuredClone(initial), revision: 0, time: 0, gateProgress: null,
     player: { x: 0, y: 0, z: 8, yaw: Math.PI, speed: 0 },
     locked: false, bottomPanel: 0, camera: { mode: "follow" }, cameraYaw: 0,
-    path: [], pending: null, focus: null, npcCommands: {}, playerCommand: null, decorHold: null, finale: "none", party: false,
+    path: [], pending: null, deferredWalk: null, focus: null, npcCommands: {}, playerCommand: null, decorHold: null, finale: "none", party: false,
     kiwi: { mode: "follow" }, effects: [],
     emitInteract: target => interacts.forEach(f => f(target)),
     emitArrive: position => arrivals.forEach(f => f({ ...position }))
@@ -102,15 +108,18 @@ export function createWorld(initial: WorldState): WorldAPI {
   const commandPlayer = (patch: Partial<NpcCommand>) => { runtime.playerCommand = { ...runtime.playerCommand, ...patch, serial: ++serial }; };
   const api: WorldAPI = {
     runtime,
-    setState(state) {
+    setState(state, options) {
       runtime.state = structuredClone(state); runtime.revision++;
-      runtime.path = []; runtime.pending = null;
+      if (options?.settleGates && runtime.gateProgress) {
+        for (const id of Object.keys(state.gates) as GateId[]) runtime.gateProgress[id] = state.gates[id] ? 1 : 0;
+      }
+      runtime.path = []; runtime.pending = null; runtime.deferredWalk = null;
       const p = relocate(runtime.player);
       Object.assign(runtime.player, p, { y: standY(p.x, p.z), speed: 0 });
     },
     setInputLocked(locked) {
       // Only locking cancels a walk; a repeated unlock must not drop a tapped approach.
-      if (locked) { runtime.path = []; runtime.pending = null; runtime.player.speed = 0; }
+      if (locked) { runtime.path = []; runtime.pending = null; runtime.deferredWalk = null; runtime.player.speed = 0; runtime.focus = null; }
       runtime.locked = locked;
     },
     setBottomPanel(height) { runtime.bottomPanel = Number.isFinite(height) ? Math.max(0, height) : 0; },
@@ -133,13 +142,20 @@ export function createWorld(initial: WorldState): WorldAPI {
     fx(command) { const id = ++serial; runtime.effects.push({ ...structuredClone(command), id, started: runtime.time }); return id; },
     walkTo(point, interact) {
       if (runtime.locked) return false;
-      const path = findPath(runtime.player, point, runtime.state.gates);
+      const gates = navigationGates(runtime);
+      if ((Object.keys(gates) as GateId[]).some(id => runtime.state.gates[id] && !gates[id])) {
+        runtime.deferredWalk = { point: { x: point.x, z: point.z }, interact };
+        runtime.path = []; runtime.pending = null;
+        return true;
+      }
+      runtime.deferredWalk = null;
+      const path = findPath(runtime.player, point, gates);
       if (!path.length) return false;
       runtime.path = path; runtime.pending = interact ?? null;
       return true;
     },
     relocate,
-    teleport(p) { Object.assign(runtime.player, relocate({ ...p, yaw: p.yaw ?? runtime.player.yaw })); runtime.player.y = standY(runtime.player.x, runtime.player.z); runtime.path = []; runtime.pending = null; runtime.player.speed = 0; },
+    teleport(p) { Object.assign(runtime.player, relocate({ ...p, yaw: p.yaw ?? runtime.player.yaw })); runtime.player.y = standY(runtime.player.x, runtime.player.z); runtime.path = []; runtime.pending = null; runtime.deferredWalk = null; runtime.player.speed = 0; },
     positionOf,
     chestSlot(item) {
       const slot = CHEST_SLOTS[ITEM_IDS.indexOf(item)].pos, pose = chestPose(runtime.state.chapter);

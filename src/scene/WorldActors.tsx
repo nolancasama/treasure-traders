@@ -96,6 +96,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       return { id, rig, cell, marker, serial: -1 };
     });
     const festival = new FestivalChest();
+    festival.lid.name = "festival-chest-lid";
     festival.setScale(CHEST_SCALE);
     festival.group.userData.interaction = { kind: "npc", id: "pom" satisfies NpcId };
     const festivalShadow = blobShadow(2.2);
@@ -110,6 +111,10 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     const seaShadow = blobShadow(0.95);
     seaRoot.add(seaShadow);
     group.add(itemRoot, seaRoot);
+    const focusMarker = textSprite("E / Enter", { height: 0.34, color: "#6e402a", background: "#fff1ad" });
+    focusMarker.visible = false;
+    focusMarker.raycast = () => {};
+    group.add(focusMarker);
     // Twinkles on anything to collect: one batch of camera-facing stars for the whole world.
     const starMaterial = new THREE.MeshBasicMaterial({ map: starTexture(), transparent: true, depthWrite: false, depthTest: false, fog: false, color: "#fff4b0" });
     const stars = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), starMaterial, TWINKLES);
@@ -119,7 +124,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     stars.count = 0;
     group.add(stars);
     return {
-      group, player, shadows, kiwi, npcs, indicators, festival, festivalRoot, festivalShadow,
+      group, player, shadows, kiwi, npcs, indicators, festival, festivalRoot, festivalShadow, focusMarker,
       seaRoot, seaShadow, sea: null as SeaChest | null, seaKey: "", itemRoot, stars, starMaterial,
       items: [] as { cell: THREE.Group; hidden: boolean; collect: boolean; mesh: THREE.Mesh | null; rest: number; marker: THREE.Sprite | null; glow: THREE.Sprite | null }[],
       itemKey: "", itemRevision: -1, itemMaterials: [] as THREE.SpriteMaterial[], lastKiwiMode: "", pulsed: new Set<number>(), playerSerial: -1,
@@ -151,10 +156,16 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     actors.stars.geometry.dispose();
     actors.stars.dispose();
     actors.starMaterial.dispose();
+    actors.focusMarker.material.map?.dispose();
+    actors.focusMarker.material.dispose();
   }, [actors]);
 
   useFrame(({ camera }, dt) => {
     const player = runtime.player;
+    const focus = runtime.locked ? null : runtime.focus;
+    const focusedPosition = focus?.kind === "npc" ? runtime.state.npcs[focus.id] : focus?.kind === "spot" ? SPOTS[focus.id] : focus?.kind === "seaChest" ? { x: 10, y: 0.12, z: 36 } : null;
+    actors.focusMarker.visible = Boolean(focusedPosition);
+    if (focusedPosition) actors.focusMarker.position.set(focusedPosition.x, focusedPosition.y + (focus?.kind === "npc" ? 2.35 : focus?.kind === "seaChest" ? 1.65 : 0.85), focusedPosition.z);
     const { matrix, rotation, scale, position, point, direction, center, kiwi: kiwiTarget } = actors.scratch;
     const apply = (rig: CharacterRig, command: NpcCommand, restState: "idle" | "sit" | "dance") => {
       if (command.held !== undefined) rig.hold(command.held);
