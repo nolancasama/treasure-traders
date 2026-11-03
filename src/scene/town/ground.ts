@@ -6,7 +6,7 @@ import { PartBuilder, QuadWriter } from "../partBuilder";
 
 /** Tops are y = 0 for paving (the walking height) and just below for everything around it. */
 export const GRASS_Y = -0.06;
-const WATER_Y = -0.28;
+export const WATER_Y = -0.28;
 const VERGE_Y = -0.05;
 const KERB_Y = 0.035;
 
@@ -45,6 +45,67 @@ const bank = (x: number) => 19.4 + (noise(x * 0.13, 3) - 0.5) * 1.2;
 const HARBOR = { x: 3.5, z: 33.5, hx: 28, hz: 6.2 };
 const SAND = new THREE.Color("#efdba6"), WET_SAND = new THREE.Color("#c9b98b");
 
+/** Mooring transforms and conservative hull/oar bounds, shared with rendering. */
+export const HARBOR_BOATS = {
+  hull: { x: 19, y: -0.14, z: 42, yaw: 0.3, scale: 1, hx: 1.3, hz: 2.85 },
+  yacht: { x: -2.4, y: -0.14, z: 42, yaw: -0.45, scale: 0.82, hx: 1.3, hz: 2.85 },
+  skiff: { x: -8, y: -0.16, z: 45.5, yaw: 0.9, scale: 1, hx: 1.55, hz: 1.6 }
+} as const;
+
+function harborOutline(): [number, number][] {
+  const corner = 3, hx = HARBOR.hx - corner, hz = HARBOR.hz - corner, edge: [number, number][] = [];
+  const arc = (cx: number, cz: number, from: number) => { for (let i = 0; i <= 5; i++) { const a = from + i / 5 * Math.PI / 2; edge.push([cx + Math.cos(a) * corner, cz + Math.sin(a) * corner]); } };
+  const side = (x0: number, z0: number, x1: number, z1: number) => { const n = Math.round(Math.hypot(x1 - x0, z1 - z0) / 3); for (let i = 1; i < n; i++) edge.push([x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n]); };
+  arc(hx, hz, 0); side(hx, hz + corner, -hx, hz + corner);
+  arc(-hx, hz, Math.PI / 2); side(-hx - corner, hz, -hx - corner, -hz);
+  arc(-hx, -hz, Math.PI); side(-hx, -hz - corner, hx, -hz - corner);
+  arc(hx, -hz, Math.PI * 1.5); side(hx + corner, -hz, hx + corner, hz);
+  return edge.map(([px, pz]): [number, number] => {
+    const wobble = (noise(px * 0.22 + 7, pz * 0.22) - 0.5) * 0.7, d = Math.hypot(px, pz) || 1;
+    return [HARBOR.x + px + px / d * wobble, HARBOR.z + pz + pz / d * wobble];
+  });
+}
+const HARBOR_OUTLINE = harborOutline();
+const sandOuter = (px: number, pz: number): [number, number] => {
+  const dx = px - HARBOR.x, dz = pz - HARBOR.z, d = Math.hypot(dx, dz) || 1;
+  return [px + dx / d * 1.7, pz + dz / d * 1.7];
+};
+const HARBOR_SAND_OUTLINE = HARBOR_OUTLINE.map(([x, z]) => sandOuter(x, z));
+
+function segmentDistance(x: number, z: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax, dz = bz - az;
+  const t = THREE.MathUtils.clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1);
+  return Math.hypot(x - ax - t * dx, z - az - t * dz);
+}
+
+/** Open surface water, conservatively beyond the entire sand slope and outside
+ * decks and moored hulls. `margin` is a world-space footprint radius. */
+export function isOpenWater(x: number, z: number, margin = 0): boolean {
+  if (x - margin <= -105 || x + margin >= 105 || z + margin >= 444) return false;
+  // The river lip uses these exact 2.5m segments in landGeometry.
+  for (let ax = -105; ax < 105; ax += 2.5) {
+    if (x + margin < ax || x - margin > ax + 2.5) continue;
+    if (z <= Math.max(bank(ax), bank(ax + 2.5)) + 1.7 + margin) return false;
+  }
+  let inside = false;
+  for (let i = 0, j = HARBOR_SAND_OUTLINE.length - 1; i < HARBOR_SAND_OUTLINE.length; j = i++) {
+    const [ax, az] = HARBOR_SAND_OUTLINE[j], [bx, bz] = HARBOR_SAND_OUTLINE[i];
+    if ((az > z) !== (bz > z) && x < (bx - ax) * (z - az) / (bz - az) + ax) inside = !inside;
+    if (segmentDistance(x, z, ax, az, bx, bz) <= margin) return false;
+  }
+  if (inside) return false;
+  for (const area of WALK_AREAS.filter(a => a.id === "pier" || a.id === "bridge")) {
+    // Rail/posts project 0.35m beyond the pier's walking edge.
+    if (Math.abs(x - area.x) <= area.hx + 0.35 + margin && Math.abs(z - area.z) <= area.hz + 0.75 + margin) return false;
+  }
+  for (const boat of Object.values(HARBOR_BOATS)) {
+    const dx = x - boat.x, dz = z - boat.z, c = Math.cos(boat.yaw), s = Math.sin(boat.yaw);
+    // Include the existing gentle bob/roll animation in the hull clearance.
+    if (Math.abs(c * dx - s * dz) <= boat.hx * boat.scale + 0.15 + margin && Math.abs(s * dx + c * dz) <= boat.hz * boat.scale + 0.15 + margin) return false;
+  }
+  return true;
+}
+
 /** Mottled grass with a natural shoreline. One draw call for the whole valley. */
 export function landGeometry(): THREE.BufferGeometry {
   const q = new QuadWriter();
@@ -65,22 +126,8 @@ export function landGeometry(): THREE.BufferGeometry {
     q.quad([x, GRASS_Y, a], [x, WATER_Y - 0.08, a + 1.7], [x + 2.5, WATER_Y - 0.08, b + 1.7], [x + 2.5, GRASS_Y, b], [SAND, WET_SAND, WET_SAND, SAND]);
   }
   // The harbor bank is a soft-cornered island in the same style.
-  const corner = 3, hx = HARBOR.hx - corner, hz = HARBOR.hz - corner, edge: [number, number][] = [];
-  const arc = (cx: number, cz: number, from: number) => { for (let i = 0; i <= 5; i++) { const a = from + i / 5 * Math.PI / 2; edge.push([cx + Math.cos(a) * corner, cz + Math.sin(a) * corner]); } };
-  const side = (x0: number, z0: number, x1: number, z1: number) => { const n = Math.round(Math.hypot(x1 - x0, z1 - z0) / 3); for (let i = 1; i < n; i++) edge.push([x0 + (x1 - x0) * i / n, z0 + (z1 - z0) * i / n]); };
-  arc(hx, hz, 0); side(hx, hz + corner, -hx, hz + corner);
-  arc(-hx, hz, Math.PI / 2); side(-hx - corner, hz, -hx - corner, -hz);
-  arc(-hx, -hz, Math.PI); side(-hx, -hz - corner, hx, -hz - corner);
-  arc(hx, -hz, Math.PI * 1.5); side(hx + corner, -hz, hx + corner, hz);
-  const outline = edge.map(([px, pz]): [number, number] => {
-    const wobble = (noise(px * 0.22 + 7, pz * 0.22) - 0.5) * 0.7, d = Math.hypot(px, pz) || 1;
-    return [HARBOR.x + px + px / d * wobble, HARBOR.z + pz + pz / d * wobble];
-  });
+  const outline = HARBOR_OUTLINE, outward = sandOuter;
   const middle = new THREE.Color("#a3d06c");
-  const outward = (px: number, pz: number): [number, number] => {
-    const dx = px - HARBOR.x, dz = pz - HARBOR.z, d = Math.hypot(dx, dz) || 1;
-    return [px + dx / d * 1.7, pz + dz / d * 1.7];
-  };
   outline.forEach(([x, z], i) => {
     const [nx, nz] = outline[(i + 1) % outline.length];
     q.quad([HARBOR.x, GRASS_Y, HARBOR.z], [nx, GRASS_Y, nz], [x, GRASS_Y, z], [HARBOR.x, GRASS_Y, HARBOR.z], [middle, grassAt(nx, nz), grassAt(x, z), middle]);

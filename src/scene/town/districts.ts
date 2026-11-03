@@ -435,25 +435,66 @@ function ropeCoil(b: B, x: number, y: number, z: number, r = 0.34) {
   for (let i = 0; i < 3; i++) b.torus(r - i * 0.05, 0.05, [x, y + 0.05 + i * 0.075, z], [Math.PI / 2, 0, 0], "#e4c58f");
 }
 
+/** Continuous rope sides meet at shared rings rather than overlapping bars. */
+function harborRope(b: B, from: [number, number, number], to: [number, number, number], sag: number) {
+  class RopeCurve extends THREE.Curve<THREE.Vector3> {
+    constructor() { super(); }
+    getPoint(t: number, target = new THREE.Vector3()) { return target.set(...wirePoint(from, to, sag, t)); }
+  }
+  b.add(new THREE.TubeGeometry(new RopeCurve(), 8, 0.025, 4, false), "#e4c58f", [0, 0, 0]);
+}
+
 function harbor(low: B, tall: B, signs: SignBatch) {
   const rand = seeded(9);
+  const easel = boxOf("harbor-easel");
+  low.at(easel.x, 0, easel.z, Math.PI / 2, () => {
+    // Horizontal-cut feet and joints: all three soles rest exactly on paving.
+    const leg = (x0: number, z0: number, x1: number, z1: number, top: number) => {
+      const g = new THREE.BoxGeometry(0.08, top, 0.08), p = g.getAttribute("position");
+      for (let i = 0; i < p.count; i++) {
+        const t = (p.getY(i) + top / 2) / top;
+        p.setXYZ(i, p.getX(i) + x0 + (x1 - x0) * t, t * top, p.getZ(i) + z0 + (z1 - z0) * t);
+      }
+      g.computeVertexNormals();
+      low.add(g, PALETTE.wood, [0, 0, 0]);
+    };
+    for (const side of [-1, 1]) leg(side * 0.43, 0.28, side * 0.18, -0.03, 1.7);
+    leg(0, -0.52, 0, -0.12, 1.52);
+    // Canvas leans back along the frame; its sole sits on the ledge at 0.76.
+    low.box(1, 0.09, 0.24, 0, 0.67, 0.17, PALETTE.darkWood);
+    const canvas = (w: number, h: number, y: number, front: number, color: string) => {
+      const g = new THREE.BoxGeometry(w, h, 0.018), p = g.getAttribute("position");
+      for (let i = 0; i < p.count; i++) {
+        const py = y + p.getY(i) + h / 2;
+        p.setXYZ(i, p.getX(i), py, p.getZ(i) + 0.17 - (py - 0.76) * (0.31 / 1.7) + front);
+      }
+      g.computeVertexNormals();
+      low.add(g, color, [0, 0, 0]);
+    };
+    canvas(0.88, 0.68, 0.76, 0, "#fbf7ee");
+    canvas(0.76, 0.22, 0.82, 0.022, "#2f8cc7");
+    canvas(0.76, 0.25, 1.04, 0.022, "#8fd3f4");
+    canvas(0.76, 0.08, 1.29, 0.022, "#cdeaa5");
+  });
   // Pier stands on pilings, with a rope rail on the east side only so the rest stays open.
   for (let z = 34; z <= 49; z += 3) {
     for (const x of [5.05, 10.95]) low.cyl(0.2, 0.24, 1.15, x, -0.95, z, PALETTE.darkWood, 8);
     tall.cyl(0.16, 0.18, 1.25, 11.15, -0.1, z, PALETTE.wood, 7);
     tall.sphere(0.14, 11.15, 1.16, z, PALETTE.gold, [1, 1, 1], 6);
-    if (z < 49) tall.wire([11.15, 0.92, z], [11.15, 0.92, z + 3], 0.16, 4, "#e4c58f", 0.05);
+    if (z < 49) harborRope(tall, [11.15, 0.92, z], [11.15, 0.92, z + 3], 0.16);
   }
-  low.box(6.2, 0.1, 0.4, 8, 0.02, 49.15, PALETTE.darkWood);
+  low.box(6.2, 0.1, 0.18, 8, 0.02, 49.09, PALETTE.darkWood);
   // Life ring and a lantern post at the pier's end.
   tall.torus(0.28, 0.08, [11.05, 0.72, 45.5], [0, Math.PI / 2, 0], "#e8604c");
-  addLamp(low, 11.3, 49.6);
+  // A short projecting bracket carries the lamp rather than leaving it over water.
+  low.box(0.65, 0.16, 0.65, 11.2, -0.16, 49.15, PALETTE.darkWood);
+  addLamp(low, 11.2, 49.15);
   // Harbor fence on the lip of the bank; the bridge's landing stays open.
   for (let x = -16; x < 24; x += 3) {
     if (Math.abs(x) < 4) continue;
     tall.cyl(0.11, 0.15, 1.05, x, GRASS_Y, 27.82, PALETTE.wood, 7);
     tall.sphere(0.12, x, 1, 27.82, PALETTE.gold, [1, 1, 1], 6);
-    if (Math.abs(x + 3) >= 4 || x + 3 < -3.5) tall.wire([x, 0.82, 27.82], [x + 3, 0.82, 27.82], 0.14, 4, "#e4c58f", 0.05);
+    if (Math.abs(x + 3) >= 4 || x + 3 < -3.5) harborRope(tall, [x, 0.82, 27.82], [x + 3, 0.82, 27.82], 0.14);
   }
   signpost(tall, signs, "harbor", -9.4, 27.7, 0.8, 3.1);
   // The barrel is its collider; a net and a coil of rope make it a working dock.
@@ -618,8 +659,10 @@ function prizeTent(low: B, tall: B, signs: SignBatch) {
   tall.cyl(0.04, 0.04, 1, x, 5.2, z, PALETTE.darkWood, 5);
   tall.add(new THREE.ConeGeometry(0.28, 0.76, 3), "#e8604c", [x + 0.38, 5.98, z], [0, 0, -Math.PI / 2], [1, 1, 0.08], { wind: 1 });
   const width = SignBatch.width("prizes", 0.78);
-  tall.box(width + 0.2, 0.92, 0.08, x, 2.04, z + hz - 0.02, PALETTE.darkWood);
-  signs.add("prizes", x, 2.5, z + hz + 0.03, 0.78);
+  // Counter-front board stays below the scalloped hem, including in perspective.
+  low.box(width + 0.2, 0.92, 0.08, x, 0.98, z + hz + 0.08, PALETTE.darkWood);
+  for (const dx of [-width / 2 + 0.08, width / 2 - 0.08]) low.box(0.08, 0.98, 0.08, x + dx, 0, z + hz + 0.08, PALETTE.darkWood);
+  signs.add("prizes", x, 1.44, z + hz + 0.126, 0.78);
 }
 
 function drawingBooth(low: B, tall: B, signs: SignBatch) {

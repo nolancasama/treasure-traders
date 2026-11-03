@@ -7,12 +7,11 @@ import { DISTRICTS, HOUSES, LAMP_POSITIONS, SOLIDS, TREES } from "../../game/wor
 import type { GateId, WorldRuntime } from "../../game/world/types";
 import { PartBuilder } from "../partBuilder";
 import { flatMat, glowTexture, sceneryMat, sceneUniforms, shadowMat, softBoxMat } from "../materials";
-import { props } from "../models/props";
 import { createAmbient, type Ambient } from "./ambient";
 import { ARCH_BARRIER, boatGeometry, gateGeometry, gatePosts, libraryFurniture, libraryGeometry, PALETTE, rowboatGeometry, schoolGateWheelGeometry } from "./builders";
 import { createDecorations, type Decorations } from "./decorations";
 import { districtParts, forestGeometry } from "./districts";
-import { GRASS_Y, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
+import { GRASS_Y, HARBOR_BOATS, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
 import { SignBatch, signMat } from "./signs";
 import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
 import { advanceSchoolGate, SCHOOL_GATE_TRAVEL, SCHOOL_GATE_WHEEL_RADIUS, SCHOOL_GATE_WHEEL_Y, type SchoolGateAnimation } from "./schoolGate";
@@ -76,11 +75,6 @@ function makeTown(runtime: WorldRuntime): TownScene {
   const waterMesh = mesh(waterGeometry(), root, water);
   waterMesh.raycast = noRaycast;
   waterMesh.renderOrder = GROUND_ORDER + 2;
-  const easel = props.easel();
-  easel.position.set(-10, 0, 32);
-  easel.rotation.y = Math.PI / 2;
-  easel.scale.set(1.4, 1.05, 1.4);
-  districts.harbor.add(easel);
 
   mesh(gatePosts(), root, sceneryMat());
   const rootSigns = new SignBatch().add("arch", -21.82, 4.86, 0, 0.92, Math.PI / 2).add("school", 0, 3.76, -21.86, 0.7);
@@ -146,11 +140,11 @@ function makeTown(runtime: WorldRuntime): TownScene {
 
   const boats: THREE.Object3D[] = [];
   const hull = mesh(boatGeometry(PALETTE.gold, PALETTE.blue), districts.harbor, sceneryMat());
-  hull.position.set(19, -0.14, 42); hull.rotation.y = 0.3;
+  hull.position.set(HARBOR_BOATS.hull.x, HARBOR_BOATS.hull.y, HARBOR_BOATS.hull.z); hull.rotation.y = HARBOR_BOATS.hull.yaw;
   const yacht = mesh(boatGeometry("#ff8fa8", "#e8604c"), districts.harbor, sceneryMat());
-  yacht.position.set(-2.4, -0.14, 42); yacht.rotation.y = -0.45; yacht.scale.setScalar(0.82);
+  yacht.position.set(HARBOR_BOATS.yacht.x, HARBOR_BOATS.yacht.y, HARBOR_BOATS.yacht.z); yacht.rotation.y = HARBOR_BOATS.yacht.yaw; yacht.scale.setScalar(HARBOR_BOATS.yacht.scale);
   const skiff = mesh(rowboatGeometry(), districts.harbor);
-  skiff.position.set(-8, -0.16, 45.5); skiff.rotation.y = 0.9;
+  skiff.position.set(HARBOR_BOATS.skiff.x, HARBOR_BOATS.skiff.y, HARBOR_BOATS.skiff.z); skiff.rotation.y = HARBOR_BOATS.skiff.yaw;
   boats.push(hull, yacht, skiff);
   // Mooring lines from the bank, slack enough to hide the boats' gentle bobbing.
   const moorings = new PartBuilder(0, true);

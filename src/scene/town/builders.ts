@@ -370,10 +370,14 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
   if (kind === "bridge") {
     b.box(5.2, 0.22, 13.6, 0, -0.25, 6.8, PALETTE.darkWood);
     for (let z = 0; z < 13.55; z += 0.68) b.box(5.2, 0.05, 0.62, 0, -0.04, z + 0.34, ["#c9975f", "#bf8d55", "#d3a36d"][Math.round(z * 3) % 3]);
+    // Six equal spans, with both end posts wholly on the first/last plank.
+    // Accumulating a rounded 2.27m pitch omitted the south post at 13.62m.
+    const spans = 6, postWidth = 0.17, endInset = 0.03 + postWidth / 2;
+    const postZ = (i: number) => endInset + (13.6 - 2 * endInset) * i / spans;
     for (const x of [-2.45, 2.45]) {
-      for (let z = 0; z <= 13.6; z += 2.27) { b.box(0.17, 1.05, 0.17, x, -0.04, z, PALETTE.wood); b.sphere(0.11, x, 1.05, z, PALETTE.gold, [1, 1, 1], 6); }
+      for (let i = 0; i <= spans; i++) { b.box(postWidth, 1.05, postWidth, x, 0.01, postZ(i), PALETTE.wood); b.sphere(0.11, x, 1.05, postZ(i), PALETTE.gold, [1, 1, 1], 6); }
       // A rope rail, sagging between posts.
-      for (let z = 0; z < 13.5; z += 2.27) b.wire([x, 0.86, z], [x, 0.86, z + 2.27], 0.14, 4, "#e4c58f", 0.05);
+      for (let i = 0; i < spans; i++) b.wire([x, 0.86, postZ(i)], [x, 0.86, postZ(i + 1)], 0.14, 4, "#e4c58f", 0.05);
     }
   } else if (kind === "cart") {
     // The supply cart, tipped across the street with its load piled high. Stays within its collider.

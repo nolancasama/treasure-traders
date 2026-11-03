@@ -6,7 +6,7 @@ import { CHEST_SLOTS, festivalChestBaseGeometry, festivalChestLidGeometry, festi
 import { QuadWriter } from "../partBuilder";
 import { gatePosts, libraryFurniture, libraryGeometry } from "./builders";
 import { districtParts } from "./districts";
-import { landGeometry, pavingGeometry } from "./ground";
+import { landGeometry, pavingGeometry, waterGeometry } from "./ground";
 import { auditZFighting, DEPTH_TOLERANCE, type AuditMesh, type AuditRegion } from "./zfightAudit";
 
 // Add regions to this list when later batches repair them. Ungated findings
@@ -22,7 +22,10 @@ const regions: AuditRegion[] = [
     min: [h.x - h.w / 2 - 0.65, -0.1, h.z - h.d / 2 - 0.65],
     max: [h.x + h.w / 2 + 0.65, h.h + 3.5, h.z + h.d / 2 + 0.85], gated: true
   })),
-  { name: "pier-end", min: [4.5, -1, 47.5], max: [12.5, 4.5, 50.5] }
+  { name: "harbor-easel", min: [-10.66, 0, 31.49], max: [-9.34, 1.8, 32.51], gated: true },
+  { name: "prize-sign", min: [-59.5, 0.97, -12.57], max: [-54.5, 1.91, -12.46], gated: true },
+  { name: "east-harbor-scenery", min: [18.8, -0.1, 26.8], max: [32, 6.5, 39], gated: true },
+  { name: "pier-end", min: [4.5, -1, 44.9], max: [12.5, 4.5, 50.5], gated: true }
 ];
 
 function chestMeshes(chapter: 1 | 5, filled = false, lidAngle = 0): AuditMesh[] {
@@ -73,7 +76,7 @@ describe("static scenery z-fighting audit (different-colour triangle pairs)", ()
     // textured sign faces lack vertex colours and are outside this audit.
     const context = { measureText: (text: string) => ({ width: text.length * 30 }), beginPath() {}, roundRect() {}, fill() {}, fillText() {} };
     vi.stubGlobal("document", { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
-    const meshes: AuditMesh[] = [{ name: "land", geometry: landGeometry() }, { name: "gate-posts/track", geometry: gatePosts() }, { name: "library-furniture/trim", geometry: libraryFurniture(SOLIDS) }];
+    const meshes: AuditMesh[] = [{ name: "water", geometry: waterGeometry(), materialColor: "#3ea6c7" }, { name: "land", geometry: landGeometry() }, { name: "gate-posts/track", geometry: gatePosts() }, { name: "library-furniture/trim", geometry: libraryFurniture(SOLIDS) }];
     for (const district of DISTRICT_IDS) {
       meshes.push({ name: `${district}:paving`, geometry: pavingGeometry(district) });
       const parts = districtParts(district);

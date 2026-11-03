@@ -1,10 +1,10 @@
 # Current State
 
 ## Status
-Playable end to end, with the graphics upgrade in place (2026-11-03): a colourful
-storybook town with sky, cottages, paving, living background and a real finale.
-Live at https://nolancasama.github.io/treasure-traders/. Next is hand-playing it on a
-real Chromebook.
+Playable end to end, with the graphics upgrade and four implementation batches of
+the 22 visual, collision and interaction fixes. Batch 4 is uncommitted; controller
+acceptance is pending. The deployed site at
+https://nolancasama.github.io/treasure-traders/ does not include this working tree.
 
 ## What Exists
 - `docs/BRIEF.md` — the teacher's original brief. `SPEC.md` — frozen v1
@@ -36,14 +36,37 @@ real Chromebook.
   + `presentation.ts`, `src/dev/gameHook.ts`): title orbit, new/continue/chapter replay,
   conversations, trade choreography, chapter clears with milestone shots, finale, free
   roam, saves; `window.__tt` only with `?e2e=1`.
-- **Tests:** `npm test` (unit, including camera sight lines and finale staging);
-  `npm run e2e` (11 specs, about 25 min under SwiftShader); `npm run e2e:short`,
+- **Tests:** `npm run typecheck`; `npm test` (unit, including camera sight lines,
+  navigation, gate settlement, seated support, chest contacts, fish trajectories,
+  bridge rope endpoints and the geometry z-fight audit in `town/zfight.test.ts`).
+  `npm run e2e`; `npm run e2e:short`,
   `npm run e2e:campaign`. Campaign screenshots land in `.tmp/shots/game/`.
+  `npm run e2e:gate` exercises the school unlock animation and effective collision.
 - **Review galleries:** `?gallery=items|people|ui|world`; `npm run shots` renders them to
   `.tmp/shots/`. `tests/shots/perf.spec.ts` measures relative frame cost.
+- **Fix review harness:** controller-owned `npm run shots:fixes` produces paired
+  PNG/JSON evidence in `.tmp/shots/fixes/1366x768/` and `1280x800/`. It waits for
+  rendered fixture state; unmet setup reports `HARNESS_PRECONDITION_FAILED`.
+  Existing read-only `__tt.readGates()` exposes rendered/effective gate state;
+  world-gallery `data-fixes-review` exposes camera, player, fish and fixture state.
+
+## Four Fix Batches
+- **1:** bench/collision orientation, bridge hinge barrier and rails, gate settlement,
+  stage navigation and static chest collision, direction-independent interaction with
+  visibility checks, review fixtures. The stage steps are a route: the approach leads
+  through three height-aware walk areas onto the 0.60m deck after the arch opens;
+  edge solids leave that entrance clear.
+- **2:** complete library entrance and camera-aware cutaway, school portal/rollers and
+  three-second unlock shot, Page's book support, shared shelf joints and ground audit.
+- **3:** supported seated Ume and bench joints, chest soles/platforms/shadows, suspended
+  Coming Soon board, shared cottage joints (including east harbor).
+- **4:** merged wooden tripod easel, shoreline-derived fish clearance and regression
+  controls, adjacent east harbor fence ropes, pier-end joints, complete bridge rope
+  posts/spans, and a prize sign on a front counter board below the tent hem.
 
 ## Current Work
-None in flight. No delegated work is pending.
+Implementation and unit/type validation are complete. Controller visual/behavioral
+acceptance of the four batches remains pending; no acceptance result is claimed.
 
 ## Known Issues
 - Real microphones, real TTS voices and real Chromebook GPUs are untested: everything
@@ -52,10 +75,12 @@ None in flight. No delegated work is pending.
   clicks/keys/taps, and the screenshots were reviewed).
 - Wide review views reach roughly 100 draw calls; the follow view is lower. If a
   Chromebook struggles, first reduce `tall` scatter (`SCATTER` in `town/districts.ts`).
-- Under SwiftShader, iterate with `npx playwright test <file> -g "<name>"`
-  after `npm run build` (preview on port 4183).
+- Filled chest stationery plaques retain separately reported inherited overlaps;
+  the chest assembly audit gates keep their documented empty-slot scope.
 
 ## Next Steps
-1. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
+1. Controller: run `npm run shots:fixes` and review both viewport artifact sets;
+   perform final acceptance. These checks were not run for Batch 4 implementation.
+2. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
    Watch frame rate at the Festival Grounds and whether the dithered see-through looks
    right at the school's device pixel ratio.

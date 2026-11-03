@@ -5,6 +5,7 @@ import type { WorldRuntime } from "../../game/world/types";
 import { glowTexture, sceneUniforms } from "../materials";
 import { PartBuilder } from "../partBuilder";
 import { birdGeometry, fishGeometry, flyerGeometry, PALETTE } from "./builders";
+import { WATER_Y } from "./ground";
 
 /**
  * Small repeating life (SPEC §9): birds, fish, ripples, fountain water and the
@@ -25,6 +26,17 @@ function place(mesh: THREE.InstancedMesh, i: number, x: number, y: number, z: nu
 interface Bird { x: number; z: number; yaw: number; fly: { t: number; x0: number; z0: number; x1: number; z1: number; length: number } | null; rest: number; hop: number; hopX: number; hopZ: number; cx: number; cz: number }
 const BIRD_HOMES = [[-4.5, 5.2], [4.6, 4.8], [-6.2, -3.6], [5.8, -3.2], [-2.4, 12], [3.2, 12.4], [37.5, 6.2], [39, -7.8]] as const;
 const FLIGHT_LENGTH = 1.7;
+
+/** Full arcs clear the modeled sand slope, pier, and moored hulls. */
+export const FISH_SPOTS = [[0, 43], [14, 44], [-15, 43]] as const;
+export const FISH_WATER_MARGIN = 0.8;
+export const FISH_JUMP_DISTANCE = 1.2;
+
+/** This exact matrix drives the instances and the shoreline regression test. */
+export function fishJumpTransform(spot: readonly [number, number], jump: number, matrix = new THREE.Matrix4()): THREE.Matrix4 {
+  if (jump < 0) return matrix.makeScale(0, 0, 0).setPosition(spot[0], WATER_Y - 2, spot[1]);
+  return matrix.makeRotationZ(0.9 - jump * 1.8).setPosition(spot[0] + jump * FISH_JUMP_DISTANCE, WATER_Y - 0.07 + Math.sin(jump * Math.PI) * 1.05, spot[1]);
+}
 
 /* ------------------------------------------------------------------- folk */
 
@@ -126,8 +138,9 @@ export function createAmbient(root: THREE.Group, districts: Record<DistrictId, T
   const color = new THREE.Color();
   for (let i = 0; i < gullCount + BIRD_HOMES.length; i++) flyers.setColorAt(i, color.set(i < gullCount ? "#ffffff" : "#aab2c6"));
 
-  const fish = instanced(fishGeometry(), 3, districts.harbor);
+  const fish = instanced(fishGeometry(), FISH_SPOTS.length, districts.harbor);
   fish.name = "harbor-fish";
+  FISH_SPOTS.forEach((spot, i) => fish.setMatrixAt(i, fishJumpTransform(spot, -1)));
 
   const dropBuilder = new PartBuilder(0);
   dropBuilder.add(new THREE.OctahedronGeometry(0.07), "#c8f1f3", [0, 0, 0], [0, 0, 0], [1, 1.6, 1], { flatAo: true });
@@ -225,19 +238,13 @@ export function createAmbient(root: THREE.Group, districts: Record<DistrictId, T
       flyers.instanceMatrix.needsUpdate = true;
 
       // Fish break the surface in turn, away from the pier and the boats.
-      const FISH_SPOTS = [[-3, 41], [15, 44], [-11, 39]];
       if (near("harbor")) {
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < FISH_SPOTS.length; i++) {
           const phase = ((t + i * 2.9) % 9) / 9, jump = phase < 0.1 ? phase / 0.1 : -1;
           const [x, z] = FISH_SPOTS[i];
-          const y = jump >= 0 ? Math.sin(jump * Math.PI) * 1.05 - 0.35 : -1.2;
-          transform.position.set(x + jump * 1.2, y, z);
-          transform.rotation.set(0, 0, 0.9 - jump * 1.8);
-          transform.scale.setScalar(1);
-          transform.updateMatrix();
-          fish.setMatrixAt(i, transform.matrix);
+          fish.setMatrixAt(i, fishJumpTransform(FISH_SPOTS[i], jump, transform.matrix));
           if (jump >= 0 && jump < 0.1 && splash[i % 2].t > 1) splash[i % 2] = { x, z, t: 0 };
-          if (jump > 0.85 && splash[(i + 1) % 2].t > 1) splash[(i + 1) % 2] = { x: x + 1.2, z, t: 0 };
+          if (jump > 0.85 && splash[(i + 1) % 2].t > 1) splash[(i + 1) % 2] = { x: x + FISH_JUMP_DISTANCE, z, t: 0 };
         }
         fish.instanceMatrix.needsUpdate = true;
       }

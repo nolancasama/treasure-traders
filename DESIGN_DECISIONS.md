@@ -666,3 +666,42 @@ The teacher's list of 22 problems, reviewed against the source before work began
   explicit, separately reported finding outside this chest-base repair;
   the required assembly gate retains its original empty-slot scope. No depth
   settings, polygon offsets or render-order workaround was introduced.
+
+### Batch 4 implementation details
+
+- **The harbor easel belongs to the merged district geometry.** The old standalone
+  scaled prop is replaced at (-10,32), facing east as before. Two splayed front
+  legs and one rear leg have horizontal-cut soles at paving height, within the
+  existing collider. A wooden ledge carries the canvas; it leans back against
+  the front frame. Painted bands have separate face depths. Leo stays at (-8,32).
+- **Fish clearance comes from the actual land outline.** `isOpenWater` uses the
+  same sampled river bank, harbor polygon and outward sand slope as `landGeometry`,
+  plus existing pier/bridge bounds and shared mooring transforms. A conservative
+  0.8m margin exceeds the fish's full radius. Tests sample 201 phases and every
+  transformed body vertex. The old (-11,39) spawn really was on grass: a raycast
+  against the built land mesh proves it. The old (-3,41) spot also intruded into
+  the yacht clearance. New spots retain the 1.2m, 1.05m-high jumps and nine-second
+  stagger; the first remains near the normal harbor view. Splashes share those
+  endpoints. Idle instances collapse so lowered scenery cannot expose them.
+- **The east harbor house needed no further edit.** Its Batch 3 cottage gate
+  remains zero. Expanded coverage includes the adjacent fence, tree and barrel
+  at (20,33), and found overlapping rectangular rope segments in the fence.
+  These and the pier rails now use continuous four-sided tubes with shared
+  rings; their bends no longer place differently coloured faces on one plane.
+- **The pier end has distinct structural joints.** End trim now abuts the deck
+  instead of sharing its top plane; the lantern has a projecting wooden bracket
+  rather than an unsupported water placement. Deck bounds and walking height
+  stay fixed. The expanded gate includes the life ring, rails, supports, trim,
+  lamp and actual water plane, and reports zero; adjacent east harbor scenery,
+  the easel and the prize board also have zero-count gates.
+- **Bridge ropes divide the leaf by span count.** Six equal spans join seven
+  posts on each side. Both end-post feet lie entirely on real deck planks, with
+  their soles at plank height. Tests check attachments at both ends/sides in
+  raised and lowered transforms, equal sag, and the unchanged Batch 1 rail
+  collider bounds. No new animation/state machine is introduced; existing
+  `__tt.readGates()` remains the read-only gate inspection surface.
+- **The prize sign mounts below the roof hem.** A dark wooden board on two short
+  front counter posts carries the full atlas sign at y=1.44, on the +z-facing
+  side. Its top is 1.90m, below the lowest 2.35m scallop, without changing the
+  tent footprint, location or camera. Final readability at both requested
+  viewports remains for the controller's visual acceptance.
