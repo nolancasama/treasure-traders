@@ -10,6 +10,9 @@ export interface Pose {
   bob: number;
 }
 
+/** Ms Page carries the book on her right palm; the other arm can still gesture. */
+export const PAGE_BOOK_POSE = { armRX: -0.35, armRZ: 0, elbowRX: -1.2 } as const;
+
 /** 0 outside a moment that repeats every `period` seconds; eases in and out over `length` seconds inside it. */
 const moment = (t: number, period: number, start: number, length: number): number => {
   const u = ((t % period) + period) % period - start;
@@ -108,11 +111,11 @@ export const IDLES: Partial<Record<LookId, (p: Pose, t: number) => void>> = {
     lookAround(p, t, 0.3);
   },
   page(p, t) {
-    // Always reading; a little turn of the head at the end of each line.
-    handsFront(p, 1, 0.9, 1.25);
+    // Read with one supporting hand, leaving the other relaxed beside the book.
+    Object.assign(p, PAGE_BOOK_POSE);
+    p.armLX = -0.25; p.armLZ = 0.08; p.elbowLX = -0.55;
     p.headX += 0.26;
     p.headY += Math.sin(t * 1.4) * 0.09;
-    p.armRZ -= moment(t, 6, 4, 0.5) * 0.25;
   },
   yuki(p, t) {
     // Shy: hands together, chin down, sometimes a peek around.

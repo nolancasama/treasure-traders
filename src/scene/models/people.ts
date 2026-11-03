@@ -4,7 +4,7 @@ import type { ItemId, NpcId } from "../../game/content/ids";
 import { skinnedMat, smoothMat } from "../materials";
 import { ITEM_DISPLAY, THICKEN, buildItem, itemSize } from "./items";
 import { LOOKS, type Build, type Look, type LookId } from "./looks";
-import { IDLES, type Pose } from "./personality";
+import { IDLES, PAGE_BOOK_POSE, type Pose } from "./personality";
 import { RigBuilder, skinnedMesh, type BoneSpec, type V3 } from "./rig";
 
 /* ------------------------------------------------------------ proportions */
@@ -580,7 +580,15 @@ export class CharacterRig {
   /** A tool the character keeps in hand when not showing an item: brush, rod, book. */
   setProp(prop: THREE.Object3D | null): void {
     this.propRoot.clear();
-    if (prop) this.propRoot.add(prop);
+    if (prop) {
+      if (this.id === "page") {
+        // The book's +Y faces are pages. Face them inward, and put the lower
+        // edge on the palm (the socket is 2 cm below and 6 cm ahead of it).
+        prop.rotation.set(-Math.PI / 2 - PAGE_BOOK_POSE.armRX - PAGE_BOOK_POSE.elbowRX, 0, 0);
+        prop.position.set(0, 0.02, 0.105);
+      }
+      this.propRoot.add(prop);
+    }
   }
 
   /** Turns the head toward a world point (null: look ahead). */
@@ -787,6 +795,10 @@ export class CharacterRig {
       }
       if (u >= 1) this.gesture = null;
     }
+
+    // Keep the supporting arm under Page's book through speech, cheers and the
+    // party dance. A traded item still uses the normal presentation gestures.
+    if (this.id === "page" && this.propRoot.children.length && !this.held) Object.assign(p, PAGE_BOOK_POSE);
 
     // Everything eases toward its target, so idle, walk, talk and cheer run together.
     const fast = this.base === "walk" || this.base === "run" || this.base === "dance";

@@ -286,7 +286,15 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
     if (replay || chapter === 5) { world.setCamera({ mode: "follow" }); return; }
     world.playCutscene(gateScenes[chapter]);
     audio.play("correct");
-    await wait(2300);
+    if (chapter === 2) {
+      // Let the camera arrive before the full three-second school-gate travel.
+      await wait(700);
+      world.runtime.schoolGateHeld = false;
+      await wait(3500);
+      // A slow/backgrounded renderer must finish the actual slide before a
+      // new-area card can cover it. Headless flows have no renderer to await.
+      while (world.runtime.state.gates.school && world.runtime.gateProgress && world.runtime.gateProgress.school < 1) await wait(16);
+    } else await wait(2300);
     const district = CHAPTERS[chapter].unlocks!;
     await ui.card({ kind: "new-area", title: "New area!", ja: DISTRICT_NAMES[district].ja });
     world.setCamera({ mode: "follow" });
@@ -365,6 +373,7 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
   /** The gathered festival belongs to the finished campaign; replays and restarts undo it. */
   function reset(): void {
     gathered = false;
+    world.runtime.schoolGateHeld = false;
     world.setParty(false);
     world.setFinale("none");
     world.holdDecorations(null);

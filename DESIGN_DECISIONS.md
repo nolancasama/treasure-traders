@@ -573,3 +573,44 @@ The teacher's list of 22 problems, reviewed against the source before work began
   passes this override, allowing exact quarter-progress school-gate views without
   altering normal animation. Gameplay review views retain the specified follow
   offset, including inside the library; normal library camera behavior is unchanged.
+
+### Batch 2 implementation details
+
+- **The library entrance is complete outside and cuts with its walls inside.**
+  A masonry lintel spans the existing 3.2m gap; two open leaves fold against the
+  outer east wall without changing its walkable opening or adding collision.
+  The indoor threshold now matches the library camera's actual room bounds.
+  North/west walls remain standing, the south wall lowers indoors, and east
+  wall sections lower only when the actual eased camera's body sightlines cross
+  them. The entrance assembly cuts with an obstructing adjoining wall or lintel,
+  avoiding a freestanding frame during the doorway transition. Premerged
+  alternatives keep this at one visible shell draw call.
+- **The school portal is sized from the moving geometry.** Its slot runs from
+  local z=-0.16 to +0.33 and up to y=2.2, clearing cones and projecting rollers.
+  The plinth shares the slot; masonry bridges above it. Travel is 8.05m, leaving
+  the panel's west edge at x=3.85 inside the east post while clearing the passage.
+  Roller centres at y=0.29 rest on the track top at y=0.04; rotation remains
+  negative displacement divided by the 0.25m radius. The tree at (12,-20.2)
+  stays in place: swept geometry bounds including wind clear it.
+- **The three-second school motion belongs to its unlock shot.** The first
+  campaign Chapter 2 clear holds rendered progress at zero during the deposit
+  and clear card, then releases it after the school shot's camera lead-in.
+  The shot covers the full sweep, and the new-area card waits for settlement.
+  Core progression and saves are unchanged; Continue starts settled. Other
+  gates retain their existing timing. Read-only `__tt.readGates()` exposes the
+  hold, actual progress, effective navigation, displacement and wheel rotation.
+- **Ms Page keeps a supporting arm while carrying her book.** Her right palm
+  supports its lower edge with a bent elbow and the pages toward her. Her other
+  arm, head and body can gesture across states; showing a traded item keeps the
+  normal item presentation pose.
+- **The audit gates repaired regions and reports future work.** It scans actual
+  merged vertex-coloured triangles, including hidden contacts, and counts
+  different-colour, same-facing overlaps with positive area inside each named
+  region. The 1.907mm plane tolerance is two 24-bit depth steps at 40m with the
+  real near=0.1/far=420 camera (normal follow distances are 9–14m; fog starts at
+  40m). Shelf carcasses use butt joints; shelf footprints, solids and spot
+  positions remain unchanged. The gate audit also found duplicated kerbs,
+  grass-coloured verges and foundation sides at the square/school junction:
+  shared mitres and disjoint foundations fix that same issue 9 overlap. Sign
+  painting uses a headless canvas stub; textured lettering is excluded because
+  its colours are not vertex data. Later-batch objects are measured, not fixed.

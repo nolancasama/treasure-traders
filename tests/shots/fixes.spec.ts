@@ -19,10 +19,11 @@ interface Review {
 const views = [
   "bench-ume", "chest-base-closed", "chest-base-open", "bridge-raised", "bridge-lowered", "bridge-rope-south", "arch-sign-rope",
   "school-gate-000", "school-gate-025", "school-gate-050", "school-gate-075", "school-gate-100", "school-east-post", "school-grass",
-  "library-outside", "library-doorway", "library-inside", "librarian", "bookshelf-closeup", "northeast-house", "harbor-easel",
+  "library-outside", "library-doorway", "library-doorway-before", "library-doorway-after", "library-inside", "library-inside-follow",
+  "librarian", "librarian-idle", "librarian-talking", "librarian-happy", "librarian-present", "bookshelf-closeup", "northeast-house", "harbor-easel",
   "harbor-fish-jump", "harbor-chest", "east-harbor-house", "pier-end", "prize-tent", "stage-steps", "player-on-step", "player-on-stage"
 ] as const;
-const closeups: readonly string[] = ["school-east-post", "bookshelf-closeup", "northeast-house", "east-harbor-house"];
+const closeups: readonly string[] = ["school-east-post", "bookshelf-closeup", "librarian-idle", "librarian-talking", "librarian-happy", "librarian-present", "northeast-house", "east-harbor-house"];
 
 async function precondition(name: string, action: () => Promise<unknown>): Promise<void> {
   try { await action(); }
@@ -39,7 +40,9 @@ async function reviewReady(page: Page, name: string): Promise<Review> {
     else {
       if (r.camera.mode !== "follow") return false;
       const p = r.player, c = r.camera.position;
-      if (Math.abs(c.x - p.x - 4) > 0.01 || Math.abs(c.y - p.y - 8) > 0.01 || Math.abs(c.z - p.z - 11) > 0.01) return false;
+      const insideFollow = name === "library-doorway-after" || name === "library-inside-follow";
+      const offset = insideFollow ? { x: 1, y: 6.2, z: 7 } : { x: 4, y: 8, z: 11 };
+      if (Math.abs(c.x - p.x - offset.x) > 0.01 || Math.abs(c.y - p.y - offset.y) > 0.01 || Math.abs(c.z - p.z - offset.z) > 0.01) return false;
     }
     if (name.startsWith("school-gate-")) {
       const expected = Number(name.slice(-3)) / 100;

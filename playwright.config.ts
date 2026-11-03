@@ -30,11 +30,16 @@ export default defineConfig({
   projects: [
     {
       name: "chromebook-short",
-      testIgnore: "**/*.campaign.spec.ts",
+      testIgnore: ["**/*.campaign.spec.ts", "**/game.school-gate.spec.ts"],
       use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1 }
     },
     // Project identity gives each long campaign a fresh worker and browser,
     // even with workers: 1. Context fixtures still close after every test.
+    {
+      name: "chromebook-school-gate",
+      testMatch: "**/game.school-gate.spec.ts",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 768 }, deviceScaleFactor: 1, hasTouch: true, trace: "off" }
+    },
     {
       name: "chromebook-mic-free",
       testMatch: "**/game.mic-free.campaign.spec.ts",

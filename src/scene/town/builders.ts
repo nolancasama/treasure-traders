@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { PartBuilder } from "../partBuilder";
 import type { House, Solid, Tree } from "../../game/world/layout";
 import { GRASS_Y } from "./ground";
+import { SCHOOL_GATE_SLOT, SCHOOL_GATE_TRACK_TOP } from "./schoolGate";
 
 export const PALETTE = {
   stone: "#efd9b2", darkStone: "#c7ae8a", cream: "#fff4d4", wood: "#bb7d45", darkWood: "#7c5536", leaf: "#6fb35c", teal: "#2c9f96",
@@ -193,20 +194,37 @@ export function addAwning(b: B, cx: number, halfWidth: number, zLow: number, yLo
 /* ------------------------------------------------------------- the school */
 
 /** A south wall for the library's roofed look, or a low cut wall in the cutaway. */
-export function libraryGeometry(solids: readonly Solid[], cutaway: boolean): THREE.BufferGeometry {
+// Bits select only the entrance-side pieces the current camera sees through:
+// east-north=1, east-south=2, doorway assembly=4. Roof/south wall cut indoors.
+export function libraryGeometry(solids: readonly Solid[], cutaway: boolean, eastMask = 0): THREE.BufferGeometry {
   const b = new PartBuilder(0.7, true), walls = "#f7e3b9", cap = "#a9694a", base = "#c98f68";
   for (const s of solids.filter(s => s.kind === "box" && s.id.includes("library") && (s.id.includes("wall") || s.id.includes("east-")))) {
     if (s.kind !== "box") continue;
-    const cutFace = s.id.includes("south") || s.id.includes("east");
+    const cutFace = s.id === "library-south-wall" || s.id === "library-east-north" && !!(eastMask & 1) || s.id === "library-east-south" && !!(eastMask & 2);
     if (cutaway && cutFace) {
       // Cut walls stay as a low outline, so the open room still reads as a room.
       b.box(s.hx * 2, 0.5, s.hz * 2, s.x, s.y, s.z, walls);
       b.box(s.hx * 2 + 0.04, 0.05, s.hz * 2 + 0.04, s.x, s.y + 0.5, s.z, cap);
       continue;
     }
-    b.box(s.hx * 2, s.height, s.hz * 2, s.x, s.y, s.z, walls);
+    // Masonry rests on the plinth instead of sharing its downward face.
+    b.box(s.hx * 2, s.height - 0.55, s.hz * 2, s.x, s.y + 0.55, s.z, walls);
     b.box(s.hx * 2 + 0.04, 0.55, s.hz * 2 + 0.04, s.x, s.y, s.z, base);
     if (cutaway) b.box(s.hx * 2 + 0.04, 0.05, s.hz * 2 + 0.04, s.x, s.y + s.height, s.z, cap);
+  }
+  if (!cutaway || !(eastMask & 4)) {
+    // The 3.2m clear opening remains unchanged. Masonry fills the missing span
+    // above it, meeting the existing east walls and the gable at y=3.62.
+    b.box(0.4, 0.9, 3.2, -12, 2.72, -42, walls);
+    for (const z of [-43.7, -40.3]) b.box(0.14, 2.6, 0.2, -11.73, 0.12, z, PALETTE.darkWood);
+    b.box(0.14, 0.18, 3.6, -11.73, 2.72, -42, PALETTE.darkWood);
+    // Two leaves folded flat OUTSIDE the wall, clear of the full doorway.
+    // Each spans away from its hinge, ending beyond the opening's jamb.
+    for (const z of [-44.45, -39.55]) {
+      b.box(0.12, 2.5, 1.5, -11.63, 0.12, z, "#9a6244");
+      b.box(0.04, 1.94, 1.16, -11.55, 0.4, z, PALETTE.wood);
+      b.sphere(0.055, -11.5, 1.3, z + (z < -42 ? -0.48 : 0.48), PALETTE.gold, [1, 1, 1], 6);
+    }
   }
   if (!cutaway) {
     const y = 3.62, z = -42, width = 14;
@@ -236,9 +254,11 @@ export function libraryFurniture(solids: readonly Solid[]): THREE.BufferGeometry
     const w = s.hx * 2, d = s.hz * 2;
     const top = s.y + s.height;
     if (s.id.includes("shelf")) {
-      b.box(w, s.height, 0.12, s.x, s.y, s.z - d / 2 + 0.06, PALETTE.darkWood);
+      // Butt-jointed carcass: back, boards and sides share edges, never
+      // overlapping same-facing surfaces (including their hidden undersides).
+      b.box(w - 0.28, s.height, 0.12, s.x, s.y, s.z - d / 2 + 0.06, PALETTE.darkWood);
       for (const dx of [-w / 2 + 0.07, w / 2 - 0.07]) b.box(0.14, s.height, d, s.x + dx, s.y, s.z, PALETTE.wood);
-      for (const y of [s.y, s.y + 0.68, top - 0.1]) b.box(w, 0.1, d, s.x, y, s.z, PALETTE.wood);
+      for (const y of [s.y, s.y + 0.68, top - 0.1]) b.box(w - 0.28, 0.1, d - 0.12, s.x, y, s.z + 0.06, PALETTE.wood);
       for (const y of [0.1, 0.78]) for (let k = 0; k < 8; k++) {
         b.box(0.25, 0.43 + (k % 2) * 0.09, 0.65, s.x - w * 0.4 + k * w * 0.115, s.y + y, s.z + 0.07, [PALETTE.red, PALETTE.teal, PALETTE.blue, PALETTE.gold, PALETTE.plum][k % 5]);
       }
@@ -293,7 +313,8 @@ export function libraryFurniture(solids: readonly Solid[]): THREE.BufferGeometry
   for (let k = 0; k < 7; k++) for (const dz of [-0.85, 0.85]) b.box(0.06, 0.004, 0.16, -16.6 + k * 0.2, 0.1205, -42 + dz, PALETTE.cream);
   // Room dressing on the two walls that stay up: panelling, windows and pictures.
   const panel = "#b98657";
-  b.box(13.6, 1, 0.06, -19, 0.12, -46.77, panel);
+  // Panelling stops above the plinth's concealed bottom, retaining its top.
+  b.box(13.6, 0.99, 0.06, -19, 0.13, -46.77, panel);
   b.box(0.06, 1, 9.6, -25.77, 0.12, -42, panel);
   b.box(13.6, 0.08, 0.1, -19, 1.1, -46.76, PALETTE.darkWood);
   b.box(0.1, 0.08, 9.6, -25.76, 1.1, -42, PALETTE.darkWood);
@@ -375,11 +396,24 @@ export function gatePosts(): THREE.BufferGeometry {
   const b = new PartBuilder(0.5, true);
   // Low-profile runner extends to the right-hand parking position. The gate
   // rolls on it; the track is decorative and leaves the passage walkable.
-  b.box(17.7, 0.035, 0.10, 4.35, -0.01, -21.82, PALETTE.darkStone);
+  b.box(17.7, 0.025, 0.10, 4.35, SCHOOL_GATE_TRACK_TOP - 0.025, -21.82, PALETTE.darkStone);
   // School gate: stone posts and a crossbar that carries the school's sign.
   for (const x of [-4, 4]) {
-    b.box(0.86, 3.5, 0.86, x, 0, -22, PALETTE.stone);
-    b.box(1.06, 0.3, 1.06, x, 0, -22, PALETTE.darkStone);
+    if (x < 0) {
+      b.box(0.86, 3.2, 0.86, x, 0.3, -22, PALETTE.stone);
+      b.box(1.06, 0.3, 1.06, x, 0, -22, PALETTE.darkStone);
+    } else {
+      // A real portal: every moving part, including the projecting rollers,
+      // passes between these piers. The plinth is split through the same slot.
+      const { north, south, top } = SCHOOL_GATE_SLOT;
+      for (const [edge, outer] of [[north, -0.43], [south, 0.43]]) {
+        b.box(0.86, top - 0.3, Math.abs(edge - outer), x, 0.3, -22 + (edge + outer) / 2, PALETTE.stone);
+      }
+      for (const [edge, outer] of [[north, -0.53], [south, 0.53]]) {
+        b.box(1.06, 0.3, Math.abs(edge - outer), x, 0, -22 + (edge + outer) / 2, PALETTE.darkStone);
+      }
+      b.box(0.86, 3.5 - top, 0.86, x, top, -22, PALETTE.stone);
+    }
     b.box(1.04, 0.16, 1.04, x, 3.5, -22, PALETTE.darkStone);
     b.sphere(0.42, x, 4.06, -22, PALETTE.gold, [1, 1, 1], 8);
   }

@@ -1,10 +1,11 @@
-import type * as THREE from "three";
+import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { ITEM_IDS } from "../../game/content/ids";
 import { CHEST_SLOTS, FestivalChest } from "./festivalChest";
 import { itemGeometry, itemSize, plaqueGeometry } from "./items";
 import { KiwiRig } from "./kiwi";
 import { ALL_LOOK_IDS, buildCharacter, characterTriangles } from "./people";
+import { props } from "./props";
 import { SeaChest } from "./seaChest";
 
 const tris = (g: THREE.BufferGeometry) => g.getAttribute("position").count / 3;
@@ -96,6 +97,55 @@ describe("characters", () => {
   it("kids are shorter than adults", () => {
     const kid = buildCharacter("tom").height;
     for (const adult of ["green", "bo", "dan", "page"] as const) expect(buildCharacter(adult).height).toBeGreaterThan(kid);
+  });
+
+  it("Page keeps her book on her palm, outside her torso and with pages inward across states", () => {
+    const rig = buildCharacter("page");
+    const book = props.book();
+    rig.setProp(book);
+    const inverse = new THREE.Matrix4();
+    const point = new THREE.Vector3();
+    const box = new THREE.Box3();
+    const hand = new THREE.Vector3();
+    const pages = new THREE.Vector3();
+    const vertices = book.geometry.getAttribute("position");
+    try {
+      for (const state of ["idle", "talk", "sad", "think", "present", "walk", "dance", "nod", "shake", "cheer", "give", "show", "wave", "reach", "hop", "clap"] as const) {
+        rig.setState(state);
+        rig.setExpression("happy");
+        if (state === "talk") rig.speak(2);
+        for (let frame = 0; frame < 90; frame++) {
+          rig.update(1 / 60);
+          rig.group.updateMatrixWorld(true);
+          inverse.copy(rig.bones.spine.matrixWorld).invert();
+          box.makeEmpty();
+          for (let v = 0; v < vertices.count; v++) {
+            point.fromBufferAttribute(vertices, v).applyMatrix4(book.matrixWorld).applyMatrix4(inverse);
+            box.expandByPoint(point);
+          }
+          // The palm centre in elbow-local coordinates comes from the actual
+          // skinned hand; compare its height and footprint with the book edge.
+          hand.set(0, -0.235, 0.005).applyMatrix4(rig.bones.elbowR.matrixWorld).applyMatrix4(inverse);
+          expect(box.min.y - hand.y, state).toBeGreaterThan(0.045);
+          expect(box.min.y - hand.y, state).toBeLessThan(0.065);
+          expect(hand.x, state).toBeGreaterThan(box.min.x);
+          expect(hand.x, state).toBeLessThan(box.max.x);
+          expect(hand.z, state).toBeGreaterThan(box.min.z - 0.01);
+          expect(hand.z, state).toBeLessThan(box.max.z + 0.01);
+          expect(box.min.z, state).toBeGreaterThan(0.22); // Torso front is under 0.17 m.
+          pages.set(0, 1, 0).transformDirection(book.matrixWorld).transformDirection(inverse);
+          expect(pages.z, state).toBeLessThan(-0.99);
+        }
+      }
+      rig.hold("notebook");
+      rig.setState("present");
+      for (let frame = 0; frame < 60; frame++) rig.update(1 / 60);
+      expect(book.parent!.visible).toBe(false);
+      expect(rig.bones.armR.rotation.x).toBeLessThan(-1.5);
+    } finally {
+      rig.dispose();
+      rig.mesh.skeleton.dispose();
+    }
   });
 
   it("Kiwi animates every state", () => {

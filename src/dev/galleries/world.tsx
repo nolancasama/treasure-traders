@@ -16,6 +16,8 @@ interface FixView {
   chest?: number;
   gates?: Partial<Record<GateId, number>>;
   closeup?: { position: Position; target: Position };
+  gameplayCamera?: boolean;
+  pagePose?: "idle" | "talk" | "cheer" | "present";
   time?: number;
 }
 // Stable names shared by review URLs and fixes.spec.ts; later batches retain these views.
@@ -36,8 +38,15 @@ const FIX_VIEWS = {
   "fixes-school-grass": { chapter: 3, player: { x: 5, z: -25 } },
   "fixes-library-outside": { chapter: 3, player: { x: -9, z: -40.5 } },
   "fixes-library-doorway": { chapter: 3, player: { x: -10.5, z: -42 } },
+  "fixes-library-doorway-before": { chapter: 3, player: { x: -11.75, z: -42 }, gameplayCamera: true },
+  "fixes-library-doorway-after": { chapter: 3, player: { x: -12.25, z: -42 }, gameplayCamera: true },
+  "fixes-library-inside-follow": { chapter: 3, player: { x: -18, z: -40 }, gameplayCamera: true },
   "fixes-library-inside": { chapter: 3, player: { x: -18, z: -40 } },
   "fixes-librarian": { chapter: 3, player: { x: -13.4, z: -38.5 } },
+  "fixes-librarian-idle": { chapter: 3, player: { x: -13.4, z: -38.5 }, pagePose: "idle", closeup: { position: { x: -12.7, y: 2.1, z: -37.1 }, target: { x: -14.4, y: 1.1, z: -40.5 } } },
+  "fixes-librarian-talking": { chapter: 3, player: { x: -13.4, z: -38.5 }, pagePose: "talk", closeup: { position: { x: -12.7, y: 2.1, z: -37.1 }, target: { x: -14.4, y: 1.1, z: -40.5 } } },
+  "fixes-librarian-happy": { chapter: 3, player: { x: -13.4, z: -38.5 }, pagePose: "cheer", closeup: { position: { x: -12.7, y: 2.1, z: -37.1 }, target: { x: -14.4, y: 1.1, z: -40.5 } } },
+  "fixes-librarian-present": { chapter: 3, player: { x: -13.4, z: -38.5 }, pagePose: "present", closeup: { position: { x: -12.7, y: 2.1, z: -37.1 }, target: { x: -14.4, y: 1.1, z: -40.5 } } },
   "fixes-bookshelf-closeup": { chapter: 3, player: { x: -23.5, z: -44 }, closeup: { position: { x: -21.7, y: 2.5, z: -42.2 }, target: { x: -23.5, y: 1, z: -45.7 } } },
   "fixes-northeast-house": { chapter: 3, player: { x: 19, z: -20 }, closeup: { position: { x: 24.5, y: 8, z: -13.8 }, target: { x: 20.5, y: 0.8, z: -24.8 } } },
   "fixes-harbor-easel": { chapter: 4, player: { x: -9, z: 34.5 } },
@@ -97,7 +106,7 @@ function FixReviewFrame({ world, view }: { world: WorldAPI; view: View }) {
   }, -2.5);
   useFrame(({ camera }) => {
     const fix = fixView(view);
-    if (!fix || fix.closeup) return;
+    if (!fix || fix.closeup || fix.gameplayCamera) return;
     const p = world.runtime.player;
     // Inside the library normal play uses a closer cutaway lens. The fixes
     // comparison explicitly requests the shared (+4,+8,+11) offset throughout.
@@ -158,6 +167,11 @@ function setView(world: WorldAPI, view: View) {
   if (fix) {
     world.teleport(fix.player);
     world.setCamera(fix.closeup ? { mode: "path", elapsed: 0, keys: [{ ...fix.closeup, duration: 1e8 }] } : { mode: "follow" });
+    if (fix.pagePose) {
+      world.gesture("page", fix.pagePose);
+      if (fix.pagePose === "talk") world.speak("page", 60);
+      if (fix.pagePose === "cheer") world.mood("page", "happy");
+    }
     return;
   }
   if (view === "walk") { world.setCamera({ mode: "follow" }); return; }

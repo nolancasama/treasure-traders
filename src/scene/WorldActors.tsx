@@ -54,10 +54,7 @@ function equip(id: NpcId, rig: CharacterRig) {
     knitting.scale.setScalar(1.15);
     rig.setProp(knitting);
   } else if (id === "page") {
-    const book = props.book();
-    book.rotation.set(1.9, 0, 0.1);
-    book.position.set(0.1, 0, 0.1);
-    rig.setProp(book);
+    rig.setProp(props.book());
   }
 }
 

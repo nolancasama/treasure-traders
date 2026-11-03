@@ -232,6 +232,60 @@ function flatRing(q: QuadWriter, cx: number, cz: number, r0: number, r1: number,
 
 const insideAnyArea = (x: number, z: number) => WALK_AREAS.some(a => Math.abs(x - a.x) <= a.hx && Math.abs(z - a.z) <= a.hz);
 
+type GroundVertex = { p: [number, number, number]; c: THREE.Color };
+/** Clip the school junction's edging to shared mitres. Both districts build
+ * the same corner boundaries, so no overlapping grass-coloured verge or kerb
+ * survives at the neck, even though they are separate merged meshes. */
+function schoolEdge(q: QuadWriter, a: Area, side: number[], points: [number, number, number][], colors: THREE.ColorRepresentation | [THREE.Color, THREE.Color, THREE.Color, THREE.Color]) {
+  const [, sz, , , nx, nz] = side;
+  if (a.id !== "school-approach" && a.id !== "school-neck" && !(a.id === "square" && nz === -1 && sz === -18) && !(a.id === "courtyard" && nz === 1 && sz === -25)) {
+    q.quad(points[0], points[1], points[2], points[3], colors);
+    return;
+  }
+  const input = points.map((p, i) => ({ p, c: new THREE.Color(Array.isArray(colors) ? colors[i] : colors) }));
+  const clip = (vertices: GroundVertex[], plane: [number, number, number]) => {
+    const out: GroundVertex[] = [], distance = (v: GroundVertex) => plane[0] * v.p[0] + plane[1] * v.p[2] + plane[2];
+    for (let i = 0; i < vertices.length; i++) {
+      const v = vertices[i], w = vertices[(i + 1) % vertices.length], dv = distance(v), dw = distance(w);
+      if (dv >= 0) out.push(v);
+      if ((dv >= 0) !== (dw >= 0)) {
+        const t = dv / (dv - dw);
+        out.push({ p: v.p.map((p, k) => p + (w.p[k] - p) * t) as [number, number, number], c: v.c.clone().lerp(w.c, t) });
+      }
+    }
+    return out;
+  };
+  let pieces: [number, number, number][][] = [[]];
+  if (a.id === "school-approach") return; // The neck owns this entire shared edge.
+  if (a.id === "school-neck") {
+    if (!nx) return; // End edges are wholly inside square/courtyard.
+    pieces = [[[0, 1, 25], [0, -1, -18], [-nx, 1, 29], [-nx, -1, -14]]];
+  } else if (a.id === "square" && nz === -1 && sz === -18) {
+    pieces = [[[1, 0, -4], [1, 1, 14]], [[-1, 0, -4], [-1, 1, 14]]];
+  } else if (a.id === "courtyard" && nz === 1 && sz === -25) {
+    pieces = [[[1, 0, -4], [1, -1, -29]], [[-1, 0, -4], [-1, -1, -29]]];
+  }
+  for (const planes of pieces) {
+    let polygon = input;
+    for (const plane of planes) polygon = clip(polygon, plane);
+    for (let i = 1; i + 1 < polygon.length; i++) {
+      const [u, v, w] = [polygon[0], polygon[i], polygon[i + 1]];
+      q.quad(u.p, v.p, w.p, w.p, [u.c, v.c, w.c, w.c]);
+    }
+  }
+}
+
+/** Subtract existing paving footprints, retaining disjoint foundation boxes. */
+function schoolBase(a: Area, earlier: readonly Area[]): [number, number, number, number][] {
+  let pieces: [number, number, number, number][] = [[a.x - a.hx, a.z - a.hz, a.x + a.hx, a.z + a.hz]];
+  for (const e of earlier) pieces = pieces.flatMap(([x0, z0, x1, z1]) => {
+    const ax = Math.max(x0, e.x - e.hx), az = Math.max(z0, e.z - e.hz), bx = Math.min(x1, e.x + e.hx), bz = Math.min(z1, e.z + e.hz);
+    if (ax >= bx || az >= bz) return [[x0, z0, x1, z1]];
+    return [[x0, z0, ax, z1], [bx, z0, x1, z1], [ax, z0, bx, az], [ax, bz, bx, z1]].filter(([x0, z0, x1, z1]) => x1 - x0 > 1e-5 && z1 - z0 > 1e-5) as [number, number, number, number][];
+  });
+  return pieces;
+}
+
 /** A raised kerb and a gravel verge fading into the grass, outside the exact walking edge. */
 function edging(q: QuadWriter, a: Area, rand: () => number, kerbColors: string[], gravel: string) {
   const gravelColor = new THREE.Color(gravel);
@@ -239,7 +293,8 @@ function edging(q: QuadWriter, a: Area, rand: () => number, kerbColors: string[]
     [a.x - a.hx, a.z - a.hz, 1, 0, 0, -1], [a.x + a.hx, a.z - a.hz, 0, 1, 1, 0],
     [a.x + a.hx, a.z + a.hz, -1, 0, 0, 1], [a.x - a.hx, a.z + a.hz, 0, -1, -1, 0]
   ];
-  for (const [sx, sz, tx, tz, nx, nz] of sides) {
+  for (const side of sides) {
+    const [sx, sz, tx, tz, nx, nz] = side;
     const length = tx ? a.hx * 2 : a.hz * 2;
     for (let s = 0; s < length - 0.01;) {
       const run = Math.min(length - s, 1.1 + rand() * 0.8);
@@ -250,14 +305,14 @@ function edging(q: QuadWriter, a: Area, rand: () => number, kerbColors: string[]
       const k = 0.26, wide0 = 0.5 + noise(ax * 0.4, az * 0.4) * 1.1, wide1 = 0.5 + noise(bx * 0.4, bz * 0.4) * 1.1;
       // Side direction then outward keeps every one of these faces pointing up.
       const up = (p0: [number, number], p1: [number, number], p2: [number, number], p3: [number, number], y0: number, y1: number, c: THREE.ColorRepresentation | [THREE.Color, THREE.Color, THREE.Color, THREE.Color]) =>
-        q.quad([p0[0], y0, p0[1]], [p1[0], y0, p1[1]], [p2[0], y1, p2[1]], [p3[0], y1, p3[1]], c);
+        schoolEdge(q, a, side, [[p0[0], y0, p0[1]], [p1[0], y0, p1[1]], [p2[0], y1, p2[1]], [p3[0], y1, p3[1]]], c);
       const color = kerbColors[Math.floor(rand() * kerbColors.length)];
       const a1: [number, number] = [ax + nx * k, az + nz * k], b1: [number, number] = [bx + nx * k, bz + nz * k];
       up([ax, az], [bx - tx * 0.05, bz - tz * 0.05], [b1[0] - tx * 0.05, b1[1] - tz * 0.05], a1, KERB_Y, KERB_Y, color);
       const a2: [number, number] = [ax + nx * (k + wide0), az + nz * (k + wide0)], b2: [number, number] = [bx + nx * (k + wide1), bz + nz * (k + wide1)];
       up(a1, b1, b2, a2, VERGE_Y, VERGE_Y, [gravelColor, gravelColor, grassAt(b2[0], b2[1]), grassAt(a2[0], a2[1])]);
       // Outer face of the kerb, down to the verge.
-      q.quad([a1[0], KERB_Y, a1[1]], [b1[0], KERB_Y, b1[1]], [b1[0], VERGE_Y, b1[1]], [a1[0], VERGE_Y, a1[1]], new THREE.Color(color).multiplyScalar(0.72));
+      schoolEdge(q, a, side, [[a1[0], KERB_Y, a1[1]], [b1[0], KERB_Y, b1[1]], [b1[0], VERGE_Y, b1[1]], [a1[0], VERGE_Y, a1[1]]], new THREE.Color(color).multiplyScalar(0.72));
     }
   }
 }
@@ -293,7 +348,9 @@ export function pavingGeometry(district: DistrictId): THREE.BufferGeometry {
     const style = STYLES[a.id];
     const grout = a.id === "library" ? "#8d6a48" : a.id === "pier" ? "#6e5236" : a.id === "festival" ? "#94bd70" : style.grout;
     // Base tops step down by a hair so overlapping junctions never share a plane.
-    base.box(a.hx * 2, 0.5, a.hz * 2, a.x, a.y - 0.52 - index * 0.0012, a.z, grout);
+    if (a.id === "school-approach" || a.id === "school-neck") {
+      for (const [x0, z0, x1, z1] of schoolBase(a, earlier)) base.box(x1 - x0, 0.5, z1 - z0, (x0 + x1) / 2, a.y - 0.52 - index * 0.0012, (z0 + z1) / 2, grout);
+    } else base.box(a.hx * 2, 0.5, a.hz * 2, a.x, a.y - 0.52 - index * 0.0012, a.z, grout);
     if (a.id === "library" || a.id === "pier") {
       const palette = a.id === "library" ? PLANKS : DECK, width = a.id === "library" ? 0.72 : 0.92;
       for (let z = a.z - a.hz; z < a.z + a.hz - 0.01; z += width) q.rect(a.x - a.hx, z + 0.025, a.x + a.hx, Math.min(z + width, a.z + a.hz) - 0.025, a.y, palette[Math.floor(rand() * palette.length)]);

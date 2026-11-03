@@ -34,6 +34,10 @@ export interface WorldRuntime {
   time: number;
   /** Actual rendered positions; null means no scenery renderer is mounted. */
   gateProgress: Record<GateId, number> | null;
+  /** Rendered school-panel pose for read-only review instrumentation. */
+  schoolGateMotion?: { displacement: number; wheelRotation: number; wheelRadius: number; travel: number };
+  /** The campaign's school reveal waits for its gate camera shot. */
+  schoolGateHeld?: boolean;
   player: Position & { yaw: number; speed: number };
   locked: boolean;
   bottomPanel: number;

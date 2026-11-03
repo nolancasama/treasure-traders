@@ -36,6 +36,11 @@ function GameBridge({ game }: { game: Game }) {
         const p = new Vector3(at.x, at.y + (target.kind === 'npc' ? 1.1 : 0.1), at.z).project(camera);
         return { x: (p.x + 1) * size.width / 2, y: (1 - p.y) * size.height / 2, visible: Math.abs(p.x) < 0.94 && Math.abs(p.y) < 0.94 && p.z > -1 && p.z < 1 };
       },
+      /** Read-only projection for real ground taps in behavioral review. */
+      projectPoint(at: { x: number; y: number; z: number }) {
+        const p = new Vector3(at.x, at.y, at.z).project(camera);
+        return { x: (p.x + 1) * size.width / 2, y: (1 - p.y) * size.height / 2, visible: Math.abs(p.x) < 0.94 && Math.abs(p.y) < 0.94 && p.z > -1 && p.z < 1 };
+      },
       updateRenderer() { renderer = { calls: gl.info.render.calls, triangles: gl.info.render.triangles, dpr: gl.getPixelRatio() }; }
     };
     Object.assign(window, { __tt: hook });

@@ -2,15 +2,20 @@ import type { UIOptions } from '../ui';
 import type { RecognizerOptions } from '../audio/vendor';
 import type { WorldAPI } from '../game/runtime';
 import { navigationGates } from '../game/runtime';
-import type { Point } from '../game/world/types';
+import type { Interaction, Point } from '../game/world/types';
+import { findPath } from '../game/world/collision';
 
 /** Installed on __tt only by the explicit e2e bridge, never normal play. */
 export function createWorldControls(world: WorldAPI) {
   if (new URLSearchParams(location.search).get('e2e') !== '1') return {};
   return {
     teleport(position: Point & { yaw?: number }) { world.teleport(position); },
+    approachPath(target: Interaction) {
+      const at = world.positionOf(target);
+      return at ? structuredClone(findPath(world.runtime.player, at, navigationGates(world.runtime))) : [];
+    },
     readGates() {
-      return structuredClone({ progress: world.runtime.gateProgress, open: navigationGates(world.runtime) });
+      return structuredClone({ progress: world.runtime.gateProgress, open: navigationGates(world.runtime), school: world.runtime.schoolGateMotion ?? null, schoolHeld: !!world.runtime.schoolGateHeld, camera: world.runtime.camera, cameraYaw: world.runtime.cameraYaw });
     }
   };
 }

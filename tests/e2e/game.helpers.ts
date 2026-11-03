@@ -86,7 +86,7 @@ export async function settle(page: Page, until: (state: GameRead) => boolean, li
 const targetOf = (intent: Intent): Interaction => intent.kind === "collect" ? { kind: "spot", id: intent.spot } : intent.target === "seaChest" ? { kind: "seaChest" } : { kind: "npc", id: intent.target };
 
 /** Screen clicks when the target is visible; path planning is only for offscreen walks. */
-export async function approach(page: Page, intent: Intent, touch = false) {
+export async function approach(page: Page, intent: Intent, touch = false, clicksOnly = false) {
   const target = targetOf(intent);
   // A pickup/conversation can unlock input while its camera is still easing.
   // Sample rendered frames so a projected NPC click cannot turn into a ground
@@ -110,6 +110,7 @@ export async function approach(page: Page, intent: Intent, touch = false) {
     else await page.mouse.click(point.x, point.y);
     return touch ? 'touch' : 'click';
   } else {
+    if (clicksOnly) throw new Error(`HARNESS_PRECONDITION_FAILED: visible target required for real-input approach: ${JSON.stringify(target)}`);
     expect(await page.evaluate(value => (window as unknown as TestWindow).__tt.intent(value), intent), `walk to ${JSON.stringify(intent)}`).not.toBe(false);
     return 'intent';
   }
@@ -152,6 +153,7 @@ export interface PlayOptions {
   mode?: "buttons" | "speech";
   until?: (state: GameRead) => boolean;
   observe?: (state: GameRead) => Promise<void>;
+  approach?: (page: Page, intent: Intent) => Promise<unknown>;
 }
 /** The solver supplies destinations/questions; every rule transition uses real UI input. */
 export async function play(page: Page, options: PlayOptions = {}): Promise<GameRead> {
@@ -170,7 +172,7 @@ export async function play(page: Page, options: PlayOptions = {}): Promise<GameR
     if (!navigatingAt) {
       const intent = state.intents[0];
       if (!intent) { await page.waitForTimeout(100); continue; }
-      await approach(page, intent);
+      await (options.approach ?? approach)(page, intent);
       navigatingAt = Date.now();
     } else if (Date.now() - navigatingAt > 30_000) {
       throw new Error(`Walk did not reach an interaction: ${JSON.stringify(state)}`);

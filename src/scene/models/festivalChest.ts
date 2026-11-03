@@ -26,7 +26,7 @@ export const CHEST_SLOTS: { item: ItemId; pos: THREE.Vector3 }[] = ITEM_IDS.map(
   return { item, pos: new THREE.Vector3((col - 1) * 0.285, H - 0.175 - row * 0.262, D / 2 + 0.03) };
 });
 
-function baseGeometry(): THREE.BufferGeometry {
+export function festivalChestBaseGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0.25);
   b.box(W, H - 0.04, D, 0, 0, 0, WOOD.main);
   // Dark interior, visible when the lid opens.
@@ -59,7 +59,7 @@ function baseGeometry(): THREE.BufferGeometry {
   return b.build();
 }
 
-function lidGeometry(): THREE.BufferGeometry {
+export function festivalChestLidGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0);
   // Rounded lid around the hinge at the back top edge (origin = hinge).
   b.add(new THREE.CylinderGeometry(D / 2, D / 2, W, 20, 1, false, 0, Math.PI), WOOD.main, [0, 0, D / 2], [0, 0, Math.PI / 2], [0.62, 1, 1], { flatAo: true });
@@ -75,7 +75,7 @@ function lidGeometry(): THREE.BufferGeometry {
 }
 
 /** A medallion's contents: a pale silhouette, or the item in colour on a cream disc. */
-function slotGeometry(item: ItemId, filled: boolean): THREE.BufferGeometry {
+export function festivalChestSlotGeometry(item: ItemId, filled: boolean): THREE.BufferGeometry {
   if (!filled) return plaqueGeometry(item, MED * 0.8, { silhouette: "#c49b6c", chunky: true });
   const disc = new PartBuilder(0)
     .add(new THREE.CylinderGeometry(MED / 2 - 0.006, MED / 2 - 0.006, 0.006, 24), "#fff6d8", [0, 0, -0.018], [Math.PI / 2, 0, 0], [1, 1, 1], { flatAo: true })
@@ -106,13 +106,13 @@ export class FestivalChest {
   constructor() {
     // Its own material so the gold light can spread over the wood during the finale.
     this.body = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, emissive: "#ffa52e", emissiveIntensity: 0 });
-    const base = new THREE.Mesh(baseGeometry(), this.body);
+    const base = new THREE.Mesh(festivalChestBaseGeometry(), this.body);
     this.group.add(base);
     this.lid.position.set(0, H, -D / 2);
-    this.lid.add(new THREE.Mesh(lidGeometry(), this.body));
+    this.lid.add(new THREE.Mesh(festivalChestLidGeometry(), this.body));
     this.group.add(this.lid);
     CHEST_SLOTS.forEach((s, i) => {
-      const m = new THREE.Mesh(slotGeometry(s.item, false), smoothMat());
+      const m = new THREE.Mesh(festivalChestSlotGeometry(s.item, false), smoothMat());
       m.position.set(s.pos.x, s.pos.y, D / 2 + 0.045);
       this.group.add(m);
       this.slotMeshes.push(m);
@@ -154,7 +154,7 @@ export class FestivalChest {
     if ((was === "empty") !== (state === "empty")) {
       const m = this.slotMeshes[i];
       m.geometry.dispose();
-      m.geometry = slotGeometry(item, state !== "empty");
+      m.geometry = festivalChestSlotGeometry(item, state !== "empty");
     }
   }
 

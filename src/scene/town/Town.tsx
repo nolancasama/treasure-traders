@@ -14,6 +14,8 @@ import { createDecorations, type Decorations } from "./decorations";
 import { districtParts, forestGeometry } from "./districts";
 import { GRASS_Y, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
 import { SignBatch, signMat } from "./signs";
+import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
+import { advanceSchoolGate, SCHOOL_GATE_TRAVEL, SCHOOL_GATE_WHEEL_RADIUS, SCHOOL_GATE_WHEEL_Y, type SchoolGateAnimation } from "./schoolGate";
 
 interface TownScene {
   root: THREE.Group;
@@ -21,7 +23,8 @@ interface TownScene {
   gates: Record<GateId, THREE.Group>;
   gateProgress: Record<GateId, number>;
   schoolGateWheels: THREE.Mesh[];
-  library: { open: THREE.Mesh; closed: THREE.Mesh; label: THREE.Mesh };
+  schoolGateAnimation: SchoolGateAnimation;
+  library: { open: THREE.Mesh[]; closed: THREE.Mesh; label: THREE.Mesh };
   boats: THREE.Object3D[];
   water: THREE.ShaderMaterial;
   bulbs: THREE.MeshLambertMaterial;
@@ -100,7 +103,7 @@ function makeTown(runtime: WorldRuntime): TownScene {
       ownedGeometries.add(rollerGeometry);
       for (const x of [-3.2, 3.2]) {
         const roller = new THREE.Mesh(rollerGeometry, sceneryMat());
-        roller.position.set(x, 0.255, 0.18);
+        roller.position.set(x, SCHOOL_GATE_WHEEL_Y, 0.18);
         roller.raycast = noRaycast;
         group.add(roller);
         schoolGateWheels.push(roller);
@@ -120,7 +123,9 @@ function makeTown(runtime: WorldRuntime): TownScene {
   mesh(new SignBatch().add("soon", Math.sin(soonYaw) * 0.05, 1, Math.cos(soonYaw) * 0.05, 0.62, soonYaw).build(), gates.arch, signMat());
 
   const closed = mesh(libraryGeometry(SOLIDS, false), districts.school, sceneryMat());
-  const open = mesh(libraryGeometry(SOLIDS, true), districts.school, sceneryMat());
+  // Premerged alternatives keep the cutaway at one draw call. Only camera-
+  // obstructing east sections are lowered; none is permanently removed.
+  const open = Array.from({ length: 8 }, (_, mask) => mesh(libraryGeometry(SOLIDS, true, mask), districts.school, sceneryMat()));
   mesh(libraryFurniture(SOLIDS), districts.school);
   const label = mesh(new SignBatch().add("library", -19, 2.98, -36.7, 0.7).build(), districts.school, signMat());
 
@@ -193,7 +198,8 @@ function makeTown(runtime: WorldRuntime): TownScene {
     for (const g of ownedGeometries) g.dispose();
     for (const m of ownedMaterials) m.dispose();
   };
-  return { root, districts, gates, gateProgress, schoolGateWheels, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
+  const schoolGateAnimation = { target: gateProgress.school, from: gateProgress.school, elapsed: 0 };
+  return { root, districts, gates, gateProgress, schoolGateWheels, schoolGateAnimation, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
 }
 
 const nearCamera = new Map<DistrictId, boolean>();
@@ -209,10 +215,11 @@ export function Town({ runtime, mood, reviewGateProgress }: { runtime: WorldRunt
     const t = runtime.time;
     sceneUniforms.ttTime.value = t;
     const { dusk } = mood();
-    const insideLibrary = runtime.player.x > -26.4 && runtime.player.x < -11.5 && runtime.player.z > -47.5 && runtime.player.z < -36.5;
-    town.library.open.visible = insideLibrary;
-    town.library.closed.visible = !insideLibrary;
-    town.library.label.visible = !insideLibrary;
+    const indoors = insideLibrary(runtime.player);
+    const eastMask = libraryEastCutMask(camera.position, runtime.player);
+    town.library.open.forEach((m, mask) => { m.visible = indoors && mask === eastMask; });
+    town.library.closed.visible = !indoors;
+    town.library.label.visible = !indoors;
     for (const id of DISTRICT_IDS) {
       const p = DISTRICTS[id], close = Math.hypot(camera.position.x - p.x, camera.position.z - p.z) < CULL_RADIUS;
       town.districts[id].visible = close;
@@ -221,17 +228,20 @@ export function Town({ runtime, mood, reviewGateProgress }: { runtime: WorldRunt
     const smooth = 1 - Math.exp(-delta * 4);
     for (const id of ["cart", "school", "bridge", "arch"] as const) {
       const target = runtime.state.gates[id] ? 1 : 0;
-      const next = town.gateProgress[id] + (target - town.gateProgress[id]) * smooth;
-      // Exponential motion needs an exact endpoint for collision to open.
-      const p = town.gateProgress[id] = reviewGateProgress?.[id] ?? (Math.abs(target - next) < 0.001 ? target : next);
+      const next = id === "school"
+        ? runtime.schoolGateHeld && target === 1 ? town.gateProgress[id] : advanceSchoolGate(town.gateProgress[id], target, Math.min(delta, 0.1), town.schoolGateAnimation)
+        : town.gateProgress[id] + (target - town.gateProgress[id]) * smooth;
+      // Other gates retain their exponential motion and exact settled endpoint.
+      const p = town.gateProgress[id] = reviewGateProgress?.[id] ?? (id === "school" ? next : Math.abs(target - next) < 0.001 ? target : next);
       const g = town.gates[id];
       if (id === "bridge") g.rotation.x = -(1 - p) * BRIDGE_RAISED;
       if (id === "school") {
-        // Move completely clear of the two schoolhouse posts before settling.
-        const displacement = 8.7 * p;
+        // The west end stays captured inside the east post's slot when parked.
+        const displacement = SCHOOL_GATE_TRAVEL * p;
         g.position.x = displacement;
         g.rotation.y = 0;
-        for (const wheel of town.schoolGateWheels) wheel.rotation.z = -displacement / 0.25;
+        for (const wheel of town.schoolGateWheels) wheel.rotation.z = -displacement / SCHOOL_GATE_WHEEL_RADIUS;
+        runtime.schoolGateMotion = { displacement: g.position.x, wheelRotation: town.schoolGateWheels[0].rotation.z, wheelRadius: SCHOOL_GATE_WHEEL_RADIUS, travel: SCHOOL_GATE_TRAVEL };
       }
       if (id === "cart") { g.position.set(18 + p * 4, p * 0.35, p * 9); g.rotation.x = 0.15 * (1 - p); g.scale.setScalar(1 - Math.max(0, p - 0.7) / 0.3); }
       if (id === "arch") { g.position.y = -p * 2; g.scale.y = 1 - p * 0.95; }
