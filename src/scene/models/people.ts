@@ -4,7 +4,7 @@ import type { ItemId, NpcId } from "../../game/content/ids";
 import { skinnedMat, smoothMat } from "../materials";
 import { ITEM_DISPLAY, THICKEN, buildItem, itemSize } from "./items";
 import { LOOKS, type Build, type Look, type LookId } from "./looks";
-import { IDLES, PAGE_BOOK_POSE, type Pose } from "./personality";
+import { IDLES, PAGE_BOOK_POSE, UME_PELVIS_BOTTOM, UME_SEATED_POSE, type Pose } from "./personality";
 import { RigBuilder, skinnedMesh, type BoneSpec, type V3 } from "./rig";
 
 /* ------------------------------------------------------------ proportions */
@@ -96,7 +96,7 @@ const sph = (r: number, w = 12, h = 9) => new THREE.SphereGeometry(r, w < 16 ? M
 const cyl = (rt: number, rb: number, h: number, seg = 12) => new THREE.CylinderGeometry(rt, rb, h, seg <= 12 ? Math.max(6, Math.round(seg * 0.7)) : Math.round(seg * 0.75));
 const rbox = (w: number, h: number, d: number, r: number) => new RoundedBoxGeometry(w, h, d, 1, r);
 
-function buildBody(look: Look, f: Frame): THREE.BufferGeometry {
+function buildBody(look: Look, f: Frame, seatedFloor?: number): THREE.BufferGeometry {
   const b = new RigBuilder(boneSpecs(f), 0.42);
   const { p } = f;
   const skin = look.skin;
@@ -118,17 +118,27 @@ function buildBody(look: Look, f: Frame): THREE.BufferGeometry {
     b.add(cyl(p.legR, p.legR * 0.94, f.hipY - f.kneeY + 0.02), thighColor, leg, [x, (f.hipY + f.kneeY) / 2, 0]);
     if (bot.style === "shorts") b.add(cyl(p.legR * 1.08, p.legR * 1.05, (f.hipY - f.kneeY) * 0.62), bot.color, leg, [x, f.hipY - (f.hipY - f.kneeY) * 0.3, 0]);
     b.add(sph(p.legR * 0.95, 8, 6), shinColor, knee, [x, f.kneeY, 0]);
-    b.add(cyl(p.legR * 0.92, p.legR * 0.8, f.kneeY - 0.05), shinColor, knee, [x, (f.kneeY + 0.05) / 2 + 0.02, 0]);
+    const floor = seatedFloor ?? 0;
+    b.add(cyl(p.legR * 0.92, p.legR * 0.8, f.kneeY - floor - 0.05), shinColor, knee, [x, (f.kneeY + floor + 0.05) / 2 + 0.02, 0]);
     if (look.top.style === "tracksuit") b.add(cyl(p.legR * 0.96, p.legR * 0.96, 0.03), trim, knee, [x, f.kneeY * 0.35, 0]);
-    b.add(rbox(p.legR * 2.25, 0.08, p.legR * 3.3, 0.028), look.shoes, knee, [x, 0.04, p.legR * 0.55]);
+    b.add(rbox(p.legR * 2.25, 0.08, p.legR * 3.3, 0.028), look.shoes, knee, [x, floor + 0.04, p.legR * 0.55]);
   }
 
   /* hips: pelvis, skirts, coat hems */
   if (!skirt) b.add(cyl(p.girth * 0.97, p.girth * 0.9, 0.16, 14), bot.style === "shorts" || bot.style === "pants" ? bot.color : topC, "hips", [0, f.hipY - 0.01, 0], [0, 0, 0], [1, 1, 0.86]);
   if (bot.style === "skirt") b.add(cyl(p.girth * 0.98, p.girth * 1.55, 0.3, 16), bot.color, "hips", [0, f.hipY - 0.1, 0], [0, 0, 0], [1, 1, 0.88]);
   if (longSkirt) {
-    const h = f.hipY - 0.08;
-    b.add(cyl(p.girth * 1.0, p.girth * 1.6, h, 16), bot.color, "hips", [0, f.hipY + 0.04 - h / 2, 0], [0, 0, 0], [1, 1, 0.9]);
+    if (seatedFloor === undefined) {
+      const h = f.hipY - 0.08;
+      b.add(cyl(p.girth * 1.0, p.girth * 1.6, h, 16), bot.color, "hips", [0, f.hipY + 0.04 - h / 2, 0], [0, 0, 0], [1, 1, 0.9]);
+    } else {
+      // Ume alone: a lap that follows the thighs and a front drape that follows
+      // the upright shins. The standing skirt remains its original geometry.
+      b.add(cyl(p.girth * 0.98, p.girth * 0.96, 0.16, 16), bot.color, "hips", [0, f.hipY - 0.01, 0], [0, 0, 0], [1, 1, 0.86]);
+      for (const side of [1, -1]) b.add(cyl(p.girth * 0.9, p.girth, f.hipY - f.kneeY + 0.02, 12), bot.color, side === 1 ? "legL" : "legR", [side * f.legX, (f.hipY + f.kneeY) / 2, 0], [0, 0, 0], [1, 1, 0.5]);
+      const h = f.kneeY - seatedFloor - 0.1;
+      b.add(cyl(p.girth * 1.45, p.girth * 1.6, h, 16), bot.color, "kneeL", [0, f.kneeY + 0.035 - h / 2, 0], [0, 0, 0], [1, 1, 0.5]);
+    }
   }
   const hem = (len: number, color: string) =>
     b.add(cyl(p.girth * 1.02, p.girth * 1.22, len, 16), color, "hips", [0, f.hipY + 0.02 - len / 2, 0], [0, 0, 0], [1, 1, 0.9]);
@@ -478,6 +488,9 @@ export class CharacterRig {
   private held: ItemId | null = null;
   private heldRoot = new THREE.Group();
   private propRoot = new THREE.Group();
+  private readonly standingGeometry: THREE.BufferGeometry;
+  private seatedGeometry: THREE.BufferGeometry | null = null;
+  private seatHeight: number | null = null;
 
   constructor(
     readonly id: LookId,
@@ -490,6 +503,7 @@ export class CharacterRig {
     const geo = buildBody(look, f);
     const { mesh, bones } = skinnedMesh(geo, specs, skinnedMat(), new THREE.Sphere(new THREE.Vector3(0, f.top / 2, 0), f.top * 0.85));
     this.mesh = mesh;
+    this.standingGeometry = geo;
     this.bones = bones;
     this.face = new THREE.Mesh(this.faceFor("neutral", false, false), smoothMat());
     bones.head.add(this.face);
@@ -525,6 +539,28 @@ export class CharacterRig {
 
   get state(): RigState {
     return this.base;
+  }
+
+  /** Read-only semantic support state for scene inspection. */
+  get seated(): boolean { return this.seatHeight !== null; }
+
+  /** Ground-relative origin that rests the pelvis underside on the wooden seat. */
+  get seatedOriginY(): number {
+    return this.seatHeight === null ? 0 : this.seatHeight + (UME_PELVIS_BOTTOM - this.frame.hipY) * this.group.scale.y;
+  }
+
+  /** Ume's support is independent of mood, speech and transient gestures. */
+  setSeated(height: number | null): void {
+    if (this.id !== "ume" || height === this.seatHeight) return;
+    if (height !== null) {
+      this.seatedGeometry?.dispose();
+      const floor = this.frame.kneeY - height / this.group.scale.y - UME_PELVIS_BOTTOM;
+      this.seatedGeometry = buildBody(this.look, this.frame, floor);
+      this.mesh.geometry = this.seatedGeometry;
+      Object.assign(this.now, UME_SEATED_POSE);
+    } else this.mesh.geometry = this.standingGeometry;
+    this.seatHeight = height;
+    this.group.userData.seated = this.seated;
   }
 
   /** Looping states, or a one-shot gesture that returns to the current state. */
@@ -800,11 +836,16 @@ export class CharacterRig {
     // party dance. A traded item still uses the normal presentation gestures.
     if (this.id === "page" && this.propRoot.children.length && !this.held) Object.assign(p, PAGE_BOOK_POSE);
 
+    // The seat supports Ume through every upper-body state and blend, including
+    // gestures that would otherwise lift her hips or unbend her knees.
+    if (this.seated) Object.assign(p, UME_SEATED_POSE);
+
     // Everything eases toward its target, so idle, walk, talk and cheer run together.
     const fast = this.base === "walk" || this.base === "run" || this.base === "dance";
     const k = dt <= 0 ? 1 : 1 - Math.exp(-dt * (fast ? 26 : this.gesture ? 16 : 11));
     const n = this.now;
     for (const key of POSE_KEYS) n[key] += (p[key] - n[key]) * k;
+    if (this.seated) Object.assign(n, UME_SEATED_POSE);
 
     // Head turn toward a target, eased.
     let wantYaw = n.headY;
@@ -819,7 +860,7 @@ export class CharacterRig {
     this.headYaw += (wantYaw - this.headYaw) * ease;
     this.headPitch += (wantPitch - this.headPitch) * ease;
 
-    B.root.position.y = sitDrop;
+    B.root.position.y = this.seated ? 0 : sitDrop;
     B.hips.position.y = this.hipY0 + n.bob;
     B.spine.rotation.set(n.spineX, n.spineY, n.spineZ);
     B.head.rotation.set(n.headX + this.headPitch, this.headYaw + shake, n.headZ);
@@ -845,7 +886,8 @@ export class CharacterRig {
   }
 
   dispose(): void {
-    this.mesh.geometry.dispose();
+    this.standingGeometry.dispose();
+    this.seatedGeometry?.dispose();
     for (const g of this.faces.values()) g.dispose();
   }
 }

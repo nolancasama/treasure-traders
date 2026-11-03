@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import type { DistrictId } from "../../game/content/ids";
-import { HOUSES, LAMP_POSITIONS, SOLIDS, STAGE, TREES, WALK_AREAS } from "../../game/world/layout";
+import { GRANDMA_BENCH_YAW, HOUSES, LAMP_POSITIONS, SOLIDS, STAGE, TREES, WALK_AREAS } from "../../game/world/layout";
 import { PartBuilder, wirePoint } from "../partBuilder";
 import { addAwning, addCottage, addFarTree, addFlowerBox, addFlowers, addHipRoof, addLamp, addPebble, addShrub, addTree, addTuft, addWindow, FLOWERS, PALETTE } from "./builders";
 import { GRASS_Y, seeded } from "./ground";
@@ -104,20 +104,32 @@ function square(low: B, tall: B, signs: SignBatch) {
   }
   // Grandma's bench, built to her proportions; its footprint stays the collider.
   const bench = boxOf("grandma-bench"), iron = "#3f4d57", plank = "#c08048", seat = 0.42;
-  for (const x of [-1.62, 1.62]) {
-    low.box(0.1, seat, 0.1, bench.x + x, 0, bench.z + 0.42, iron);
-    low.box(0.1, 1.05, 0.1, bench.x + x, 0, bench.z - 0.42, iron);
-    low.box(0.1, 0.1, 0.92, bench.x + x, seat - 0.1, bench.z, iron);
-    low.box(0.12, 0.08, 0.62, bench.x + x, 0.68, bench.z + 0.08, plank);
-    low.box(0.08, 0.28, 0.08, bench.x + x, seat, bench.z + 0.38, iron);
-  }
-  for (let i = 0; i < 4; i++) low.box(3.4, 0.05, 0.2, bench.x, seat - 0.05, bench.z - 0.33 + i * 0.22, plank);
-  for (const y of [0.62, 0.82]) low.box(3.4, 0.13, 0.05, bench.x, y, bench.z - 0.46, plank);
+  low.at(bench.x, 0, bench.z, GRANDMA_BENCH_YAW, () => {
+    for (const x of [-1.62, 1.62]) {
+      low.box(0.1, 0.29, 0.1, x, 0, 0.42, iron);
+      low.box(0.1, 1.05, 0.1, x, 0, -0.42, iron);
+      // Narrower rails support plank undersides, without sharing leg side faces.
+      low.box(0.085, 0.08, 0.92, x, 0.29, 0, iron);
+      low.box(0.12, 0.08, 0.62, x, 0.68, 0.08, plank);
+      low.box(0.08, 0.26, 0.08, x, seat, 0.38, iron);
+    }
+    for (let i = 0; i < 4; i++) low.box(3.4, 0.05, 0.2, 0, seat - 0.05, -0.33 + i * 0.22, plank);
+    for (const y of [0.62, 0.82]) low.box(3.4, 0.13, 0.05, 0, y, -0.46, plank);
+  });
   // The chest's dais: red carpet over stone, inside the same footprint.
   const dais = boxOf("festival-chest-base");
   low.box(dais.hx * 2, 0.11, dais.hz * 2, dais.x, 0, dais.z, PALETTE.darkStone);
-  low.box(dais.hx * 2 - 0.16, 0.04, dais.hz * 2 - 0.16, dais.x, 0.11, dais.z, "#d9534f");
-  low.box(dais.hx * 2 - 0.5, 0.042, dais.hz * 2 - 0.5, dais.x, 0.11, dais.z, PALETTE.gold);
+  // Inlaid carpet and gold centre have disjoint faces, all supporting the
+  // chest at y=.15. The old full carpet continued just beneath the gold.
+  const insetRing = (outerX: number, outerZ: number, innerX: number, innerZ: number, color: string) => {
+    for (const side of [-1, 1]) {
+      low.box((outerX - innerX) / 2, 0.04, outerZ, dais.x + side * (outerX + innerX) / 4, 0.11, dais.z, color);
+      low.box(innerX, 0.04, (outerZ - innerZ) / 2, dais.x, 0.11, dais.z + side * (outerZ + innerZ) / 4, color);
+    }
+  };
+  insetRing(dais.hx * 2, dais.hz * 2, dais.hx * 2 - 0.16, dais.hz * 2 - 0.16, PALETTE.darkStone);
+  insetRing(dais.hx * 2 - 0.16, dais.hz * 2 - 0.16, dais.hx * 2 - 0.5, dais.hz * 2 - 0.5, "#d9534f");
+  low.box(dais.hx * 2 - 0.5, 0.04, dais.hz * 2 - 0.5, dais.x, 0.11, dais.z, PALETTE.gold);
   // Corner planters.
   for (let i = 0; i < 4; i++) {
     const p = solid(`square-planter-${i}`);
@@ -514,8 +526,8 @@ export const SOUTH_POLES: [number, number, number][] = [[-60, 5.6, 18.7], [-47, 
 
 function stage(low: B, tall: B, signs: SignBatch) {
   const s = boxOf("stage"), front = s.x + s.hx;
-  low.box(s.hx * 2, s.height, s.hz * 2, s.x, 0, s.z, "#b4743f");
-  for (let i = 0; i < 12; i++) low.box(s.hx * 2, 0.02, 0.96, s.x, s.height, s.z - s.hz + (i + 0.5), ["#c58a50", "#bb7d45", "#cf9558"][i % 3]);
+  low.box(s.hx * 2, s.height - 0.02, s.hz * 2, s.x, 0, s.z, "#b4743f");
+  for (let i = 0; i < 12; i++) low.box(s.hx * 2, 0.02, 0.96, s.x, s.height - 0.02, s.z - s.hz + (i + 0.5), ["#c58a50", "#bb7d45", "#cf9558"][i % 3]);
   low.box(0.08, 0.5, s.hz * 2, front + 0.03, 0.04, s.z, PALETTE.teal);
   low.box(0.1, 0.07, s.hz * 2 + 0.06, front + 0.04, 0.52, s.z, PALETTE.gold);
   for (let i = 0; i < 13; i++) {

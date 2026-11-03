@@ -1,6 +1,6 @@
 import * as THREE from "three";
 
-export interface AuditMesh { name: string; geometry: THREE.BufferGeometry; matrix?: THREE.Matrix4 }
+export interface AuditMesh { name: string; geometry: THREE.BufferGeometry; matrix?: THREE.Matrix4; materialColor?: THREE.ColorRepresentation }
 export interface AuditRegion { name: string; min: [number, number, number]; max: [number, number, number]; gated?: boolean }
 interface Triangle { points: THREE.Vector3[]; normal: THREE.Vector3; plane: number; color: number[]; object: string; index: number; bounds: THREE.Box3 }
 export interface Fight { a: string; b: string; triangleA: number; triangleB: number; separation: number; at: number[] }
@@ -61,14 +61,18 @@ export function auditZFighting(meshes: readonly AuditMesh[], regions: readonly A
   const triangles: Triangle[] = [];
   for (const mesh of meshes) {
     const pos = mesh.geometry.getAttribute("position"), colors = mesh.geometry.getAttribute("color"), indices = mesh.geometry.index;
-    if (!pos || !colors) continue;
+    // Contact shadows have a uniform material rather than vertex colours.
+    // Include their real plane with that colour so a shadow placed on (rather
+    // than above) its support is caught by the same depth test.
+    const materialColor = mesh.materialColor === undefined ? null : new THREE.Color(mesh.materialColor).toArray();
+    if (!pos || (!colors && !materialColor)) continue;
     for (let i = 0; i < (indices?.count ?? pos.count); i += 3) {
       const ids = [0, 1, 2].map(j => indices ? indices.getX(i + j) : i + j);
       const points = ids.map(j => new THREE.Vector3().fromBufferAttribute(pos, j).applyMatrix4(mesh.matrix ?? identity));
       const normal = points[1].clone().sub(points[0]).cross(points[2].clone().sub(points[0]));
       if (normal.lengthSq() < 1e-14) continue;
       normal.normalize();
-      triangles.push({ points, normal, plane: normal.dot(points[0]), color: [0, 1, 2].map(c => ids.reduce((sum, j) => sum + colors.getComponent(j, c), 0) / 3), object: mesh.name, index: i / 3, bounds: new THREE.Box3().setFromPoints(points) });
+      triangles.push({ points, normal, plane: normal.dot(points[0]), color: colors ? [0, 1, 2].map(c => ids.reduce((sum, j) => sum + colors.getComponent(j, c), 0) / 3) : materialColor!, object: mesh.name, index: i / 3, bounds: new THREE.Box3().setFromPoints(points) });
     }
   }
   return Object.fromEntries(regions.map(region => {

@@ -2,6 +2,15 @@ import type { ChapterId, DistrictId, NpcId } from "../content/ids";
 import { NPC_IDS } from "../content/ids";
 import type { Placement } from "../logic/objectives";
 import type { GateId, NpcPlacement, Point, Position } from "./types";
+import { FOLLOW_CAMERA } from "./followCamera";
+
+export const GRANDMA_BENCH_YAW = Math.atan2(FOLLOW_CAMERA.offset.x, FOLLOW_CAMERA.offset.z);
+const benchPoint = (x: number, z: number) => ({
+  x: -10 + Math.cos(GRANDMA_BENCH_YAW) * x + Math.sin(GRANDMA_BENCH_YAW) * z,
+  z: 4 - Math.sin(GRANDMA_BENCH_YAW) * x + Math.cos(GRANDMA_BENCH_YAW) * z
+});
+/** Seated hips in the bench frame; the interaction point is separately walkable. */
+export const UME_SEAT = { ...benchPoint(0, 0.35), y: 0.42, yaw: GRANDMA_BENCH_YAW };
 
 /** Metres; east is +x, north is -z. Shared by collision and visible scenery. */
 export interface Area {
@@ -59,7 +68,7 @@ const box = (id: string, district: DistrictId, x: number, z: number, hx: number,
 /** Render these footprints directly; decorative roofs/awnings may overhang them. */
 export const SOLIDS: readonly Solid[] = [
   { id: "fountain", district: "square", kind: "circle", x: 0, z: 0, r: 2.5, y: 0, height: 0.7 },
-  box("grandma-bench", "square", -10, 4, 1.8, 0.55, 0.6),
+  { ...box("grandma-bench", "square", -10, 4, 1.8, 0.55, 0.6), yaw: GRANDMA_BENCH_YAW },
   box("notice-board", "square", 11.5, 6, 0.35, 1.5, 2.1),
   box("flower-bed", "square", -8, -5, 1.6, 1.2, 0.4),
   box("festival-chest-base", "square", 0, -8, 1.5, 0.7, 0.15),
@@ -155,15 +164,12 @@ export const SPOTS: Record<string, Position> = {
 // +z faces the follow camera, which always looks north; faces read from a distance.
 const home = (district: DistrictId, x: number, z: number, y = 0, yaw = 0): NpcPlacement => ({ district, x, y, z, yaw });
 export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
-  pom: home("square", 2.6, -8), ume: home("square", -10, 5), ken: home("square", 9, 6, 0, Math.PI / 2),
+  pom: home("square", 2.6, -8), ume: home("square", benchPoint(0, 1.15).x, benchPoint(0, 1.15).z, 0, GRANDMA_BENCH_YAW), ken: home("square", 9, 6, 0, Math.PI / 2),
   bruno: home("market", 30, -4), lily: home("market", 30, 4), max: home("market", 45, -4), sara: home("market", 45, 4),
   green: home("school", 5, -36), page: home("school", -14.4, -40.5, 0.12), yuki: home("school", -4, -35),
   tom: home("school", 9, -30), emma: home("school", 9, -44), bo: home("harbor", 5, 33, 0.12), finn: home("harbor", 8, 47, 0.12, -Math.PI / 2),
   mia: home("harbor", 19, 34), leo: home("harbor", -8, 32, 0, -Math.PI / 2), dan: home("festival", -52, -4, 0, 0.6), aya: home("festival", -44, 8)
 };
-
-/** Grandma sits on her bench while at home; her interaction point stays walkable. */
-export const UME_SEAT = { x: -10, y: 0.42, z: 4.12 };
 
 /** The ending's framing: from the open east of the field, with the sky over the stage. */
 export const FINALE_VIEW = { position: { x: -33.5, y: 3.3, z: 3.8 }, target: { x: -56, y: 7, z: -0.8 } };

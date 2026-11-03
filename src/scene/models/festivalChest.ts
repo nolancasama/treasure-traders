@@ -19,6 +19,12 @@ const D = 0.9;
 const H = 0.9;
 const MED = 0.235;
 
+/** Contact shadow stays on the support, inside the square dais footprint. */
+export const FESTIVAL_CHEST_SHADOW_Y = 0.006;
+export function festivalChestShadowGeometry(scale: number): THREE.BufferGeometry {
+  return new THREE.PlaneGeometry((W + 0.05) * scale, (D + 0.03) * scale).rotateX(-Math.PI / 2);
+}
+
 /** Medallion centres on the front face, row-major in canonical order. */
 export const CHEST_SLOTS: { item: ItemId; pos: THREE.Vector3 }[] = ITEM_IDS.map((item, i) => {
   const col = i % 3;
@@ -28,30 +34,37 @@ export const CHEST_SLOTS: { item: ItemId; pos: THREE.Vector3 }[] = ITEM_IDS.map(
 
 export function festivalChestBaseGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0.25);
-  b.box(W, H - 0.04, D, 0, 0, 0, WOOD.main);
+  // The carcass starts above the two-piece plinth, rather than sharing its
+  // underside. The sole at y=0 is the chest's only support contact.
+  b.box(W, H - 0.144, D, 0, 0.104, 0, WOOD.main);
   // Dark interior, visible when the lid opens.
   b.box(W - 0.1, 0.01, D - 0.1, 0, H - 0.04, 0, "#2a160a");
   // Planks and gold trim.
   for (let i = 1; i < 4; i++) b.box(W + 0.01, 0.018, D + 0.01, 0, (H / 4) * i - 0.009, 0, WOOD.dark);
-  for (const x of [-W / 2 + 0.06, W / 2 - 0.06]) b.box(0.1, H + 0.02, D + 0.02, x, -0.01, 0, GOLD.dark);
+  for (const x of [-W / 2 + 0.06, W / 2 - 0.06]) b.box(0.1, H - 0.2, D + 0.02, x, 0.1, 0, GOLD.dark);
   // Gold rim around the opening.
-  for (const z of [-D / 2 + 0.015, D / 2 - 0.015]) b.box(W + 0.03, 0.1, 0.06, 0, H - 0.1, z, GOLD.main);
+  // Butt the rim rails against the side rails; overlapping corner boxes had
+  // four same-facing top/bottom surfaces in the same plane.
+  for (const z of [-D / 2 + 0.015, D / 2 - 0.015]) b.box(W - 0.09, 0.1, 0.06, 0, H - 0.1, z, GOLD.main);
   for (const x of [-W / 2 + 0.015, W / 2 - 0.015]) b.box(0.06, 0.1, D + 0.03, x, H - 0.1, 0, GOLD.main);
-  b.box(W + 0.04, 0.07, D + 0.04, 0, 0, 0, WOOD.deep);
-  b.box(W + 0.05, 0.03, D + 0.05, 0, 0.07, 0, GOLD.dark);
+  b.box(W + 0.04, 0.07, D + 0.024, 0, 0, 0, WOOD.deep);
+  b.box(W + 0.05, 0.03, D + 0.03, 0, 0.07, 0, GOLD.dark);
   // Corner brackets and rivets catch the light from a distance.
   for (const x of [-W / 2 + 0.11, W / 2 - 0.11]) {
-    b.box(0.14, 0.16, 0.02, x, 0.1, D / 2 + 0.006, GOLD.main);
-    b.box(0.14, 0.16, 0.02, x, H - 0.3, D / 2 + 0.006, GOLD.main);
+    b.box(0.14, 0.16, 0.02, x, 0.115, D / 2 + 0.006, GOLD.main);
+    b.box(0.14, 0.16, 0.02, x, H - 0.29, D / 2 + 0.006, GOLD.main);
     for (const y of [0.34, 0.47, 0.6]) b.sphere(0.018, x - 0.05, y, D / 2 + 0.014, GOLD.light, [1, 1, 0.5], 6);
   }
   // Carrying handles on the sides.
   for (const x of [-W / 2 - 0.02, W / 2 + 0.02]) b.add(new THREE.TorusGeometry(0.1, 0.02, 5, 12, Math.PI), GOLD.main, [x, 0.5, 0], [0, Math.PI / 2, Math.PI]);
   // Front panel behind the medallions, with a gold border.
   b.box(0.98, 0.88, 0.035, 0, 0.012, D / 2 + 0.003, GOLD.dark);
-  b.box(0.93, 0.83, 0.04, 0, 0.037, D / 2 + 0.005, WOOD.deep);
+  // Keep the visible panel front, but recess neither backing into the other's
+  // rear face: hidden same-facing surfaces need real separation too.
+  b.box(0.93, 0.83, 0.032, 0, 0.037, D / 2 + 0.009, WOOD.deep);
   for (const s of CHEST_SLOTS) {
-    b.add(new THREE.CylinderGeometry(MED / 2 + 0.02, MED / 2 + 0.02, 0.03, 20), GOLD.main, [s.pos.x, s.pos.y, D / 2 + 0.02], [Math.PI / 2, 0, 0]);
+    // The gold border fits inside the .262m row pitch, leaving a visible gap.
+    b.add(new THREE.CylinderGeometry(MED / 2 + 0.012, MED / 2 + 0.012, 0.03, 20), GOLD.main, [s.pos.x, s.pos.y, D / 2 + 0.02], [Math.PI / 2, 0, 0]);
     b.add(new THREE.CylinderGeometry(MED / 2, MED / 2, 0.032, 20), "#4a2e16", [s.pos.x, s.pos.y, D / 2 + 0.024], [Math.PI / 2, 0, 0]);
   }
   // Festival ribbons on the sides.

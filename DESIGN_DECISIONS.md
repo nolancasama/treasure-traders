@@ -614,3 +614,55 @@ The teacher's list of 22 problems, reviewed against the source before work began
   shared mitres and disjoint foundations fix that same issue 9 overlap. Sign
   painting uses a headless canvas stub; textured lettering is excluded because
   its colours are not vertex data. Later-batch objects are measured, not fixed.
+
+### Batch 3 implementation details
+
+- **The bench and its support frame share the authored follow offset.**
+  `FOLLOW_CAMERA` retains (+4,+8,+11) and the 0.8m look height; its x/z offset
+  derives `GRANDMA_BENCH_YAW`. Every bench part rotates about (-10,4), together
+  with its box collider and Ume's seat/home frame. Crossrails finish beneath
+  the wooden planks, with narrower sides than the legs; arm supports butt
+  against the arm undersides. Projection tests use that actual follow frame
+  at several player positions, with no camera change.
+- **Ume's seat support is independent of her upper-body state.** Her pelvis
+  rests at y=0.42, at bench-local z=0.35; the walkable interaction point is
+  local z=1.15. A Ume-only articulated seated skirt and concealed shin length
+  put her knees forward and her original-size shoes on the ground. Supported
+  hips and lower joints stay fixed during speech, moods and gesture blends;
+  her standing geometry returns when she leaves the bench. Per-frame skinned
+  contact tests cover transitions, and front/side routes exercise keyboard
+  and tap approaches. Read-only `CharacterRig.seated` and scene
+  `group.userData.seated` expose the support state for inspection.
+- **The chest has one sole and true support surfaces.** Hidden carcass/strap
+  bottoms and front-panel backing faces are separated geometrically; the
+  original visible panel fronts remain in place. Gold medallion borders fit
+  the existing 0.262m row pitch instead of overlapping adjoining rows; icon
+  centres and slots are unchanged. The square dais uses disjoint stone,
+  carpet and gold inlays finishing at 0.15m. Stage decking finishes at the
+  existing 0.60m walking/chest height. A fitted shadow lies 6mm above either
+  support, using the same geometry in the renderer and audit. Base and slot
+  transforms stay fixed while the lid opens; the sole remains grounded during
+  the existing deposit pulse.
+- **The Coming Soon sign hangs between its ropes.** The atlas-measured label
+  sets the board width with a 16cm border. Its painted face points east (+x),
+  with a separate rope from each short post to the corresponding upper board
+  corner. Board, ropes, posts and lettering share the existing lowering group,
+  so unlock removes the complete barrier. Merging the board into its barrier
+  geometry also removes a draw call.
+- **Cottage joints are repaired in the shared cottage builder.** Roof courses
+  abut instead of overlapping, timber rails butt against posts, window layers
+  have distinct depths, and the door arch contains only its upper semicircle.
+  The step clears the foundation by 1cm. All twelve houses share these fixes,
+  including the northeast house and the east harbor house anticipated for
+  Batch 4. House locations, materials and ridge directions are preserved;
+  the library's roof and window helpers are unchanged.
+- **The repaired regions are zero-count audit gates.** The bench, square and
+  stage chest assemblies (including platforms and actual shadow planes), and
+  all `HOUSES` are gated at the existing depth tolerance. Chest lid checks
+  include closed, intermediate and open poses. Issue 9's existing school-gate
+  ground gate reports zero, so no additional ground edit was needed. Expanded
+  inspection also found inherited overlaps inside filled stationery plaques
+  and at their medallion contacts. Those unchanged item models remain an
+  explicit, separately reported finding outside this chest-base repair;
+  the required assembly gate retains its original empty-slot scope. No depth
+  settings, polygon offsets or render-order workaround was introduced.

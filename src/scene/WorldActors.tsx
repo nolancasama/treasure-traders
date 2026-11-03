@@ -6,7 +6,7 @@ import { festivalRevealed } from "../game/runtime";
 import { CHEST_SCALE, chestPose, NPC_HOMES, SPOTS, UME_SEAT } from "../game/world/layout";
 import type { NpcCommand, WorldRuntime } from "../game/world/types";
 import { blobShadow, glowMat, shadowMat, starTexture } from "./materials";
-import { FestivalChest } from "./models/festivalChest";
+import { FestivalChest, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } from "./models/festivalChest";
 import { buildItem, ITEM_DISPLAY, THICKEN } from "./models/items";
 import { KiwiRig } from "./models/kiwi";
 import { buildCharacter, type CharacterRig } from "./models/people";
@@ -96,7 +96,8 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
     festival.lid.name = "festival-chest-lid";
     festival.setScale(CHEST_SCALE);
     festival.group.userData.interaction = { kind: "npc", id: "pom" satisfies NpcId };
-    const festivalShadow = blobShadow(2.2);
+    const festivalShadow = new THREE.Mesh(festivalChestShadowGeometry(CHEST_SCALE), shadowMat());
+    festivalShadow.position.y = FESTIVAL_CHEST_SHADOW_Y;
     const festivalRoot = new THREE.Group();
     festivalRoot.add(festival.group, festivalShadow);
     group.add(festivalRoot);
@@ -210,6 +211,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       npc.cell.position.set(placement.x, placement.y, placement.z);
       npc.cell.visible = nearby(npc.cell.position);
       const seated = npc.id === "ume" && atHome(npc.id, placement.x, placement.z) && !runtime.party;
+      npc.rig.setSeated(seated ? UME_SEAT.y : null);
       const restState = runtime.party ? "dance" : seated ? "sit" : "idle";
       const command = runtime.npcCommands[npc.id];
       if (command && command.serial !== npc.serial) {
@@ -230,21 +232,22 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       const walking = strolling && Math.sin(phase * 0.35) > 0;
       const offsetX = seated ? UME_SEAT.x - placement.x : walking ? Math.sin(phase) * 0.5 : 0;
       const offsetZ = seated ? UME_SEAT.z - placement.z : walking ? Math.cos(phase) * 0.4 : 0;
-      npc.rig.group.position.x = THREE.MathUtils.damp(npc.rig.group.position.x, offsetX, 3, dt);
-      npc.rig.group.position.z = THREE.MathUtils.damp(npc.rig.group.position.z, offsetZ, 3, dt);
+      npc.rig.group.position.x = seated ? offsetX : THREE.MathUtils.damp(npc.rig.group.position.x, offsetX, 3, dt);
+      npc.rig.group.position.z = seated ? offsetZ : THREE.MathUtils.damp(npc.rig.group.position.z, offsetZ, 3, dt);
       // Seated, the hips rest on the bench rather than the feet on the ground.
-      npc.rig.group.position.y = seated ? UME_SEAT.y + 0.04 - 0.48 * npc.rig.group.scale.y : 0;
+      npc.rig.group.position.y = npc.rig.seatedOriginY;
       if (free && !seated && !npc.rig.gesturing && npc.rig.state !== (walking ? "walk" : "idle")) npc.rig.setState(walking ? "walk" : "idle");
       if (seated && npc.rig.state !== "sit" && npc.rig.state !== "think" && npc.rig.state !== "sad") npc.rig.setState("sit");
       if (runtime.party && npc.rig.state !== "dance") npc.rig.setState("dance");
       if (!runtime.party && npc.rig.state === "dance") npc.rig.setState(restState);
       npc.rig.setWalkSpeed(walking ? 0.7 : 0);
       placeShadow(index + 1, placement.x + npc.rig.group.position.x, placement.y, placement.z + npc.rig.group.position.z, npc.rig.radius * 1.35);
-      let yaw = placement.yaw ?? 0;
+      let yaw = seated ? UME_SEAT.yaw : placement.yaw ?? 0;
       if (walking) yaw = Math.atan2(Math.cos(phase) * 0.5, -Math.sin(phase) * 0.4);
       if (distance < 7 && !seated) yaw = Math.atan2(player.x - placement.x, player.z - placement.z);
       const delta = Math.atan2(Math.sin(yaw - npc.rig.group.rotation.y), Math.cos(yaw - npc.rig.group.rotation.y));
-      npc.rig.group.rotation.y += delta * Math.min(1, dt * 4);
+      if (seated) npc.rig.group.rotation.y = yaw;
+      else npc.rig.group.rotation.y += delta * Math.min(1, dt * 4);
       npc.rig.lookAt(distance < 8 ? point : null);
       npc.rig.update(dt);
       const indicator = placement.indicator;

@@ -9,7 +9,7 @@ import { PartBuilder } from "../partBuilder";
 import { flatMat, glowTexture, sceneryMat, sceneUniforms, shadowMat, softBoxMat } from "../materials";
 import { props } from "../models/props";
 import { createAmbient, type Ambient } from "./ambient";
-import { boatGeometry, gateGeometry, gatePosts, libraryFurniture, libraryGeometry, PALETTE, rowboatGeometry, schoolGateWheelGeometry } from "./builders";
+import { ARCH_BARRIER, boatGeometry, gateGeometry, gatePosts, libraryFurniture, libraryGeometry, PALETTE, rowboatGeometry, schoolGateWheelGeometry } from "./builders";
 import { createDecorations, type Decorations } from "./decorations";
 import { districtParts, forestGeometry } from "./districts";
 import { GRASS_Y, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
@@ -115,12 +115,7 @@ function makeTown(runtime: WorldRuntime): TownScene {
     if (id === "arch") group.position.set(-22, 0, 0);
     gateProgress[id] = runtime.state.gates[id] ? 1 : 0;
   }
-  // The rope's board turns to face the approach, so its lettering can actually be read.
-  const soonYaw = 0.85, soonWidth = SignBatch.width("soon", 0.62) + 0.16;
-  const soonBoard = new PartBuilder(0.3, true);
-  soonBoard.boxAt(soonWidth, 0.78, 0.07, [0, 1, 0], [0, soonYaw, 0], PALETTE.darkWood);
-  mesh(soonBoard.build(), gates.arch, sceneryMat());
-  mesh(new SignBatch().add("soon", Math.sin(soonYaw) * 0.05, 1, Math.cos(soonYaw) * 0.05, 0.62, soonYaw).build(), gates.arch, signMat());
+  mesh(new SignBatch().add("soon", ARCH_BARRIER.textOffset, ARCH_BARRIER.centerY, 0, ARCH_BARRIER.textHeight, ARCH_BARRIER.yaw).build(), gates.arch, signMat());
 
   const closed = mesh(libraryGeometry(SOLIDS, false), districts.school, sceneryMat());
   // Premerged alternatives keep the cutaway at one draw call. Only camera-

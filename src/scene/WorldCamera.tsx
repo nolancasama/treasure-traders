@@ -3,6 +3,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldRuntime } from "../game/world/types";
 import { WALK_AREAS } from "../game/world/layout";
+import { FOLLOW_CAMERA } from "../game/world/followCamera";
 import { conversationShot, type Shot } from "./cameraRig";
 import { sceneUniforms } from "./materials";
 
@@ -23,8 +24,8 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1), p = rt.player, c = rt.camera;
     const { position, target, look } = scratch;
-    position.set(p.x + 4, p.y + 8, p.z + 11);
-    target.set(p.x, p.y + 0.8, p.z);
+    position.set(p.x + FOLLOW_CAMERA.offset.x, p.y + FOLLOW_CAMERA.offset.y, p.z + FOLLOW_CAMERA.offset.z);
+    target.set(p.x, p.y + FOLLOW_CAMERA.targetHeight, p.z);
     if (c.mode === "conversation") {
       // Chosen once per pairing: re-picking while they talk would make the view jump.
       const key = `${c.target.x},${c.target.z},${p.x.toFixed(1)},${p.z.toFixed(1)}`;

@@ -13,6 +13,10 @@ export interface Pose {
 /** Ms Page carries the book on her right palm; the other arm can still gesture. */
 export const PAGE_BOOK_POSE = { armRX: -0.35, armRZ: 0, elbowRX: -1.2 } as const;
 
+/** Ume's supported lower body stays seated while her head and arms can gesture. */
+export const UME_SEATED_POSE = { legLX: -Math.PI / 2, legRX: -Math.PI / 2, kneeLX: Math.PI / 2, kneeRX: Math.PI / 2, bob: 0 } as const;
+export const UME_PELVIS_BOTTOM = 0.09;
+
 /** 0 outside a moment that repeats every `period` seconds; eases in and out over `length` seconds inside it. */
 const moment = (t: number, period: number, start: number, length: number): number => {
   const u = ((t % period) + period) % period - start;

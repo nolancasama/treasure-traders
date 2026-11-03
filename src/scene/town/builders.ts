@@ -3,6 +3,7 @@ import { PartBuilder } from "../partBuilder";
 import type { House, Solid, Tree } from "../../game/world/layout";
 import { GRASS_Y } from "./ground";
 import { SCHOOL_GATE_SLOT, SCHOOL_GATE_TRACK_TOP } from "./schoolGate";
+import { SignBatch } from "./signs";
 
 export const PALETTE = {
   stone: "#efd9b2", darkStone: "#c7ae8a", cream: "#fff4d4", wood: "#bb7d45", darkWood: "#7c5536", leaf: "#6fb35c", teal: "#2c9f96",
@@ -124,6 +125,33 @@ const HOUSE_STYLES = [
   { wall: "#fff6b8", roof: "#c75a7a", shade: "#b34a6a", trim: "#7a5138", door: "#4c8fc9" }
 ];
 
+/** Cottage shingles meet at their course edges and at the ridge. Cutting the
+ * slabs vertically keeps their coloured end faces from overlapping as well. */
+function addCottageRoof(b: B, w: number, d: number, rise: number, baseY: number, color: string, shade: string) {
+  const eave = d / 2 + 0.34, slope = rise / (d / 2), halfThickness = 0.07 * Math.sqrt(1 + slope * slope);
+  for (const side of [-1, 1]) for (let course = 0; course < 4; course++) {
+    const z0 = side * course * eave / 4, z1 = side * (course + 1) * eave / 4;
+    const g = new THREE.BoxGeometry(w + 0.7, 2, 2), p = g.getAttribute("position");
+    for (let i = 0; i < p.count; i++) {
+      const z = Math.min(z0, z1) + (p.getZ(i) + 1) / 2 * Math.abs(z1 - z0);
+      p.setXYZ(i, p.getX(i), baseY + rise - Math.abs(z) * slope + p.getY(i) * halfThickness, z);
+    }
+    g.computeVertexNormals();
+    b.add(g, course % 2 ? shade : color, [0, 0, 0]);
+  }
+  b.box(w + 0.8, 0.14, 0.26, 0, baseY + rise - 0.08, 0, shade);
+}
+
+/** Applied cottage window: glazing rests on its backing, then butt-jointed
+ * muntins rest on the glazing. The library retains its own existing windows. */
+function addCottageWindow(b: B, x: number, y: number, z: number) {
+  const w = 1.05, h = 1;
+  b.box(w + 0.2, h + 0.2, 0.08, x, y - 0.1, z, PALETTE.cream);
+  b.box(w, h, 0.04, x, y, z + 0.06, "#79c4dc");
+  b.box(0.06, h, 0.02, x, y, z + 0.09, PALETTE.cream);
+  for (const side of [-1, 1]) b.box((w - 0.06) / 2, 0.06, 0.02, x + side * (w + 0.06) / 4, y + h / 2 - 0.03, z + 0.09, PALETTE.cream);
+}
+
 /** A storybook cottage facing the camera (+z). Footprint and height come from layout's HOUSES. */
 export function addCottage(b: B, h: House, rand: () => number) {
   const s = HOUSE_STYLES[h.style % HOUSE_STYLES.length];
@@ -132,34 +160,34 @@ export function addCottage(b: B, h: House, rand: () => number) {
     b.box(h.w, h.h, h.d, 0, 0.3, 0, s.wall);
     const roofBase = h.h + 0.3, rise = h.ridgeAlongX ? 2.1 : 2.3;
     if (h.ridgeAlongX) {
-      addGableRoof(b, h.w, h.d, rise, roofBase, s.roof, s.shade);
+      addCottageRoof(b, h.w, h.d, rise, roofBase, s.roof, s.shade);
       addGableEnds(b, h.w, h.d, rise, roofBase, s.wall);
     } else {
       b.at(0, 0, 0, Math.PI / 2, () => {
-        addGableRoof(b, h.d, h.w, rise, roofBase, s.roof, s.shade);
+        addCottageRoof(b, h.d, h.w, rise, roofBase, s.roof, s.shade);
         addGableEnds(b, h.d, h.w, rise, roofBase, s.wall);
       });
       // A round attic window in the gable that faces the street.
-      b.cylAt(0.42, 0.06, [0, roofBase + 0.72, h.d / 2 + 0.02], [Math.PI / 2, 0, 0], s.trim, 12);
-      b.cylAt(0.32, 0.07, [0, roofBase + 0.72, h.d / 2 + 0.03], [Math.PI / 2, 0, 0], "#79c4dc", 12);
+      b.cylAt(0.42, 0.06, [0, roofBase + 0.72, h.d / 2 + 0.04], [Math.PI / 2, 0, 0], s.trim, 12);
+      b.cylAt(0.32, 0.02, [0, roofBase + 0.72, h.d / 2 + 0.08], [Math.PI / 2, 0, 0], "#79c4dc", 12);
     }
     // Timber frame on the street face.
-    const z = h.d / 2 + 0.02;
+    const z = h.d / 2 + 0.045, appliedZ = h.d / 2 + 0.13;
     for (const x of [-h.w / 2 + 0.08, h.w / 2 - 0.08]) b.box(0.18, h.h, 0.08, x, 0.3, z, s.trim);
-    b.box(h.w, 0.14, 0.08, 0, 0.3 + h.h - 0.14, z, s.trim);
-    b.box(h.w, 0.1, 0.08, 0, 0.3 + h.h * 0.42, z, s.trim);
+    b.box(h.w - 0.34, 0.14, 0.08, 0, 0.3 + h.h - 0.14, z, s.trim);
+    b.box(h.w - 0.34, 0.1, 0.08, 0, 0.3 + h.h * 0.42, z, s.trim);
     // Door with a little awning and a step.
     const doorX = h.w * -0.22;
-    b.box(0.92, 1.62, 0.08, doorX, 0.34, z, s.door);
-    b.cylAt(0.46, 0.08, [doorX, 1.96, z], [Math.PI / 2, 0, 0], s.door, 10);
-    b.sphere(0.05, doorX + 0.3, 1.1, z + 0.06, PALETTE.gold, [1, 1, 1], 6);
-    b.box(1.3, 0.14, 0.5, doorX, 0.28, z + 0.2, "#c7bba4");
+    b.box(0.92, 1.62, 0.08, doorX, 0.34, appliedZ, s.door);
+    b.add(new THREE.CylinderGeometry(0.46, 0.46, 0.08, 10, 1, false, Math.PI / 2, Math.PI), s.door, [doorX, 1.96, appliedZ], [Math.PI / 2, 0, 0]);
+    b.sphere(0.05, doorX + 0.3, 1.1, appliedZ + 0.06, PALETTE.gold, [1, 1, 1], 6);
+    b.box(1.3, 0.15, 0.5, doorX, 0.28, z + 0.2, "#c7bba4");
     b.boxAt(1.3, 0.07, 0.62, [doorX, 2.44, z + 0.27], [0.4, 0, 0], s.roof);
     // Shuttered window with a flower box.
     const winX = h.w * 0.22, winY = 1.28;
-    addWindow(b, winX, winY, z, 1.05, 1.0, PALETTE.cream);
-    for (const dx of [-0.8, 0.8]) b.box(0.32, 1.1, 0.06, winX + dx, winY - 0.05, z, s.door);
-    addFlowerBox(b, b, winX, winY - 0.08, z, 1.3, rand);
+    addCottageWindow(b, winX, winY, appliedZ);
+    for (const dx of [-0.8, 0.8]) b.box(0.32, 1.1, 0.06, winX + dx, winY - 0.05, appliedZ, s.door);
+    addFlowerBox(b, b, winX, winY - 0.08, appliedZ, 1.3, rand);
     // A chimney and a small upper window when the wall has room.
     b.box(0.5, 1.6, 0.5, h.w * 0.27, roofBase + 0.5, h.ridgeAlongX ? -0.5 : -0.9, "#b98a6c");
     b.box(0.62, 0.12, 0.62, h.w * 0.27, roofBase + 2.1, h.ridgeAlongX ? -0.5 : -0.9, "#8d6a54");
@@ -332,6 +360,11 @@ export function libraryFurniture(solids: readonly Solid[]): THREE.BufferGeometry
 
 /* ----------------------------------------------------------- gates and boats */
 
+/** The +x approach sees the painted face. Both rope ends meet the upper
+ * corners of this same measured board, clear of its painted inset. */
+export const ARCH_BARRIER = { yaw: Math.PI / 2, centerY: 0.83, height: 0.78, textHeight: 0.62, textOffset: 0.05 } as const;
+export const archBarrierWidth = () => SignBatch.width("soon", ARCH_BARRIER.textHeight) + 0.16;
+
 export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE.BufferGeometry {
   const b = new PartBuilder(kind === "bridge" ? 0 : 0.5, true);
   if (kind === "bridge") {
@@ -373,9 +406,13 @@ export function gateGeometry(kind: "cart" | "school" | "bridge" | "arch"): THREE
     // Roller mounting arms are part of the gate, not the fixed gateposts.
     for (const x of [-3.2, 3.2]) b.box(0.17, 0.19, 0.24, x, 0.29, 0.06, PALETTE.darkWood);
   } else {
-    // Roped off: the board hangs from the rope, its lettering added by the caller.
-    b.wire([0, 1.25, -4.2], [0, 1.25, 4.2], 0.3, 10, "#e8604c", 0.09);
-    for (const z of [-4, 4]) b.cyl(0.13, 0.17, 1.4, 0, 0, z, PALETTE.darkWood, 6);
+    // The board, ropes and short posts share the caller's lowering group.
+    const width = archBarrierWidth(), top = ARCH_BARRIER.centerY + ARCH_BARRIER.height / 2;
+    b.boxAt(width, ARCH_BARRIER.height, 0.07, [0, ARCH_BARRIER.centerY, 0], [0, ARCH_BARRIER.yaw, 0], PALETTE.darkWood);
+    for (const side of [-1, 1]) {
+      b.cyl(0.13, 0.17, 1.4, 0, 0, side * 4, PALETTE.darkWood, 6);
+      b.wire([0, 1.32, side * 4], [0, top, side * width / 2], 0.06, 5, PALETTE.red, 0.09);
+    }
   }
   return b.build();
 }

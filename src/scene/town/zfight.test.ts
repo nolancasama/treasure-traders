@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import * as THREE from "three";
 import { DISTRICT_IDS } from "../../game/content/ids";
-import { CHEST_SCALE, chestPose, SOLIDS } from "../../game/world/layout";
-import { CHEST_SLOTS, festivalChestBaseGeometry, festivalChestLidGeometry, festivalChestSlotGeometry } from "../models/festivalChest";
+import { CHEST_SCALE, chestPose, HOUSES, SOLIDS } from "../../game/world/layout";
+import { CHEST_SLOTS, festivalChestBaseGeometry, festivalChestLidGeometry, festivalChestShadowGeometry, festivalChestSlotGeometry, FESTIVAL_CHEST_SHADOW_Y } from "../models/festivalChest";
 import { QuadWriter } from "../partBuilder";
 import { gatePosts, libraryFurniture, libraryGeometry } from "./builders";
 import { districtParts } from "./districts";
@@ -14,12 +14,29 @@ import { auditZFighting, DEPTH_TOLERANCE, type AuditMesh, type AuditRegion } fro
 const regions: AuditRegion[] = [
   { name: "library-shelves", min: [-25.35, 0.11, -47.25], max: [-15.15, 1.65, -44.98], gated: true },
   { name: "school-gate-ground", min: [-5.1, -0.6, -24], max: [13.5, 0.06, -19], gated: true },
-  { name: "bench", min: [-12.5, 0.01, 2.5], max: [-7.5, 1.3, 5.5] },
-  { name: "festival-chest", min: [-2, 0, -10], max: [2, 2.3, -6] },
-  { name: "northeast-house(20.5,-24.8)", min: [16.5, -0.1, -28.8], max: [24.5, 10, -20.8] },
-  { name: "east-harbor-house(27.8,32.4)", min: [23.8, -0.1, 28.4], max: [31.8, 10, 36.4] },
+  { name: "bench", min: [-12.5, 0.001, 2.5], max: [-7.5, 1.3, 5.5], gated: true },
+  { name: "festival-chest", min: [-2, 0, -10], max: [2, 2.3, -6], gated: true },
+  { name: "stage-chest", min: [-63, 0.59, -2.2], max: [-58.5, 3.6, 2.2], gated: true },
+  ...HOUSES.map((h): AuditRegion => ({
+    name: `${h.x === 20.5 && h.z === -24.8 ? "northeast-house" : h.x === 27.8 && h.z === 32.4 ? "east-harbor-house" : "house"}(${h.x},${h.z})`,
+    min: [h.x - h.w / 2 - 0.65, -0.1, h.z - h.d / 2 - 0.65],
+    max: [h.x + h.w / 2 + 0.65, h.h + 3.5, h.z + h.d / 2 + 0.85], gated: true
+  })),
   { name: "pier-end", min: [4.5, -1, 47.5], max: [12.5, 4.5, 50.5] }
 ];
+
+function chestMeshes(chapter: 1 | 5, filled = false, lidAngle = 0): AuditMesh[] {
+  const pose = chestPose(chapter), name = chapter === 5 ? "stage-chest" : "festival-chest";
+  const root = new THREE.Matrix4().compose(new THREE.Vector3(pose.x, pose.y, pose.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw), new THREE.Vector3(1, 1, 1));
+  const chest = root.clone().scale(new THREE.Vector3().setScalar(CHEST_SCALE));
+  const lid = chest.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.9, -0.45)).multiply(new THREE.Matrix4().makeRotationX(-lidAngle));
+  return [
+    { name: `${name}:body`, geometry: festivalChestBaseGeometry(), matrix: chest },
+    { name: `${name}:lid`, geometry: festivalChestLidGeometry(), matrix: lid },
+    { name: `${name}:shadow`, geometry: festivalChestShadowGeometry(CHEST_SCALE), materialColor: "#42303e", matrix: root.clone().multiply(new THREE.Matrix4().makeTranslation(0, FESTIVAL_CHEST_SHADOW_Y, 0)) },
+    ...CHEST_SLOTS.map((slot): AuditMesh => ({ name: `${name}:${filled ? "filled" : "empty"}-slot:${slot.item}`, geometry: festivalChestSlotGeometry(slot.item, filled), matrix: chest.clone().multiply(new THREE.Matrix4().makeTranslation(slot.pos.x, slot.pos.y, 0.495)) }))
+  ];
+}
 
 describe("static scenery z-fighting audit (different-colour triangle pairs)", () => {
   const synthetic: AuditRegion[] = [{ name: "control", min: [-5, -1, -5], max: [5, 1, 5] }];
@@ -43,6 +60,14 @@ describe("static scenery z-fighting audit (different-colour triangle pairs)", ()
     expect(auditZFighting(meshes, synthetic).control.length).toBeGreaterThan(0);
     meshes.forEach(m => m.geometry.dispose());
   });
+  it("includes uniform-colour shadow planes in the contact audit", () => {
+    const shadow: AuditMesh = { name: "shadow", geometry: new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0.5, 0, 0.5), materialColor: "black" };
+    const support = quad("platform", 0, 0, "red");
+    expect(auditZFighting([support, shadow], synthetic).control.length).toBeGreaterThan(0);
+    shadow.matrix = new THREE.Matrix4().makeTranslation(0, DEPTH_TOLERANCE * 3, 0);
+    expect(auditZFighting([support, shadow], synthetic).control).toEqual([]);
+    support.geometry.dispose(); shadow.geometry.dispose();
+  });
   it("builds the actual town headlessly and gates repaired regions", () => {
     // Only sign painting needs a DOM. No audited object depends on text width;
     // textured sign faces lack vertex colours and are outside this audit.
@@ -55,21 +80,36 @@ describe("static scenery z-fighting audit (different-colour triangle pairs)", ()
       for (const kind of ["low", "tall"] as const) parts[kind].forEach((geometry, i) => meshes.push({ name: `${district}:${kind}:${i}`, geometry }));
       meshes.push({ name: `${district}:signs`, geometry: parts.signs });
     }
-    const pose = chestPose(1), scale = new THREE.Vector3().setScalar(CHEST_SCALE);
-    const chest = new THREE.Matrix4().compose(new THREE.Vector3(pose.x, pose.y, pose.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw), scale);
-    meshes.push({ name: "festival-chest:body", geometry: festivalChestBaseGeometry(), matrix: chest }, { name: "festival-chest:closed-lid", geometry: festivalChestLidGeometry(), matrix: chest.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.9, -0.45)) });
-    for (const slot of CHEST_SLOTS) meshes.push({ name: `festival-chest:empty-slot:${slot.item}`, geometry: festivalChestSlotGeometry(slot.item, false), matrix: chest.clone().multiply(new THREE.Matrix4().makeTranslation(slot.pos.x, slot.pos.y, 0.495)) });
+    const chests = [...chestMeshes(1), ...chestMeshes(5)];
     // These variants are mutually exclusive at runtime: never audit them on
     // top of one another. Shelves must be clean with either surrounding shell.
     for (const mask of [-1, 0, 1, 2, 3, 4, 5, 6, 7]) {
       const shell = { name: `library:${mask < 0 ? "exterior" : `cutaway-${mask}`}`, geometry: libraryGeometry(SOLIDS, mask >= 0, Math.max(0, mask)) };
       const checked = mask < 0 ? regions : regions.filter(r => r.name === "library-shelves");
-      const result = auditZFighting([...meshes, shell], checked);
+      const result = auditZFighting([...meshes, ...chests, shell], checked);
       if (mask < 0) console.info(`Z-fight triangle-pair counts (${shell.name}, tolerance=${DEPTH_TOLERANCE.toFixed(7)}m): ${regions.map(r => `${r.name}=${result[r.name].length}`).join(", ")}`);
-      for (const region of checked.filter(r => r.gated)) expect(result[region.name].length, `${region.name}: ${JSON.stringify(result[region.name].slice(0, 16))}`).toBe(0);
+      const failures = checked.filter(r => r.gated && result[r.name].length).map(r => ({ region: r.name, count: result[r.name].length, examples: result[r.name].slice(0, 12) }));
+      expect(failures).toEqual([]);
       shell.geometry.dispose();
     }
-    meshes.forEach(m => m.geometry.dispose());
+    // Check the repaired assembly on both supports during/after lid motion.
+    // Retain the existing empty-slot scope: coloured stationery plaques reuse
+    // the full item models, which this batch explicitly preserves.
+    const chestRegions = regions.filter(r => r.name === "festival-chest" || r.name === "stage-chest");
+    for (const angle of [0, 0.95, 1.9]) {
+      const variants = [...chestMeshes(1, false, angle), ...chestMeshes(5, false, angle)];
+      const result = auditZFighting([...meshes, ...variants], chestRegions);
+      for (const region of chestRegions) expect(result[region.name], `${region.name}, lid=${angle}`).toEqual([]);
+      variants.forEach(m => m.geometry.dispose());
+    }
+    // Additional inspection found inherited item-model/medallion overlaps in
+    // filled slots. Report them explicitly; repairing stationery itself would
+    // exceed the chest-base task and alter the item slots requested unchanged.
+    const filled = [...chestMeshes(1, true), ...chestMeshes(5, true)];
+    const filledResult = auditZFighting([...meshes, ...filled], chestRegions);
+    console.info(`Preserved filled-stationery plaque findings (outside chest-base gate): ${chestRegions.map(r => `${r.name}=${filledResult[r.name].length}`).join(", ")}`);
+    filled.forEach(m => m.geometry.dispose());
+    [...meshes, ...chests].forEach(m => m.geometry.dispose());
     vi.unstubAllGlobals();
   }, 30_000);
 });

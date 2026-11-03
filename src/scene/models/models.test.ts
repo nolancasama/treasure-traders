@@ -1,7 +1,8 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { ITEM_IDS } from "../../game/content/ids";
-import { CHEST_SLOTS, FestivalChest } from "./festivalChest";
+import { CHEST_SCALE, chestPose, SOLIDS } from "../../game/world/layout";
+import { CHEST_SLOTS, FestivalChest, festivalChestBaseGeometry, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } from "./festivalChest";
 import { itemGeometry, itemSize, plaqueGeometry } from "./items";
 import { KiwiRig } from "./kiwi";
 import { ALL_LOOK_IDS, buildCharacter, characterTriangles } from "./people";
@@ -63,6 +64,68 @@ describe("chests", () => {
     expect(c.slotState(1)).toBe("empty");
     c.setSlot("marker", "glowing");
     expect(c.slotState(1)).toBe("glowing");
+  });
+
+  it("keeps its sole on either support while the lid opens and a deposit pulses", () => {
+    const chest = new FestivalChest();
+    const base = chest.group.children.find(child => child instanceof THREE.Mesh) as THREE.Mesh;
+    chest.setScale(CHEST_SCALE);
+    try {
+      for (const chapter of [1, 5] as const) {
+        const pose = chestPose(chapter);
+        chest.group.position.set(pose.x, pose.y, pose.z);
+        chest.group.rotation.y = pose.yaw;
+        chest.setLidOpen(0);
+        chest.update(0);
+        chest.group.updateMatrixWorld(true);
+        const baseAtRest = base.matrixWorld.clone();
+        const slotAtRest = chest.slotWorld("pen");
+        chest.setLidOpen(1);
+        for (let frame = 0; frame < 180; frame++) {
+          chest.update(1 / 60);
+          chest.group.updateMatrixWorld(true);
+          expect(base.matrixWorld.elements).toEqual(baseAtRest.elements);
+        }
+        expect(chest.lid.rotation.x).toBeCloseTo(-1.9, 3);
+        expect(chest.slotWorld("pen").distanceTo(slotAtRest)).toBeLessThan(1e-8);
+        chest.pulse();
+        for (let frame = 0; frame < 60; frame++) {
+          chest.update(1 / 60);
+          chest.group.updateMatrixWorld(true);
+          const bounds = new THREE.Box3().setFromObject(base);
+          expect(bounds.min.y).toBeCloseTo(pose.y, 6);
+        }
+      }
+    } finally {
+      chest.group.traverse(child => { if (child instanceof THREE.Mesh) child.geometry.dispose(); });
+      chest.dispose();
+    }
+  });
+
+  it("fits its sole and raised contact shadow inside the square dais", () => {
+    const dais = SOLIDS.find(solid => solid.id === "festival-chest-base")!;
+    expect(dais.kind).toBe("box");
+    if (dais.kind !== "box") return;
+    const base = festivalChestBaseGeometry();
+    const shadow = festivalChestShadowGeometry(CHEST_SCALE);
+    try {
+      base.computeBoundingBox();
+      shadow.computeBoundingBox();
+      const vertices = base.getAttribute("position");
+      expect(base.boundingBox!.min.y).toBeCloseTo(0, 6);
+      for (let vertex = 0; vertex < vertices.count; vertex++) {
+        if (Math.abs(vertices.getY(vertex)) > 1e-6) continue;
+        expect(Math.abs(vertices.getX(vertex)) * CHEST_SCALE).toBeLessThanOrEqual(dais.hx);
+        expect(Math.abs(vertices.getZ(vertex)) * CHEST_SCALE).toBeLessThanOrEqual(dais.hz);
+      }
+      expect(shadow.boundingBox!.max.x).toBeLessThan(dais.hx);
+      expect(shadow.boundingBox!.max.z).toBeLessThan(dais.hz);
+      expect(FESTIVAL_CHEST_SHADOW_Y).toBeGreaterThan(0.002);
+      expect(chestPose(1).y).toBe(dais.y + dais.height);
+    } finally {
+      base.dispose();
+      shadow.dispose();
+    }
   });
 
   it("the sea chest opens its locks", () => {
