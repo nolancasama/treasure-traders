@@ -100,8 +100,9 @@ implemented; see DESIGN_DECISIONS.md. No delegated work is in flight.
   the chest assembly audit gates keep their documented empty-slot scope.
 
 ## Next Steps
-1. Review gameplay PNGs from `game.district-fixes.spec.ts` in `.tmp/shots/district/`
-   and `game.scenery-fixes.spec.ts` in `.tmp/shots/scenery/` after any scenery change.
+1. After any scenery change, review the gameplay PNGs in `.tmp/shots/district/` and
+   `.tmp/shots/scenery/`; after any unlock change, the motion frames that
+   `game.unlock-animations.spec.ts` writes to `.tmp/shots/unlock/`.
 2. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
    Watch frame rate at the Festival Grounds and whether the dithered see-through looks
    right at the school's device pixel ratio.

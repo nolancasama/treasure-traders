@@ -48,8 +48,8 @@ async function keyboardTo(page: Page, target: { x: number; z: number }, schoolOp
       const x = dx * Math.cos(yaw) - dz * Math.sin(yaw), y = -dx * Math.sin(yaw) - dz * Math.cos(yaw);
       const magnitude = Math.hypot(x, y);
       const wanted = [
-        ...(Math.abs(x) / magnitude > 0.38 ? [x > 0 ? "ArrowRight" : "ArrowLeft"] : []),
-        ...(Math.abs(y) / magnitude > 0.38 ? [y > 0 ? "ArrowUp" : "ArrowDown"] : [])
+        ...(Math.abs(x) / magnitude > 0.12 ? [x > 0 ? "ArrowRight" : "ArrowLeft"] : []),
+        ...(Math.abs(y) / magnitude > 0.12 ? [y > 0 ? "ArrowUp" : "ArrowDown"] : [])
       ];
       for (const key of held.filter(key => !wanted.includes(key))) await page.keyboard.up(key);
       for (const key of wanted.filter(key => !held.includes(key))) await page.keyboard.down(key);
