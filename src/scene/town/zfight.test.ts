@@ -14,9 +14,9 @@ import { auditZFighting, DEPTH_TOLERANCE, type AuditMesh, type AuditRegion } fro
 const regions: AuditRegion[] = [
   { name: "library-shelves", min: [-25.35, 0.11, -47.25], max: [-15.15, 1.65, -44.98], gated: true },
   { name: "school-gate-ground", min: [-5.1, -0.6, -24], max: [13.5, 0.06, -19], gated: true },
-  { name: "bench", min: [-12.5, 0.001, 2.5], max: [-7.5, 1.3, 5.5], gated: true },
+  { name: "bench", min: [-13.3, 0.001, 6.2], max: [-11.9, 1.3, 10.2], gated: true },
   { name: "festival-chest", min: [-2, 0, -10], max: [2, 2.3, -6], gated: true },
-  { name: "stage-chest", min: [-63, 0.59, -2.2], max: [-58.5, 3.6, 2.2], gated: true },
+  { name: "stage-chest", min: [-64.7, 0.59, -2.2], max: [-61.3, 3.6, 2.2], gated: true },
   ...HOUSES.map((h): AuditRegion => ({
     name: `${h.x === 20.5 && h.z === -24.8 ? "northeast-house" : h.x === 27.8 && h.z === 32.4 ? "east-harbor-house" : "house"}(${h.x},${h.z})`,
     min: [h.x - h.w / 2 - 0.65, -0.1, h.z - h.d / 2 - 0.65],

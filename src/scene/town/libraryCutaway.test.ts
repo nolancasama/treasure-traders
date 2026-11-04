@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { OPEN, findPath, isWalkable, moveCircle } from "../../game/world/collision";
-import { SOLIDS } from "../../game/world/layout";
+import { SOLIDS, WALK_AREAS } from "../../game/world/layout";
+import { FOLLOW_CAMERA } from "../../game/world/followCamera";
 import { libraryGeometry } from "./builders";
 import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
 
@@ -24,10 +25,31 @@ describe("library doorway and camera cutaway", () => {
   it("closes the gable between the wall tops and the roof, seen from outside", () => {
     const geometry = libraryGeometry(SOLIDS, false), mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
     mesh.updateMatrixWorld(true);
-    for (const [fromX, toX] of [[-5, -13], [-33, -25]]) for (const [y, z] of [[3.8, -44], [3.8, -40], [4.5, -42], [5.8, -42]]) {
+    for (const [fromX, toX] of [[-5, -13], [-33, -25]]) for (const [y, z] of [[3.66, -47.1], [3.66, -36.9], [3.8, -44], [3.8, -40], [4.5, -42], [6.15, -42]]) {
       const hits = new THREE.Raycaster(new THREE.Vector3(fromX, y, z), new THREE.Vector3(Math.sign(toX - fromX), 0, 0), 0, 9).intersectObject(mesh);
       expect(hits.length, `from x=${fromX} y=${y} z=${z}`).toBeGreaterThan(0);
     }
+    geometry.dispose();
+  });
+  it("keeps every north/south wall and south timber vertex beneath the roof underside", () => {
+    const geometry = libraryGeometry(SOLIDS, false), mesh = new THREE.Mesh(geometry, material);
+    mesh.updateMatrixWorld(true);
+    const positions = geometry.getAttribute("position"), pitch = 0.5;
+    const thickness = 0.14 * Math.sqrt(1 + pitch * pitch);
+    let wallVertices = 0, timberVertices = 0;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i), y = positions.getY(i), z = positions.getZ(i);
+      const wall = Math.abs(y - 3.62) < 0.0001 && (Math.abs(z + 47.2) < 0.0001 || Math.abs(z + 36.8) < 0.0001);
+      const timber = y >= 3.4 && y <= 3.6201 && z >= -36.8001 && z <= -36.7199;
+      if (!wall && !timber) continue;
+      if (wall) wallVertices++;
+      if (timber) timberVertices++;
+      const hits = new THREE.Raycaster(new THREE.Vector3(x, 10, z), new THREE.Vector3(0, -1, 0), 0, 10).intersectObject(mesh);
+      expect(hits.length, `roof over ${x},${z}`).toBeGreaterThan(0);
+      expect(y, `vertex ${x},${y},${z}`).toBeLessThan(hits[0].point.y - thickness);
+    }
+    expect(wallVertices).toBeGreaterThan(0);
+    expect(timberVertices).toBeGreaterThan(0);
     geometry.dispose();
   });
   it("walks through the one doorway, and is stopped by the walls and the open door leaf", () => {
@@ -41,18 +63,21 @@ describe("library doorway and camera cutaway", () => {
     expect(route.at(-1)).toEqual({ x: -18, z: -40 });
   });
   it("switches at the real doorway boundary, retaining the far entrance wall", () => {
-    expect(insideLibrary({ x: -11.75, z: -42 })).toBe(false);
+    expect(insideLibrary({ x: -11.65, z: -42 })).toBe(false);
+    expect(insideLibrary({ x: -11.75, z: -42 })).toBe(true);
     expect(insideLibrary({ x: -12.25, z: -42 })).toBe(true);
     const player = { x: -18, y: 0.12, z: -40 };
-    expect(libraryEastCutMask({ x: -17, y: 6.32, z: -33 }, player)).toBe(0);
+    expect(libraryEastCutMask({ x: -18, y: 6.32, z: -33 }, player)).toBe(0);
   });
   it("keeps both head sightlines clear across the doorway camera transition", () => {
     // Start with the exterior follow camera, then sample its actual exponential
-    // approach to the indoor +1,+6.2,+7 offset as the player walks west.
-    const camera = new THREE.Vector3(-7.75, 8.12, -31);
+    // approach to the indoor +0,+6.2,+7 offset as the player walks west.
+    const room = WALK_AREAS.find(a => a.id === "library")!;
+    const camera = new THREE.Vector3(-11.65, 8.12, -30);
     for (let frame = 0; frame < 120; frame++) {
-      const player = { x: -11.75 - frame / 60, y: 0.12, z: -42 };
-      const indoors = insideLibrary(player), offset = indoors ? [1, 6.2, 7] : [4, 8, 11];
+      const player = { x: -11.65 - frame / 60, y: 0.12, z: -42 };
+      const indoors = insideLibrary(player), indoorCamera = Math.abs(player.x - room.x) < room.hx;
+      const offset = indoorCamera ? [0, 6.2, 7] : [FOLLOW_CAMERA.offset.x, FOLLOW_CAMERA.offset.y, FOLLOW_CAMERA.offset.z];
       camera.lerp(new THREE.Vector3(player.x + offset[0], player.y + offset[1], player.z + offset[2]), 1 - Math.exp(-6 / 60));
       const mask = libraryEastCutMask(camera, player), geometry = libraryGeometry(SOLIDS, indoors, mask);
       for (const y of [0.6, 1.6]) expect(blocked(geometry, camera, new THREE.Vector3(player.x, player.y + y, player.z)), `frame ${frame},mask ${mask}`).toBe(false);

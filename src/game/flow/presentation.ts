@@ -255,8 +255,8 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
       const pose = chestPose(5);
       // The chest on its stage, eight slots glowing and one empty.
       world.setCamera({ mode: "path", elapsed: 0, keys: [
-        { position: { x: pose.x + 9, y: 3.6, z: pose.z + 7 }, target: { x: pose.x, y: 1.5, z: pose.z }, duration: 1.8 },
-        { position: { x: pose.x + 5.4, y: 2.8, z: pose.z + 4.2 }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
+        { position: { x: pose.x, y: 3.8, z: pose.z + 9 }, target: { x: pose.x, y: 1.5, z: pose.z }, duration: 1.8 },
+        { position: { x: pose.x, y: 2.9, z: pose.z + 6.6 }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
       ] });
       await say({ kind: "say", speaker: "pom", ...L.mayorNeedPen, gesture: "think" });
     }
@@ -319,7 +319,7 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
   function launchFireworks() {
     const pose = chestPose(5);
     const fire = (index: number) => {
-      world.fx({ kind: "fireworks", at: { x: pose.x + 3, y: 1.8, z: pose.z }, index });
+      world.fx({ kind: "fireworks", at: { x: pose.x, y: pose.y + 1.2, z: pose.z }, index });
       audio.play("fireworks");
     };
     let index = 0;
@@ -353,7 +353,7 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
     gather();
     world.teleport({ x: -50.6, z: 2.6, yaw: -Math.PI / 2 });
     world.setCamera({ mode: "path", elapsed: 0, keys: [
-      { position: { x: -52, y: 3.6, z: 6 }, target: { x: -58, y: 2.8, z: 0 }, duration: 2.2 },
+      { position: { x: pose.x, y: 3.8, z: pose.z + 9 }, target: { x: pose.x, y: 2.8, z: pose.z }, duration: 2.2 },
       { position: FINALE_VIEW.position, target: FINALE_VIEW.target, duration: 60 }
     ] });
     world.setKiwi("cheer");

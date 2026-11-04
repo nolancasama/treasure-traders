@@ -12,6 +12,9 @@ import { SignBatch, signMat } from "./signs";
 type V3 = [number, number, number];
 const PAPER = ["#ef6a55", "#ffcf5e", "#fff0d2", "#ff9568", "#f7b0c2"];
 const PENNANTS = ["#e8604c", "#ffcc4d", "#4f9ad6", "#6fb35c", "#c77bd9", "#ff8fa8"];
+export const HARBOR_BALLOON_POSTS: V3[] = [[5, 1.05, 27.82], [-4, 1.05, 27.82], [8, 1.05, 27.82], [14, 1.05, 27.82], [20, 1.05, 27.82], [23, 1.05, 27.82], [-16, 1.05, 27.82], [11.15, 1.25, 34]];
+export const HARBOR_BALLOON_OFFSETS: V3[] = [[0, 2.2, 0], [0.56, 1.7, 0.1], [-0.5, 1.8, -0.1]];
+export const BALLOON_RADIUS = 0.44;
 
 /** Things that appear one by one at a chest milestone (SPEC §9), then never move again. */
 interface Piece { mesh: THREE.InstancedMesh; index: number; position: THREE.Vector3; yaw: number; scale: number; delay: number }
@@ -58,7 +61,7 @@ function flagGeometry(): THREE.BufferGeometry {
 
 function balloonGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0, true);
-  b.add(new THREE.SphereGeometry(0.44, 8, 6), "#ffffff", [0, 0, 0], [0, 0, 0], [1, 1.22, 1], { wind: 0.3 });
+  b.add(new THREE.SphereGeometry(BALLOON_RADIUS, 8, 6), "#ffffff", [0, 0, 0], [0, 0, 0], [1, 1.22, 1], { wind: 0.3 });
   b.add(new THREE.ConeGeometry(0.06, 0.1, 5), "#ffffff", [0, -0.56, 0], [Math.PI, 0, 0], [1, 1, 1], { wind: 0.3 });
   return b.build();
 }
@@ -214,10 +217,10 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
     const s = stage(8, "harbor");
     const balloon = balloonGeometry();
     geometries.add(balloon);
-    const posts: V3[] = [[-13, 1.05, 27.82], [-7, 1.05, 27.82], [8, 1.05, 27.82], [14, 1.05, 27.82], [20, 1.05, 27.82], [23, 1.05, 27.82], [-16, 1.05, 27.82], [11.15, 1.25, 34]];
+    const posts = HARBOR_BALLOON_POSTS;
     const tints = ["#ef7a6c", "#ffd25c", "#6fb7e6", "#a4d97a", "#d79bea"];
     const entries: { position: V3; color: string }[] = [];
-    const offsets: V3[] = [[0, 2.2, 0], [0.56, 1.7, 0.1], [-0.5, 1.8, -0.1]];
+    const offsets = HARBOR_BALLOON_OFFSETS;
     posts.forEach((post, i) => offsets.forEach((o, k) => entries.push({ position: [post[0] + o[0], post[1] + o[1], post[2] + o[2]], color: tints[(i + k * 2) % tints.length] })));
     statics(s, b => posts.forEach(post => offsets.forEach(o => b.beam(post, [post[0] + o[0], post[1] + o[1] - 0.6, post[2] + o[2]], 0.016, "#e8e2d0"))));
     batch(s, balloon, sceneryMat(), entries, 0.2, 1.5);

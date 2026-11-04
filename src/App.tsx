@@ -1,6 +1,6 @@
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { Vector3 } from 'three';
+import { Vector3, type PerspectiveCamera } from 'three';
 import { useStore } from 'zustand';
 import { World } from './scene/World';
 import { UIHost } from './ui';
@@ -9,12 +9,12 @@ import type { Interaction } from './game/world/types';
 import { createWorldControls } from './dev/gameHook';
 
 function GameBridge({ game }: { game: Game }) {
-  const { camera, gl, size } = useThree();
+  const { camera, gl, size, scene } = useThree();
   useEffect(() => {
     if (!game.stubs) return;
     let renderer = { calls: 0, triangles: 0, dpr: 1 };
     const hook = {
-      ...createWorldControls(game.world),
+      ...createWorldControls(game.world, scene, camera as PerspectiveCamera),
       read() {
         const state = game.store.getState(), presentation = game.ui.getSnapshot();
         return structuredClone({
@@ -45,7 +45,7 @@ function GameBridge({ game }: { game: Game }) {
     };
     Object.assign(window, { __tt: hook });
     return () => { Reflect.deleteProperty(window, '__tt'); };
-  }, [game, camera, gl, size]);
+  }, [game, camera, gl, size, scene]);
   useFrame(({ clock }) => {
     if (game.store.getState().phase === 'title') {
       // High enough to clear every roof, and starting off to the side of the raised bridge.

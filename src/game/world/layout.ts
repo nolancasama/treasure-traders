@@ -2,12 +2,12 @@ import type { ChapterId, DistrictId, NpcId } from "../content/ids";
 import { NPC_IDS } from "../content/ids";
 import type { Placement } from "../logic/objectives";
 import type { GateId, NpcPlacement, Point, Position } from "./types";
-import { SQUARE_CAMERA } from "./followCamera";
 
-export const GRANDMA_BENCH_YAW = Math.atan2(SQUARE_CAMERA.offset.x, SQUARE_CAMERA.offset.z);
+export const GRANDMA_BENCH_CENTER = { x: -12.6, z: 8.2 };
+export const GRANDMA_BENCH_YAW = Math.PI / 2;
 const benchPoint = (x: number, z: number) => ({
-  x: -10 + Math.cos(GRANDMA_BENCH_YAW) * x + Math.sin(GRANDMA_BENCH_YAW) * z,
-  z: 4 - Math.sin(GRANDMA_BENCH_YAW) * x + Math.cos(GRANDMA_BENCH_YAW) * z
+  x: GRANDMA_BENCH_CENTER.x + Math.cos(GRANDMA_BENCH_YAW) * x + Math.sin(GRANDMA_BENCH_YAW) * z,
+  z: GRANDMA_BENCH_CENTER.z - Math.sin(GRANDMA_BENCH_YAW) * x + Math.cos(GRANDMA_BENCH_YAW) * z
 });
 /** Seated hips in the bench frame; the interaction point is separately walkable. */
 export const UME_SEAT = { ...benchPoint(0, 0.35), y: 0.42, yaw: GRANDMA_BENCH_YAW };
@@ -23,7 +23,7 @@ export const STAGE = { id: "stage", district: "festival", kind: "box", x: -62, z
 /** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
 export const CHEST_SCALE = 1.5;
 export const chestPose = (chapter: ChapterId) => chapter === 5
-  ? { x: -60.7, y: 0.6, z: 0, yaw: Math.PI * 0.3 }
+  ? { x: -63, y: 0.6, z: 0, yaw: 0 }
   : { x: 0, y: 0.15, z: -8, yaw: 0 };
 export const DISTRICTS: Record<DistrictId, Point> = {
   square: { x: 0, z: 0 }, market: { x: 37, z: 0 }, school: { x: 0, z: -36 },
@@ -65,12 +65,13 @@ export const WALK_AREAS: readonly Area[] = [
 
 const box = (id: string, district: DistrictId, x: number, z: number, hx: number, hz: number, height: number, y = 0): Extract<Solid, { kind: "box" }> =>
   ({ id, district, kind: "box", x, z, hx, hz, y, height, yaw: 0 });
+const flowerBed = box("flower-bed", "square", -9.8, -6.2, 1.6, 1.2, 0.4);
 /** Render these footprints directly; decorative roofs/awnings may overhang them. */
 export const SOLIDS: readonly Solid[] = [
   { id: "fountain", district: "square", kind: "circle", x: 0, z: 0, r: 2.5, y: 0, height: 0.7 },
-  { ...box("grandma-bench", "square", -10, 4, 1.8, 0.55, 0.6), yaw: GRANDMA_BENCH_YAW },
+  { ...box("grandma-bench", "square", GRANDMA_BENCH_CENTER.x, GRANDMA_BENCH_CENTER.z, 1.8, 0.55, 0.6), yaw: GRANDMA_BENCH_YAW },
   box("notice-board", "square", 11.5, 6, 0.35, 1.5, 2.1),
-  box("flower-bed", "square", -8, -5, 1.6, 1.2, 0.4),
+  flowerBed,
   box("festival-chest-base", "square", 0, -8, 1.5, 0.7, 0.15),
   // Corner planters keep the middle of the square open for walking and tapping.
   ...([[-15.5, -15.5], [15.5, -15.5], [-15.5, 15.5], [15.5, 15.5]] as const).map(([x, z], i): Solid => ({ id: `square-planter-${i}`, district: "square", kind: "circle", x, z, r: 1.15, y: 0, height: 0.75 })),
@@ -154,7 +155,7 @@ export const SURFACES: readonly Area[] = [
   { id: "grounds-grass-center", district: "festival", x: -49, z: -3, hx: 0.8, hz: 0.8, y: 0 }
 ];
 export const SPOTS: Record<string, Position> = {
-  "square-pencil": { x: 2.25, y: 0.7, z: 0 }, "square-eraser": { x: -8, y: 0.4, z: -5 },
+  "square-pencil": { x: 2.25, y: 0.7, z: 0 }, "square-eraser": { x: flowerBed.x, y: flowerBed.y + flowerBed.height, z: flowerBed.z },
   "library-1": { x: -23.5, y: 1.52, z: -45.7 }, "library-2": { x: -17, y: 1.52, z: -45.7 },
   "library-3": { x: -20, y: 1.02, z: -42 }, "library-4": { x: -24, y: 0.92, z: -40 },
   "library-5": { x: -22.5, y: 1.17, z: -38 }, "library-6": { x: -16.2, y: 1.07, z: -38.2 },

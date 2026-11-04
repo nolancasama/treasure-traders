@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { DEFAULT_SETTINGS, startChapter } from "../../src/game/logic";
 import type { ChapterId } from "../../src/game/content/ids";
+import { GRANDMA_BENCH_CENTER, NPC_HOMES } from "../../src/game/world/layout";
 import { read, settle, type GameRead } from "./game.helpers";
 
 // Real pointer, touch and key input, with screenshots for visual review in .tmp/shots/verify.
@@ -110,13 +111,16 @@ test("Village Square looks along the bridge, in play and again after a conversat
     expect(Math.abs(edge[0].y - edge[1].y), "short edge level on screen").toBeLessThan(1);
     expect(edge[1].x - edge[0].x).toBeGreaterThan(50);
     await shot(page, "1-square-bridge");
-    await settleAt(page, { x: -10, z: 8 });
-    const bench = await hook(page, h => [h.projectPoint({ x: -11.7, y: 0.42, z: 4.43 }), h.projectPoint({ x: -8.3, y: 0.42, z: 4.43 })]);
-    expect(Math.abs(bench[0].y - bench[1].y), "bench level on screen").toBeLessThan(1);
+    await settleAt(page, { x: GRANDMA_BENCH_CENTER.x, z: GRANDMA_BENCH_CENTER.z + 4.3 });
+    await squareView(page, "bench view settled");
+    const bench = await hook(page, (h, p: { x: number; z: number }) => [h.projectPoint({ x: p.x, y: 0.42, z: p.z - 1.7 }), h.projectPoint({ x: p.x, y: 0.42, z: p.z + 1.7 })], GRANDMA_BENCH_CENTER);
+    expect(Math.abs(bench[0].x - bench[1].x), "bench perpendicular to screen bottom").toBeLessThan(1);
+    expect(Math.abs(bench[0].y - bench[1].y), "bench has visible length").toBeGreaterThan(30);
     await shot(page, "1-square-bench");
   }
   // A real conversation hands the camera over; afterwards the view must return.
-  await settleAt(page, { x: -10, z: 6.5 });
+  await settleAt(page, { x: NPC_HOMES.ume.x + 0.9, z: NPC_HOMES.ume.z });
+  await expect.poll(async () => (await read(page)).focus, { message: "HARNESS_PRECONDITION_FAILED: Ume interaction point", timeout: 15_000 }).toEqual({ kind: "npc", id: "ume" });
   await page.keyboard.press("e");
   await expect.poll(async () => (await hook(page, h => h.readGates())).camera.mode, { timeout: 15_000 }).toBe("conversation");
   await page.keyboard.press("Escape");
@@ -126,13 +130,15 @@ test("Village Square looks along the bridge, in play and again after a conversat
   await squareView(page, "back to the square view after talking");
 });
 
-test("the view eases over the bridge, and the harbor keeps its own angle", async ({ page }) => {
-  await fromSave(page, 4, { x: 0, z: 26 });
+test("every district shares the same follow yaw", async ({ page }) => {
+  await fromSave(page, 5, { x: 0, z: 26 });
   await page.setViewportSize(VIEWPORTS[0]);
   await settleAt(page, { x: 0, z: 26 });
   await squareView(page, "on the deck");
-  await settleAt(page, { x: 8, z: 41 });
-  expect((await hook(page, h => h.readGates())).cameraYaw, "harbor").toBeCloseTo(Math.atan2(4, 11), 2);
+  for (const [district, at] of Object.entries({ square: { x: 0, z: 8 }, school: { x: 0, z: -38 }, market: { x: 37, z: 0 }, harbor: { x: 8, z: 41 }, festival: { x: -48, z: 5 } })) {
+    await settleAt(page, at);
+    await squareView(page, `${district} follow yaw`);
+  }
 });
 
 test("Continue advances at once with speech running: touch, mouse and keys, one line per press", async ({ page }) => {

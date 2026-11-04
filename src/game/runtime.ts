@@ -78,10 +78,13 @@ function cutsceneKeys(name: "intro" | "cart" | "school" | "bridge" | "arch" | "f
     { position: { x: 5.5, y: 3.4, z: 0.6 }, target: { x: 1.8, y: 1.3, z: -8 }, duration: 60 }
   ];
   // The finale opens close on the chest; the flow pulls back from here when the lid is open.
-  if (name === "finale") return [
-    { position: { x: -55.4, y: 3.2, z: 3.8 }, target: { x: -60.7, y: 1.5, z: 0 }, duration: 1 },
-    { position: { x: -55.4, y: 3.2, z: 3.8 }, target: { x: -60.7, y: 1.5, z: 0 }, duration: 60 }
-  ];
+  if (name === "finale") {
+    const pose = chestPose(5);
+    return [
+      { position: { x: pose.x, y: 3.8, z: pose.z + 9 }, target: { x: pose.x, y: 1.5, z: pose.z }, duration: 1 },
+      { position: { x: pose.x, y: 2.9, z: pose.z + 6.6 }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
+    ];
+  }
   if (name === "school") return [
     // Keep the closed span and its entire eastward parking bay in frame.
     { position: { x: 4, y: 6.8, z: -5 }, target: { x: 4, y: 1.4, z: -22 }, duration: SCHOOL_GATE_SECONDS + 0.9 },

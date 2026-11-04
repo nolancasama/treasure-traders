@@ -3,8 +3,9 @@ import { NPC_IDS, type NpcId } from "../game/content/ids";
 import { CLOSED, OPEN, isWalkable } from "../game/world/collision";
 import { HOUSES, NPC_HOMES, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose } from "../game/world/layout";
 import { DISTRICT_IDS } from "../game/content/ids";
-import { blockedHeads, CAMERA_BLOCKERS, conversationShot, followOffset, segmentHits, squareViewWeight, type Blocker } from "./cameraRig";
-import { FOLLOW_CAMERA, SQUARE_CAMERA } from "../game/world/followCamera";
+import { blockedHeads, CAMERA_BLOCKERS, conversationShot, segmentHits, type Blocker } from "./cameraRig";
+import { createWorld, worldStateFromGame } from "../game/runtime";
+import { startChapter } from "../game/logic/state";
 
 const at = (x: number, y: number, z: number) => ({ x, y, z });
 
@@ -85,6 +86,22 @@ describe("decorative scenery stays out of the way", () => {
 });
 
 describe("finale staging", () => {
+  it("frames the moved chest straight from +z above the south drum", () => {
+    const world = createWorld(worldStateFromGame(startChapter(5, { mode: "campaign", campaignSeed: 101 })));
+    world.playCutscene("finale");
+    const shot = world.runtime.camera, pose = chestPose(5);
+    expect(shot.mode).toBe("path");
+    if (shot.mode !== "path") throw new Error("Missing finale path");
+    const drum = CAMERA_BLOCKERS.find(b => b.id === "stage-drum-1")!;
+    for (const key of shot.keys) {
+      expect(key.position.x).toBe(pose.x);
+      expect(key.target.x).toBe(pose.x);
+      expect(key.target.z).toBe(pose.z);
+      expect(key.position.z).toBeGreaterThan(pose.z);
+      expect(segmentHits(key.position, key.target, drum)).toBe(false);
+    }
+  });
+
   it("every gathered character stands on open ground, clear of the camera and of each other", () => {
     const crew = Object.entries(FINALE_CREW) as [NpcId, { x: number; z: number }][];
     expect(crew.map(([id]) => id).sort()).toEqual([...NPC_IDS].sort());
@@ -110,28 +127,3 @@ describe("finale staging", () => {
   });
 });
 
-describe("Village Square follow view", () => {
-  it("looks straight along the bridge everywhere in the square and on the deck", () => {
-    for (const p of [{ x: 0, z: 0 }, { x: -18, z: -18 }, { x: 18, z: 18 }, { x: -10, z: 8 }, { x: 0, z: 18.5 }, { x: 0, z: 24 }, { x: 2.1, z: 30.5 }]) {
-      expect(followOffset(p), JSON.stringify(p)).toEqual(SQUARE_CAMERA.offset);
-    }
-  });
-  it("leaves the other districts on the normal follow view", () => {
-    for (const p of [{ x: 39, z: 0 }, { x: 0, z: -37 }, { x: -19, z: -42 }, { x: -47, z: 0 }, { x: 8, z: 41 }, { x: 20, z: 33 }]) {
-      expect(followOffset(p), JSON.stringify(p)).toEqual(FOLLOW_CAMERA.offset);
-    }
-  });
-  it("eases across every district boundary with no jump", () => {
-    const routes = [[{ x: 10, z: 0 }, { x: 39, z: 0 }], [{ x: -10, z: 0 }, { x: -47, z: 0 }], [{ x: 0, z: -10 }, { x: 0, z: -37 }], [{ x: 0, z: 25 }, { x: 0, z: 45 }]];
-    for (const [a, b] of routes) {
-      let last = squareViewWeight(a);
-      for (let i = 1; i <= 500; i++) {
-        const weight = squareViewWeight({ x: a.x + (b.x - a.x) * i / 500, z: a.z + (b.z - a.z) * i / 500 });
-        expect(Math.abs(weight - last)).toBeLessThan(0.05);
-        expect(weight).toBeLessThanOrEqual(last);
-        last = weight;
-      }
-      expect(last).toBe(0);
-    }
-  });
-});

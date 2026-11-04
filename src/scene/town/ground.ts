@@ -412,7 +412,8 @@ export function pavingGeometry(district: DistrictId): THREE.BufferGeometry {
     edging(q, a, rand, a.district === "market" ? ["#c99d7c", "#bf9170", "#d3a988"] : a.district === "school" ? ["#c7c7ae", "#bebea4", "#d1d1ba"] : ["#d3bd96", "#c9b28a", "#ddc8a3"], a.district === "harbor" ? "#e5d4a2" : "#d8c799");
   });
   if (district === "square") {
-    const y = 0.004;
+    flatRing(q, 0, 0, 2.75, 8.7, 0.004, STYLES.square.grout, 128);
+    const y = 0.008;
     ringPaving(q, 0, 0, 2.75, 8.7, y, [["#e9b48a", "#e2a87e"], ["#f8e9ca", "#f4e1bd"], ["#f1cda4", "#ecc397"]], rand);
     flatRing(q, 0, 0, 8.7, 9.1, y, "#f2bd57", 64);
   }

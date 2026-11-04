@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CLOSED, findPath, isWalkable } from "../../game/world/collision";
-import { followOffset } from "../cameraRig";
+import { FOLLOW_CAMERA } from "../../game/world/followCamera";
 import { canInteract, interactionFocus } from "../../game/world/interaction";
 import { GRANDMA_BENCH_YAW, NPC_HOMES, SOLIDS, UME_SEAT } from "../../game/world/layout";
 import { createWorld, worldStateFromGame } from "../../game/runtime";
@@ -15,21 +15,22 @@ const inverse = frame.clone().invert();
 const point = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyMatrix4(frame);
 
 describe("Grandma's bench frame and supported pose", () => {
-  it("projects the long seat edge level through the real Village Square view at different player positions", () => {
+  it("aligns the bench's long axis with the camera's horizontal forward direction", () => {
     expect(bench.kind === "box" && bench.yaw).toBe(GRANDMA_BENCH_YAW);
     expect(UME_SEAT.yaw).toBe(GRANDMA_BENCH_YAW);
     expect(NPC_HOMES.ume.yaw).toBe(GRANDMA_BENCH_YAW);
-    for (const [x, y, z] of [[-10, 0, 8], [-4, 0, 5], [-14, 0, 2], [5, 0.3, 16]]) {
-      const camera = new THREE.PerspectiveCamera(46, 16 / 9, 0.1, 420);
-      const offset = followOffset({ x, z });
-      camera.position.set(x + offset.x, y + offset.y, z + offset.z);
-      camera.lookAt(x, y + 0.8, z);
-      camera.updateMatrixWorld(true);
-      const a = new THREE.Vector3(-1.7, UME_SEAT.y, 0.43).applyMatrix4(frame).project(camera);
-      const b = new THREE.Vector3(1.7, UME_SEAT.y, 0.43).applyMatrix4(frame).project(camera);
-      expect(Math.abs(b.x - a.x)).toBeGreaterThan(0.01);
-      expect(Math.abs((b.y - a.y) / (b.x - a.x))).toBeLessThan(1e-10);
-    }
+    const axis = new THREE.Vector3(1, 0, 0).transformDirection(frame);
+    const forward = new THREE.Vector3(-FOLLOW_CAMERA.offset.x, 0, -FOLLOW_CAMERA.offset.z).normalize();
+    expect(Math.abs(axis.dot(forward))).toBeCloseTo(1, 10);
+    expect(new THREE.Vector3(0, 0, 1).transformDirection(frame).x).toBeCloseTo(1, 10);
+  });
+
+  it("leaves walking clearance between the bench's south end and the square lamp", () => {
+    const lamp = SOLIDS.find(s => s.id === "lamp-square-0")!;
+    expect(lamp.kind).toBe("circle");
+    if (bench.kind !== "box" || lamp.kind !== "circle") throw new Error("Missing bench or lamp footprint");
+    expect(lamp.z - lamp.r - (bench.z + bench.hx)).toBeGreaterThanOrEqual(0.72);
+    expect(isWalkable(lamp.x, (lamp.z - lamp.r + bench.z + bench.hx) / 2, CLOSED)).toBe(true);
   });
 
   it("keeps front and side walking routes, keyboard focus and tapped approaches reachable", () => {

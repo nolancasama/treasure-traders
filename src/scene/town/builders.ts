@@ -257,11 +257,15 @@ export function libraryGeometry(solids: readonly Solid[], cutaway: boolean, east
   }
   if (!cutaway) {
     const y = 3.62, z = -42, width = 14;
+    const pitch = 0.5, halfThickness = 0.07 * Math.sqrt(1 + pitch * pitch);
+    // Clear the outer timber face at dz=5.28, including the slab's thickness.
+    const lift = (5.28 - 5) * pitch + halfThickness + 0.01;
+    const gableRise = 2.5 + lift - halfThickness;
     // The east gable faces the courtyard door; its ridge runs east to west.
     b.at(-19, 0, z, 0, () => {
-      addGableRoof(b, width, 10, 2.5, y, "#d9603f", "#c44f33");
+      addGableRoof(b, width, 10, 2.5, y + lift, "#d9603f", "#c44f33");
       // Flush with the outer faces of the 0.4m east and west walls below.
-      addGableEnds(b, width + 0.4, 10, 2.5, y, walls);
+      addGableEnds(b, width + 0.4, 2 * gableRise / pitch, gableRise, y, walls);
     });
     b.box(0.7, 2, 0.7, -23, y + 1.2, -44, "#b98a6c");
     b.box(0.86, 0.14, 0.86, -23, y + 3.2, -44, "#8d6a54");

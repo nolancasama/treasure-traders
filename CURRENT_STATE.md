@@ -28,6 +28,9 @@ hand-playing it on a real Chromebook.
     mood; `materials.ts` shared wind and see-through shaders.
   - `cameraRig.ts` (pure, tested) picks conversation shots; `WorldCamera.tsx` feeds the
     see-through holes; `fx/` sparkles and GPU fireworks.
+  - Every district uses follow offset (0,8,12), target height 0.8, with no district
+    yaw blend. The library uses (0,6.2,7) and its own pitch at the same yaw;
+    conversations and authored paths keep their framing except chest close-ups.
   - **`docs/WORLD_API.md` is the integration boundary** (v1.1, additive).
 - **UI + audio** (`src/ui/`, `src/audio/`): `createUI` + `UIHost`, shared `UiIcon` set;
   **`docs/UI_API.md` is the frozen UI boundary.**
@@ -46,6 +49,10 @@ hand-playing it on a real Chromebook.
   `tests/e2e/game.reported-fixes.spec.ts` covers the square camera, Continue with real
   touch, mouse and keys, the library door and the debug menu, with screenshots in
   `.tmp/shots/verify/`. Setting `BASE_URL` points it at the published site.
+  `tests/e2e/game.scenery-fixes.spec.ts` adds real gameplay scenery views at
+  1366×768 and 1280×800 in `.tmp/shots/scenery/`. Its e2e-only chest preview
+  leaves campaign state and saves untouched; `__tt.readScenery()` exposes the
+  finale stage, actual rendered lid angle, walkability and camera position.
 - **Debug menu:** Ctrl+Alt+D, on the title or in play. Jumps to any chapter or unlocks them
   all, by rewriting the save and reloading.
 - **Review galleries:** `?gallery=items|people|ui|world`; `npm run shots` renders them to
@@ -76,9 +83,9 @@ site on the previous build, with no other sign. To check what is live, read
 `<meta name="tt-build">` on the page or open the debug menu (Ctrl+Alt+D).
 
 ## Current Work
-None in flight. No delegated work is pending. All four batches passed review: 230 unit
-tests, the 12 existing e2e specs, 6 real-input collision specs, and the rendered views
-under SwiftShader.
+The frozen follow-camera and scenery corrections are implemented, pending controller
+unit/e2e execution and visual acceptance. Scenery screenshots have not been generated
+by the implementation agent. The earlier four batches' review does not cover this change.
 
 ## Known Issues
 - The z-fight audit covers static geometry with empty chest slots. Filled chest slots
@@ -94,8 +101,9 @@ under SwiftShader.
   the chest assembly audit gates keep their documented empty-slot scope.
 
 ## Next Steps
-1. Controller: run `npm run shots:fixes` and review both viewport artifact sets;
-   perform final acceptance. These checks were not run for Batch 4 implementation.
+1. Controller: run unit/e2e acceptance and review the new gameplay PNGs in
+   `.tmp/shots/scenery/` at both viewport sizes. These checks were not run during
+   the camera/scenery implementation.
 2. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
    Watch frame rate at the Festival Grounds and whether the dithered see-through looks
    right at the school's device pixel ratio.

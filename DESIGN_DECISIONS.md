@@ -741,3 +741,37 @@ The teacher's list of 22 problems, reviewed against the source before work began
   to press by accident. Chapter 5 is the state with every area open.
 - **The published page names its commit** in `<meta name="tt-build">`, shown in the debug
   menu, so a stale deployment can be told apart from a broken change.
+
+## 2026-11-04 — One follow yaw and frozen scenery corrections
+
+- **All districts share the straight north-facing follow frame.** The canonical
+  offset is (0,8,12), looking at player height 0.8; there is no district blend.
+  The library retains its closer height and pitch with offset (0,6.2,7) and a
+  target half a metre north. Movement still follows the actual eased camera yaw.
+  Authored conversations and paths retain their angles, except chest close-ups.
+  This supersedes the earlier square-only alignment and camera-derived bench yaw.
+- **Ume's bench has its own world frame.** Its centre is (-12.6,8.2), yaw PI/2,
+  with Ume facing the fountain along +x. Seat, interaction home, geometry and
+  collision share that frame; the south end leaves 0.79m before lamp-square-0's
+  collision circle. The flowerbed and its eraser move together to (-9.8,-6.2),
+  leaving the whole footprint at least 0.45m outside the gold ring.
+- **Ring gaps reveal grout.** A continuous square-only annulus uses the existing
+  paving grout at y=0.004 between square stones at y=0 and unchanged ring stones
+  at y=0.008. Gold shares the ring-stone height; the Festival Grounds are unchanged.
+  Geometry separation resolves the overlap without depth or rendering overrides.
+- **The library roof lifts as one slab.** The existing 0.5 pitch and overhang stay.
+  Lift includes the outer timber face, the slab's 0.14m normal thickness and 1cm
+  clearance; gables meet its underside, flush with the wall faces. The cutaway
+  includes the projecting doorway frame so both body sightlines remain clear
+  during the transition with the new yaw.
+- **Harbor balloons clear the whole sign board.** The -7 post cluster moves to
+  -4. The radius-inclusive sign check also catches -13, so that cluster moves to
+  -16, sharing the existing cluster's post while preserving all eight clusters,
+  their order, colours and offsets as specified.
+- **The Festival chest is centred on the stage sun.** Chapter 5 uses (-63,0.6,0),
+  yaw zero, between the drums. Chest close-ups look straight from +z above the
+  south drum; fireworks originate at the moved chest and the cast stays clear.
+  The e2e-only chest preview changes renderer state without campaign/save changes;
+  readScenery exposes its semantic finale state and actual lid angle for waits.
+  Gameplay screenshots at both requested sizes are controller-owned artifacts in
+  .tmp/shots/scenery; implementation does not claim visual acceptance.

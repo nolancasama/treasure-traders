@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { WorldRuntime } from "../game/world/types";
 import { WALK_AREAS } from "../game/world/layout";
 import { FOLLOW_CAMERA } from "../game/world/followCamera";
-import { conversationShot, followOffset, type Shot } from "./cameraRig";
+import { conversationShot, type Shot } from "./cameraRig";
 import { sceneUniforms } from "./materials";
 
 const library = WALK_AREAS.find(a => a.id === "library")!;
@@ -24,7 +24,7 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1), p = rt.player, c = rt.camera;
     const { position, target, look } = scratch;
-    const offset = followOffset(p);
+    const { offset } = FOLLOW_CAMERA;
     position.set(p.x + offset.x, p.y + offset.y, p.z + offset.z);
     target.set(p.x, p.y + FOLLOW_CAMERA.targetHeight, p.z);
     if (c.mode === "conversation") {
@@ -49,7 +49,7 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
     }
     // Keep the view close to the floor inside the roofless library cutaway.
     if (c.mode === "follow" && Math.abs(p.x - library.x) < library.hx && Math.abs(p.z - library.z) < library.hz) {
-      position.set(p.x + 1, p.y + 6.2, p.z + 7);
+      position.set(p.x, p.y + 6.2, p.z + 7);
       target.set(p.x, p.y + 0.5, p.z - 0.5);
     }
     const k = ready.current ? 1 - Math.exp(-dt * (c.mode === "follow" ? 6 : 3)) : 1;

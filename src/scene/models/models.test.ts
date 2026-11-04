@@ -1,8 +1,9 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { ITEM_IDS } from "../../game/content/ids";
-import { CHEST_SCALE, chestPose, SOLIDS } from "../../game/world/layout";
-import { CHEST_SLOTS, FestivalChest, festivalChestBaseGeometry, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } from "./festivalChest";
+import { findPath, isWalkable, moveCircle, OPEN, standY } from "../../game/world/collision";
+import { CHEST_SCALE, chestPose, FINALE_CREW, SOLIDS, STAGE } from "../../game/world/layout";
+import { CHEST_SLOTS, FestivalChest, festivalChestBaseGeometry, festivalChestLidGeometry, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } from "./festivalChest";
 import { itemGeometry, itemSize, plaqueGeometry } from "./items";
 import { KiwiRig } from "./kiwi";
 import { ALL_LOOK_IDS, buildCharacter, characterTriangles } from "./people";
@@ -125,6 +126,42 @@ describe("chests", () => {
     } finally {
       base.dispose();
       shadow.dispose();
+    }
+  });
+
+  it("centres the stage chest between the drums with clear scenery and walking routes", () => {
+    const pose = chestPose(5);
+    expect(pose).toEqual({ x: -63, y: 0.6, z: 0, yaw: 0 });
+    expect(chestPose(1)).toEqual({ x: 0, y: 0.15, z: -8, yaw: 0 });
+    const chest = SOLIDS.find(s => s.id === "stage-chest")!;
+    expect(chest).toMatchObject({ x: pose.x, z: pose.z, y: pose.y, yaw: pose.yaw });
+    const base = festivalChestBaseGeometry(), lid = festivalChestLidGeometry();
+    const root = new THREE.Matrix4().makeScale(CHEST_SCALE, CHEST_SCALE, CHEST_SCALE).setPosition(pose.x, pose.y, pose.z);
+    try {
+      base.computeBoundingBox(); lid.computeBoundingBox();
+      for (const angle of [0, 0.95, 1.9]) {
+        const lidMatrix = root.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.9, -0.45)).multiply(new THREE.Matrix4().makeRotationX(-angle));
+        const bounds = base.boundingBox!.clone().applyMatrix4(root).union(lid.boundingBox!.clone().applyMatrix4(lidMatrix));
+        for (const prop of SOLIDS.filter(s => s.id === "stage-back-edge" || s.id.startsWith("stage-drum-") || s.id.startsWith("stage-curtain-"))) {
+          if (prop.kind !== "box") throw new Error("Expected stage box");
+          const obstacle = new THREE.Box3(new THREE.Vector3(prop.x - prop.hx, prop.y, prop.z - prop.hz), new THREE.Vector3(prop.x + prop.hx, prop.y + prop.height, prop.z + prop.hz));
+          expect(bounds.intersectsBox(obstacle), `${prop.id}, lid=${angle}`).toBe(false);
+        }
+        // The sun is fixed to the back wall, including its projecting rays.
+        expect(bounds.min.x).toBeGreaterThan(STAGE.x - STAGE.hx + 0.35);
+      }
+    } finally { base.dispose(); lid.dispose(); }
+    for (const p of Object.values(FINALE_CREW)) expect(isWalkable(p.x, p.z, OPEN, 0.2)).toBe(true);
+    for (const target of [{ x: -61.3, z: 0 }, { x: -61.3, z: 1.8 }]) {
+      expect(isWalkable(target.x, target.z, OPEN)).toBe(true);
+      expect(standY(target.x, target.z)).toBe(pose.y);
+      const start = { x: -54, z: 4 }, path = findPath(start, target, OPEN);
+      expect(path.length).toBeGreaterThan(0);
+      expect(path.at(-1)).toEqual(target);
+      let walked = start;
+      for (const next of path) walked = moveCircle(walked.x, walked.z, next.x, next.z, 0.35, OPEN);
+      expect(walked.x).toBeCloseTo(target.x, 3);
+      expect(walked.z).toBeCloseTo(target.z, 3);
     }
   });
 
