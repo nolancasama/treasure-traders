@@ -27,7 +27,7 @@ it("meets the sloping roof with every top-cap vertex and both bunting endpoints"
 });
 
 it("anchors each stage lantern's visible cord to the roof throughout milestone pop-in", () => {
-  const context = { measureText: (text: string) => ({ width: text.length * 30 }), beginPath() {}, roundRect() {}, fill() {}, fillText() {} };
+  const context = { measureText: (text: string) => ({ width: text.length * 30 }), beginPath() {}, roundRect() {}, fill() {}, fillText() {}, fillRect() {}, arc() {}, createRadialGradient: () => ({ addColorStop() {} }) };
   vi.stubGlobal("document", { createElement: () => ({ width: 0, height: 0, getContext: () => context }) });
   const groups = Object.fromEntries(DISTRICT_IDS.map(id => [id, new THREE.Group()])) as Record<typeof DISTRICT_IDS[number], THREE.Group>;
   const decorations = createDecorations(groups), matrix = new THREE.Matrix4(), top = new THREE.Vector3();

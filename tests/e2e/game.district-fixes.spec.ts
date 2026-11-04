@@ -135,17 +135,20 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
         "festival-entrance-grass": { x: -27, z: 0 }, "festival-entrance-paving": { x: -20, z: 0 },
         "stage-connections": { x: -56, z: 0 }, "festival-view": { x: -48, z: 5 },
         "games-stall": { x: -43, z: 8 }, "market-view": { x: 37, z: 0 },
-        "flowers-lily": { x: 30, z: 2 }, "fruit-sara": { x: 45, z: 2 },
         "market-sign": { x: 26, z: 0 }, "market-entrance": { x: 20, z: 0 },
         "harbor-rope-chest": { x: 9, z: 34.5 }
       })) {
         await at(page, point);
-        if (name === "flowers-lily" || name === "fruit-sara") {
-          const npc = NPC_HOMES[name === "flowers-lily" ? "lily" : "sara"];
-          await precondition(`${name} keeper visible`, async () => {
-            expect(await hook(page, (h, p: Point) => h.projectPoint({ ...p, y: 1.2 }).visible, npc)).toBe(true);
-          });
-        }
+        await shot(page, name);
+      }
+    });
+    test("Flower and Fruit stalls with their keepers at home", async ({ page }) => {
+      await start(page, 2, { x: 30, z: 2 });
+      for (const [name, id, point] of [["flowers-lily", "lily", { x: 27, z: 2 }], ["fruit-sara", "sara", { x: 42, z: 2 }]] as const) {
+        await at(page, point);
+        await precondition(`${name} keeper visible`, async () => {
+          expect(await hook(page, (h, p: Point) => h.projectPoint({ ...p, y: 1.2 }).visible, NPC_HOMES[id])).toBe(true);
+        });
         await shot(page, name);
       }
     });
@@ -178,7 +181,7 @@ test("district Up directions and held headings through both necks", async ({ pag
 
 test("rope blocks real keyboard and redirects taps from both sides, with chest access", async ({ page }) => {
   await start(page, 4, { x: 10.2, z: 35 });
-  for (const [point, key, sign, target] of [[{ x: 10.2, z: 35 }, "ArrowRight", 1, { x: 12.2, z: 35 }], [{ x: 12.2, z: 35 }, "ArrowLeft", -1, { x: 10.2, z: 35 }]] as const) {
+  for (const [point, key, sign, target] of [[{ x: 10.2, z: 35 }, "ArrowRight", 1, { x: 12.2, z: 35 }], [{ x: 12.2, z: 35 }, "ArrowLeft", -1, { x: 9.5, z: 34.5 }]] as const) {
     await at(page, point);
     await page.keyboard.down(key);
     try {
