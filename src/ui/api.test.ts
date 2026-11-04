@@ -31,6 +31,20 @@ describe("frozen presentation commands", () => {
     h.ui.advance(); await pending;
     expect(done).toHaveBeenCalledOnce(); expect(h.ui.getSnapshot().beat).toBeNull(); h.ui.dispose();
   });
+  it("Continue interrupts live speech and advances immediately, including rapid taps", async () => {
+    const h = harness();
+    const done = vi.fn();
+    const pending = h.ui.say(beat).then(done);
+    expect(h.voice.isSpeaking()).toBe(true);
+    h.ui.advance();
+    h.ui.advance(); // A second tap must not skip the next dialogue line.
+    await pending;
+    expect(done).toHaveBeenCalledOnce();
+    expect(h.voice.cancel).toHaveBeenCalled();
+    expect(h.voice.isSpeaking()).toBe(false);
+    expect(h.ui.getSnapshot().beat).toBeNull();
+    h.ui.dispose();
+  });
   it("replaces and cancels pending lines and cards without stranding promises", async () => {
     const h = harness();
     const first = h.ui.say(beat); const second = h.ui.say({ ...beat, en: "Thank you!" });
