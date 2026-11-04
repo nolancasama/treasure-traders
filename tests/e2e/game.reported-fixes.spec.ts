@@ -147,7 +147,8 @@ test("Continue advances at once with speech running: touch, mouse and keys, one 
     await press();
     await expect.poll(() => beatText(page), { message: `${name} advanced`, timeout: 1000, intervals: [20] }).not.toBe(before);
     await page.waitForTimeout(350);
-    expect(await lines(page), `${name} moved exactly one line`).toBe(count + 1);
+    // The intro's last line ends the dialogue, so no further line appears after it.
+    expect(await lines(page), `${name} moved exactly one line`).toBe(await beatText(page) ? count + 1 : count);
     if (name === "touch") await shot(page, "2-dialogue-after");
   }
 });
