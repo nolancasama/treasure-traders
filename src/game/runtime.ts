@@ -88,12 +88,12 @@ function cutsceneKeys(name: "intro" | "cart" | "school" | "bridge" | "arch" | "f
   if (name === "bridge") return [
     // From the river bank, side on, so the span fills the frame and its tilt reads clearly.
     { position: { x: 15, y: 5.5, z: 19 }, target: { x: 0, y: 1.6, z: 23 }, duration: BRIDGE_SECONDS + 0.9 },
-    { position: { x: 15, y: 5.5, z: 19 }, target: { x: 0, y: 1.6, z: 23 }, duration: 0.3 }
+    { position: { x: 15, y: 5.5, z: 19 }, target: { x: 0, y: 1.6, z: 23 }, duration: 60 }
   ];
   if (name === "school") return [
     // Keep the closed span and its entire eastward parking bay in frame.
     { position: { x: 4, y: 6.8, z: -5 }, target: { x: 4, y: 1.4, z: -22 }, duration: SCHOOL_GATE_SECONDS + 0.9 },
-    { position: { x: 4, y: 6.8, z: -5 }, target: { x: 4, y: 1.4, z: -22 }, duration: 0.3 }
+    { position: { x: 4, y: 6.8, z: -5 }, target: { x: 4, y: 1.4, z: -22 }, duration: 60 }
   ];
   const at = GATE_POSITIONS[name], y = standY(at.x, at.z);
   return [

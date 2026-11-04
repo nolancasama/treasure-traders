@@ -145,7 +145,7 @@ test.describe("collision with real input", () => {
     const moving = samples.filter(s => s.p < 1);
     expect(moving.length, "observed frames while the bridge was moving").toBeGreaterThan(2);
     for (const s of moving) expect(s.z, `blocked at progress ${s.p}`).toBeLessThan(16.95);
-    expect(crossed, "crosses after it settles").toBe(true);
+    expect(crossed, `crosses after it settles; last ${JSON.stringify(samples.slice(-3))} of ${samples.length}`).toBe(true);
   });
 
   test("lowered bridge crosses by keyboard and tap without catching at either end", async ({ page }) => {
@@ -212,7 +212,7 @@ test.describe("collision with real input", () => {
     await teleport(page, { x: -56, z: 0 });
     await tapGround(page, { x: -60.5, y: 0.62, z: -3 });
     await expect.poll(async () => (await read(page)).position.y, { message: "tap walks up onto the stage" }).toBeGreaterThan(0.55);
-    await tapGround(page, { x: -55.5, z: -2.5 });
+    await tapGround(page, { x: -57.3, z: -2.5 });
     await expect.poll(async () => (await read(page)).position.y, { message: "tap walks back down" }).toBeLessThan(0.02);
   });
 

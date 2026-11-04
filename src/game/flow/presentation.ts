@@ -284,8 +284,10 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
     world.playCutscene(gateScenes[chapter]);
     audio.play("correct");
     if (chapter === 2 || chapter === 3) {
-      // Let the camera arrive before the full three-second gate travel.
+      // Let the camera arrive before the full three-second gate travel. Easing takes
+      // longer at a low frame rate, so wait on the camera, within a bound.
       await wait(700);
+      for (let waited = 0; waited < 3000 && world.runtime.gateProgress && (world.runtime.cameraGap ?? 0) > 1; waited += 16) await wait(16);
       const gate = chapter === 2 ? "school" : "bridge";
       if (gate === "school") world.runtime.schoolGateHeld = false;
       else world.runtime.bridgeGateHeld = false;

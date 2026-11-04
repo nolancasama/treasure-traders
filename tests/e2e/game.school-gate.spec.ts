@@ -11,6 +11,7 @@ interface GateRead {
   schoolHeld: boolean;
   camera: { mode: string; elapsed?: number; keys?: { target: { z: number } }[] };
   cameraYaw: number;
+  manualInputYaw: number | null;
 }
 interface GateHook {
   read(): GameRead;
@@ -43,7 +44,7 @@ async function keyboardTo(page: Page, target: { x: number; z: number }, schoolOp
       if (schoolOpen) expect(g.progress?.school, "school remains fully open during keyboard travel").toBe(1);
       const dx = target.x - s.position.x, dz = target.z - s.position.z;
       if (Math.hypot(dx, dz) < 0.35) return;
-      const yaw = g.cameraYaw;
+      const yaw = g.manualInputYaw ?? g.cameraYaw;
       const x = dx * Math.cos(yaw) - dz * Math.sin(yaw), y = -dx * Math.sin(yaw) - dz * Math.cos(yaw);
       const magnitude = Math.hypot(x, y);
       const wanted = [

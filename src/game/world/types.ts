@@ -45,6 +45,8 @@ export interface WorldRuntime {
   bottomPanel: number;
   camera: CameraCommand;
   cameraYaw: number;
+  /** Metres between the eased camera and where it is heading; a renderer writes it each frame. */
+  cameraGap?: number;
   /** Camera frame held until every manual movement key is released or input locks. */
   manualInputYaw: number | null;
   path: Point[];

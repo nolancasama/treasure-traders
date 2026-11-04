@@ -62,6 +62,7 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
       // Ease the angle on a fixed-radius arc, rather than cutting across its chord.
       camera.position.set(look.x + Math.sin(yaw) * radius, THREE.MathUtils.lerp(camera.position.y, position.y, k), look.z + Math.cos(yaw) * radius);
     } else camera.position.lerp(position, k);
+    rt.cameraGap = camera.position.distanceTo(position);
     camera.lookAt(look); ready.current = true;
     rt.cameraYaw = Math.atan2(camera.position.x - look.x, camera.position.z - look.z);
     // The compact backpack bar sits above the panel, so centre on what remains visible.
