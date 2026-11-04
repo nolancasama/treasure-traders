@@ -37,7 +37,7 @@ async function fromSave(page: Page, chapter: ChapterId, position: { x: number; z
     localStorage.setItem("tt.save.v1", JSON.stringify(game));
     localStorage.setItem("tt.settings.v1", JSON.stringify(settings));
   }, { game, settings: settings(["intro", "moving", "mic", "asking"]) });
-  await page.goto("/?e2e=1&coach=off");
+  await page.goto("./?e2e=1&coach=off");
   await page.getByTestId("title-continue").click();
   await settle(page, playable);
 }
@@ -137,7 +137,7 @@ test("the view eases over the bridge, and the harbor keeps its own angle", async
 
 test("Continue advances at once with speech running: touch, mouse and keys, one line per press", async ({ page }) => {
   await page.addInitScript(value => localStorage.setItem("tt.settings.v1", JSON.stringify(value)), settings([]));
-  await page.goto("/?e2e=1&seed=101&coach=off");
+  await page.goto("./?e2e=1&seed=101&coach=off");
   await page.setViewportSize(VIEWPORTS[0]);
   await page.waitForFunction(() => !!(window as unknown as { __tt?: Hook }).__tt);
   await hook(page, h => h.tts.hold(true)); // Speech never finishes by itself, so only the press can advance.
@@ -168,7 +168,7 @@ test("Continue advances at once with speech running: touch, mouse and keys, one 
 
 test("a double tap and a held key move one line, and a next line is spoken", async ({ page }) => {
   await page.addInitScript(value => localStorage.setItem("tt.settings.v1", JSON.stringify(value)), settings([]));
-  await page.goto("/?e2e=1&seed=101&coach=off");
+  await page.goto("./?e2e=1&seed=101&coach=off");
   await page.setViewportSize(VIEWPORTS[1]);
   await page.waitForFunction(() => !!(window as unknown as { __tt?: Hook }).__tt);
   await hook(page, h => h.tts.hold(true));
@@ -230,7 +230,7 @@ test("the library has one working doorway, from outside and inside", async ({ pa
 
 test("Ctrl+Alt+D opens the debug menu, which unlocks chapters", async ({ page }) => {
   await page.addInitScript(value => localStorage.setItem("tt.settings.v1", JSON.stringify(value)), settings(["intro", "moving", "mic", "asking"]));
-  await page.goto("/?e2e=1&seed=101&coach=off");
+  await page.goto("./?e2e=1&seed=101&coach=off");
   await page.setViewportSize(VIEWPORTS[0]);
   await expect(page.getByTestId("title-screen")).toBeVisible();
   await page.keyboard.press("Control+Alt+KeyD");
