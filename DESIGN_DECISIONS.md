@@ -720,8 +720,12 @@ The teacher's list of 22 problems, reviewed against the source before work began
   Finger slip can no longer lose a tap. A 300ms guard after an accepted press stops the
   second half of a double tap, or a held key, from skipping the next line. Rejected:
   claiming the resolver alone, which only protected until the next line was published.
-- **A button focused by a pointer does not capture Space or Enter during a line.** Only
-  real keyboard focus (`:focus-visible`) keeps a button's own key behavior.
+- **A button focused by a pointer does not capture Space or Enter during a line.** Only a
+  button reached with Tab keeps its own key behavior. Rejected: `:focus-visible`, which a
+  key press turns on for a clicked button in Chromium, as a real-input test showed.
+- **Gable triangles wind outward.** They were wound inward and culled from outside, which
+  left a see-through hole under the library roof and on every cottage. The library's now
+  sits flush with its walls' outer faces, so no ledge shows between wall and gable.
 - **The library door is 1.8m with one open leaf that has a collider.** The frame shows on
   both faces. Cutaway starts at the wall's outer face, since the narrower frame would
   otherwise hide a player standing in the doorway.

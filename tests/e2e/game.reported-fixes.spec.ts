@@ -47,6 +47,29 @@ async function settleAt(page: Page, position: { x: number; z: number; yaw?: numb
   await page.waitForTimeout(1800);
 }
 
+/** The camera eases exponentially, and slowly under SwiftShader, so give it time to arrive. */
+const squareView = (page: Page, message: string) => expect.poll(async () => Math.abs((await hook(page, h => h.readGates())).cameraYaw), { message, timeout: 15_000 }).toBeLessThan(0.002);
+
+/** Real arrow keys, re-aimed as the player moves, because they are camera-relative. */
+async function walkWithKeys(page: Page, target: { x: number; z: number }, ms: number) {
+  let held: string[] = [];
+  const end = Date.now() + ms;
+  try {
+    while (Date.now() < end) {
+      const [p, yaw] = await hook(page, h => [h.read().position, h.readGates().cameraYaw] as const);
+      const dx = target.x - p.x, dz = target.z - p.z;
+      if (Math.hypot(dx, dz) < 0.3) break;
+      const x = dx * Math.cos(yaw) - dz * Math.sin(yaw), y = -dx * Math.sin(yaw) - dz * Math.cos(yaw), size = Math.hypot(x, y);
+      const wanted = [...(Math.abs(x) / size > 0.38 ? [x > 0 ? "ArrowRight" : "ArrowLeft"] : []), ...(Math.abs(y) / size > 0.38 ? [y > 0 ? "ArrowUp" : "ArrowDown"] : [])];
+      for (const key of held.filter(k => !wanted.includes(k))) await page.keyboard.up(key);
+      for (const key of wanted.filter(k => !held.includes(k))) await page.keyboard.down(key);
+      held = wanted;
+      await page.waitForTimeout(60);
+    }
+  } finally { for (const key of held) await page.keyboard.up(key); }
+  return (await read(page)).position;
+}
+
 /** Every line that reaches the screen, in order, observed from the DOM. */
 async function recordLines(page: Page) {
   await page.evaluate(() => {
@@ -69,7 +92,7 @@ test("Village Square looks along the bridge, in play and again after a conversat
     await page.setViewportSize(viewport);
     for (const at of [{ x: 0, z: 8 }, { x: 0, z: 15 }]) {
       await settleAt(page, at);
-      expect(Math.abs((await hook(page, h => h.readGates())).cameraYaw), `yaw at ${JSON.stringify(at)}`).toBeLessThan(0.002);
+      await squareView(page, `yaw at ${JSON.stringify(at)}`);
     }
     // Both ends of the bridge's short edge land on the same screen row.
     const edge = await hook(page, h => [h.projectPoint({ x: -2.45, y: 0.12, z: 18 }), h.projectPoint({ x: 2.45, y: 0.12, z: 18 })]);
@@ -88,16 +111,15 @@ test("Village Square looks along the bridge, in play and again after a conversat
   await page.keyboard.press("Escape");
   await settle(page, playable);
   await page.waitForTimeout(1800);
-  const after = await hook(page, h => h.readGates());
-  expect(after.camera.mode).toBe("follow");
-  expect(Math.abs(after.cameraYaw), "back to the square view after talking").toBeLessThan(0.002);
+  expect((await hook(page, h => h.readGates())).camera.mode).toBe("follow");
+  await squareView(page, "back to the square view after talking");
 });
 
 test("the view eases over the bridge, and the harbor keeps its own angle", async ({ page }) => {
   await fromSave(page, 4, { x: 0, z: 26 });
   await page.setViewportSize(VIEWPORTS[0]);
   await settleAt(page, { x: 0, z: 26 });
-  expect(Math.abs((await hook(page, h => h.readGates())).cameraYaw), "on the deck").toBeLessThan(0.002);
+  await squareView(page, "on the deck");
   await settleAt(page, { x: 8, z: 41 });
   expect((await hook(page, h => h.readGates())).cameraYaw, "harbor").toBeCloseTo(Math.atan2(4, 11), 2);
 });
@@ -176,20 +198,14 @@ test("the library has one working doorway, from outside and inside", async ({ pa
   await page.setViewportSize(VIEWPORTS[0]);
   // Keyboard: in through the door, then back out.
   await settleAt(page, { x: -9, z: -42 });
-  await page.keyboard.down("ArrowLeft");
-  await expect.poll(async () => (await read(page)).position.x, { timeout: 20_000 }).toBeLessThan(-13);
-  await page.keyboard.up("ArrowLeft");
-  const inside = await read(page);
-  expect(Math.abs(inside.position.z + 42), "walked straight through").toBeLessThan(0.6);
-  await page.keyboard.down("ArrowRight");
-  await expect.poll(async () => (await read(page)).position.x, { timeout: 20_000 }).toBeGreaterThan(-11);
-  await page.keyboard.up("ArrowRight");
+  const inside = await walkWithKeys(page, { x: -14, z: -42 }, 25_000);
+  expect(inside.x, "walked in through the door").toBeLessThan(-13);
+  const outside = await walkWithKeys(page, { x: -9, z: -42 }, 25_000);
+  expect(outside.x, "walked back out").toBeGreaterThan(-10);
   // Keyboard: the wall beside the door stops the player.
   await settleAt(page, { x: -9.5, z: -39 });
-  await page.keyboard.down("ArrowLeft");
-  await page.waitForTimeout(2500);
-  await page.keyboard.up("ArrowLeft");
-  expect((await read(page)).position.x, "solid wall").toBeGreaterThan(-11.8);
+  const stopped = await walkWithKeys(page, { x: -15, z: -39 }, 5_000);
+  expect(stopped.x, "solid wall").toBeGreaterThan(-11.8);
   // Tap to move: from the courtyard, through the door, to the room.
   await settleAt(page, { x: -9, z: -41.5 });
   const spot = await hook(page, h => h.projectPoint({ x: -14, y: 0.12, z: -41.5 }));

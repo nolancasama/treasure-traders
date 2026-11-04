@@ -106,13 +106,13 @@ export function addGableRoof(b: B, w: number, d: number, rise: number, baseY: nu
   b.box(w + 0.8, 0.14, 0.26, 0, baseY + rise - 0.08, 0, shade);
 }
 
-/** Wall-coloured triangles closing the ends under a gable roof. */
+/** Wall-coloured triangles closing the ends under a gable roof, facing outward. */
 export function addGableEnds(b: B, w: number, d: number, rise: number, baseY: number, color: string) {
   const g = new THREE.BufferGeometry();
   const hx = w / 2, hz = d / 2;
   g.setAttribute("position", new THREE.Float32BufferAttribute([
-    hx, 0, -hz, hx, 0, hz, hx, rise, 0,
-    -hx, 0, hz, -hx, 0, -hz, -hx, rise, 0
+    hx, 0, hz, hx, 0, -hz, hx, rise, 0,
+    -hx, 0, -hz, -hx, 0, hz, -hx, rise, 0
   ], 3));
   g.computeVertexNormals();
   b.add(g, color, [0, baseY, 0]);
@@ -260,7 +260,8 @@ export function libraryGeometry(solids: readonly Solid[], cutaway: boolean, east
     // The east gable faces the courtyard door; its ridge runs east to west.
     b.at(-19, 0, z, 0, () => {
       addGableRoof(b, width, 10, 2.5, y, "#d9603f", "#c44f33");
-      addGableEnds(b, width, 10, 2.5, y, walls);
+      // Flush with the outer faces of the 0.4m east and west walls below.
+      addGableEnds(b, width + 0.4, 10, 2.5, y, walls);
     });
     b.box(0.7, 2, 0.7, -23, y + 1.2, -44, "#b98a6c");
     b.box(0.86, 0.14, 0.86, -23, y + 3.2, -44, "#8d6a54");

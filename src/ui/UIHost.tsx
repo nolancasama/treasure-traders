@@ -10,7 +10,7 @@ import "./host.css";
 export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasSave?: boolean; titleBackdrop?: React.ReactNode }) {
   const state = useSyncExternalStore(ui.subscribe, ui.getSnapshot);
   const speech = useSyncExternalStore(ui.speech.subscribe, ui.speech.getSnapshot);
-  const panel = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null), tabbed = useRef(false);
   const [micStatus, setMicStatus] = useState("");
   const game = state.game;
   const openJournal = (tab?: JournalTab) => ui.screen("journal", { tab });
@@ -24,23 +24,28 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
   }, [ui, activePanel]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
-      // A button left focused by a tap or click must not take over Continue's keys.
-      const advanceKey = event.code === "Space" || event.key === "Enter", target = event.target as HTMLElement;
-      const pointerFocused = target?.tagName === "BUTTON" && !target.matches(":focus-visible");
-      if (state.beat && advanceKey && event.repeat && !state.screen) { event.preventDefault(); return; }
-      if (state.beat && advanceKey && pointerFocused && !event.altKey && !event.ctrlKey && !event.metaKey && !speech.prompt && !state.screen && !state.card && !state.tip) { event.preventDefault(); ui.advance(); return; }
+      if (event.key === "Tab") tabbed.current = true;
+      // During a line these keys mean Continue, unless the child tabbed to a button on purpose.
+      // A key press makes a clicked button match :focus-visible too, so that cannot tell them apart.
+      const advanceKey = event.code === "Space" || event.key === "Enter", tag = (event.target as HTMLElement)?.tagName;
+      if (state.beat && advanceKey && !event.altKey && !event.ctrlKey && !event.metaKey && !speech.prompt && !state.screen && !state.card && !state.tip && !/INPUT|SELECT|TEXTAREA/.test(tag) && (event.repeat || !tabbed.current || tag !== "BUTTON")) {
+        event.preventDefault();
+        if (!event.repeat) ui.advance();
+        return;
+      }
       if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || /INPUT|SELECT|TEXTAREA|BUTTON/.test((event.target as HTMLElement)?.tagName)) return;
       if (speech.prompt) return;
       if (event.key === "Escape") { if (state.screen) ui.back(); else ui.screen("settings"); event.preventDefault(); return; }
       if (state.screen || state.card || state.tip) return;
       const letter = event.key.toLowerCase();
-      if (state.beat && advanceKey) { event.preventDefault(); ui.advance(); }
       if (letter === "b") ui.screen("backpack");
       if (letter === "j") ui.screen("journal");
       if (letter === "h") ui.action("hint");
     };
+    const pointer = () => { tabbed.current = false; };
     window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    window.addEventListener("pointerdown", pointer, true);
+    return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerdown", pointer, true); };
   }, [ui, speech.prompt, state.screen, state.beat, state.card, state.tip]);
   const checkMic = async () => {
     if (speech.prompt || speech.micFree) { setMicStatus(speech.micFree ? "マイクなしモードです。" : "会話のあとでチェックしてね。"); return; }

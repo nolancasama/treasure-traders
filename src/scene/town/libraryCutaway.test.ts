@@ -21,6 +21,15 @@ describe("library doorway and camera cutaway", () => {
       expect(blocked(geometry, new THREE.Vector3(-10.8, y, z), new THREE.Vector3(-13, y, z)), `wall z=${z}`).toBe(true);
     geometry.dispose();
   });
+  it("closes the gable between the wall tops and the roof, seen from outside", () => {
+    const geometry = libraryGeometry(SOLIDS, false), mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial());
+    mesh.updateMatrixWorld(true);
+    for (const [fromX, toX] of [[-5, -13], [-33, -25]]) for (const [y, z] of [[3.8, -44], [3.8, -40], [4.5, -42], [5.8, -42]]) {
+      const hits = new THREE.Raycaster(new THREE.Vector3(fromX, y, z), new THREE.Vector3(Math.sign(toX - fromX), 0, 0), 0, 9).intersectObject(mesh);
+      expect(hits.length, `from x=${fromX} y=${y} z=${z}`).toBeGreaterThan(0);
+    }
+    geometry.dispose();
+  });
   it("walks through the one doorway, and is stopped by the walls and the open door leaf", () => {
     expect(moveCircle(-9, -42, -15, -42, undefined, OPEN).x).toBeCloseTo(-15, 5);
     expect(moveCircle(-15, -42, -9, -42, undefined, OPEN).x).toBeCloseTo(-9, 5);
