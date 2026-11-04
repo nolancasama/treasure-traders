@@ -623,17 +623,17 @@ function stage(low: B, tall: B, signs: SignBatch) {
     }
     tall.box(0.7, 0.14, 0.7, s.x + 1.5, 0.55, z, PALETTE.gold);
   }
-  // Roof: a gold-and-red striped canopy with a scalloped front.
+  // Roof: a gold-and-red striped canopy.
   for (let i = 0; i < 8; i++) {
     const z = -5.95 + (i + 0.5) * 1.49;
     tall.boxAt(STAGE_ROOF.width, STAGE_ROOF.thickness, 1.5, [STAGE_ROOF.x, STAGE_ROOF.y, z], [0, 0, STAGE_ROOF.slope], i % 2 ? PALETTE.gold : "#e8604c");
-    tall.add(new THREE.CylinderGeometry(0.74, 0.74, 0.05, 8, 1, false, Math.PI, Math.PI), i % 2 ? PALETTE.gold : "#e8604c", [s.x + 2.62, 5.14, z], [0, 0, Math.PI / 2], [1, 1, 1], { wind: 0.1 });
   }
   pennantLine(tall, STAGE_BUNTING.from, STAGE_BUNTING.to, STAGE_BUNTING.sag, 9);
-  // The header board, facing the field.
-  const width = SignBatch.width("stage", 0.86);
-  tall.box(0.1, 1.04, width + 0.3, s.x + 2.72, 4.1, 0, PALETTE.darkWood);
-  signs.add("stage", s.x + 2.79, 4.62, 0, 0.86, Math.PI / 2);
+  // The one sign, on a board standing on the roof and facing the field.
+  const width = SignBatch.width("stage", 1.1);
+  for (const dz of [-width / 2 + 0.3, width / 2 - 0.3]) tall.box(0.1, 0.5, 0.1, s.x + 2.3, 5.5, dz, PALETTE.darkWood);
+  tall.box(0.12, 1.3, width + 0.2, s.x + 2.3, 5.95, 0, PALETTE.darkWood);
+  signs.add("stage", s.x + 2.38, 6.6, 0, 1.1, Math.PI / 2);
   // Taiko drums.
   for (const z of [-3.4, 3.4]) {
     low.box(0.9, 0.36, 0.9, s.x - 1, s.height, z, PALETTE.darkWood);
@@ -786,7 +786,6 @@ function festival(low: B, tall: B, signs: SignBatch) {
     tall.sphere(0.09, x, 5, z, PALETTE.gold, [1, 1, 1], 5);
     for (let i = 0; i < 3; i++) tall.add(new THREE.BoxGeometry(0.72, 0.84, 0.03), i % 2 ? "#fff4d4" : color, [x + 0.42, 4.5 - i * 0.82, z], [0, 0, 0], [1, 1, 1], { wind: 0.18 + i * 0.12, hang: true });
   }
-  signpost(tall, signs, "festival", -26.4, -5.3, 0.86, 3.5);
   // Flower borders keep the lawn soft along its edges and the arch path.
   hedge(tall, -66.4, -17.6, -66.4, 17.6, rand);
   hedge(tall, -65, -19.4, -33, -19.4, rand);

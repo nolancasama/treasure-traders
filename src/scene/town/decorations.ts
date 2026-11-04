@@ -274,16 +274,6 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
     shown.raycast = () => {};
     materials.add(shown.material as THREE.Material);
     s.root.add(shown);
-    // The welcome sign, written with that marker: a board on the stage roof.
-    const width = SignBatch.width("welcome", 1.3);
-    statics(s, b => {
-      for (const dz of [-width / 2 + 0.3, width / 2 - 0.3]) b.box(0.1, 0.5, 0.1, -59.7, 5.5, dz, PALETTE.darkWood);
-      b.box(0.12, 1.5, width + 0.2, -59.7, 5.95, 0, PALETTE.darkWood);
-    });
-    const sign = new THREE.Mesh(new SignBatch().add("welcome", -59.62, 6.7, 0, 1.3, Math.PI / 2).build(), signMat());
-    geometries.add(sign.geometry);
-    sign.raycast = () => {};
-    s.root.add(sign);
     const today = new THREE.Mesh(new SignBatch().add("today", -62.3, 3.42, -3.75, 0.52, Math.PI / 2 - 0.2).build(), signMat());
     geometries.add(today.geometry);
     today.raycast = () => {};

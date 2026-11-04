@@ -151,6 +151,10 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
         });
         await shot(page, name);
       }
+      for (const [name, point] of [["vendor-lily-rest", { x: 19, z: 3 }], ["vendor-sara-rest", { x: 36, z: 3 }]] as const) {
+        await at(page, point);
+        await shot(page, name);
+      }
     });
   });
 }

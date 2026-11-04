@@ -803,3 +803,20 @@ The teacher's list of 22 problems, reviewed against the source before work began
   stones are trimmed against paving laid earlier. A built-geometry audit
   (`town/entranceAudit.ts`) gates faces, stacked stones and flowers on paving.
 - **The visible sign says Market.** District names, chapter titles and vocabulary keep their words.
+
+## 2026-11-04 — Straight stalls, one stage sign, prompt intro, visible bridge
+
+- **Fruit and Flower stalls face the stalls across the aisle (yaw PI).** This supersedes the
+  190 degree rotation. At yaw 0 a stall's front faces +z, like the Bakery and Toy fronts, so PI
+  makes them exactly parallel and facing. Lily and Sara stand at yaw PI, looking over the aisle.
+- **The stage has one permanent sign, on the roof.** It reads School Festival in the former Welcome
+  board's red style. The old header board and the scallops around it are gone. Rejected: keeping it
+  as the milestone pop-in Welcome was, because the only sign would then appear at the finale, leaving
+  the stage nameless for all of Chapter 5.
+- **The Festival Grounds signpost is gone.** The arch names the place.
+- **The intro ends with its last line.** A 25 second minimum held the mission card back from anyone
+  who read quickly, with nothing on screen to explain it. The wind's 3.6s opening stays.
+- **The bridge lowers on camera over a finite three seconds.** It used to ease exponentially from
+  the moment the chapter completed, behind the clear card. It now shares the school gate's clock
+  and hold, so navigation still opens only on the exact final frame. Cart and arch keep their
+  old timing; they were not part of this request.

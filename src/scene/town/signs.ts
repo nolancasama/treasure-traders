@@ -21,7 +21,6 @@ const SIGNS = {
   school: { text: "Schoolhouse", style: "wood" },
   library: { text: "Library", style: "wood" },
   harbor: { text: "Riverside & Harbor", style: "wood" },
-  festival: { text: "Festival Grounds", style: "wood" },
   arch: { text: "F E S T I V A L", style: "plain" },
   soon: { text: "Coming soon!", style: "gold" },
   bakery: { text: "Bakery", style: "red" },
@@ -33,8 +32,7 @@ const SIGNS = {
   draw: { text: "Draw!", style: "blue" },
   snacks: { text: "Snacks", style: "red" },
   games: { text: "Games", style: "green" },
-  stage: { text: "School Festival", style: "gold" },
-  welcome: { text: "Welcome!", style: "red" },
+  stage: { text: "School Festival", style: "red" },
   today: { text: "TODAY!", style: "red" }
 } as const;
 export type SignId = keyof typeof SIGNS;

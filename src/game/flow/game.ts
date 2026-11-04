@@ -135,6 +135,8 @@ export function createGame() {
       if (step.beats.some(beat => beat.kind === 'event' && beat.event.type === 'finale')) { world.setFinale('armed'); active = null; world.playCutscene('finale'); }
       // The school panel waits for its own shot while the deposit and clear card play.
       if (step.state.chapter === 2 && step.state.mode === 'campaign' && step.state.chapterComplete && !old?.chapterComplete) world.runtime.schoolGateHeld = true;
+      // Likewise the bridge, which would otherwise lower unseen behind the clear card.
+      if (step.state.chapter === 3 && step.state.mode === 'campaign' && step.state.chapterComplete && !old?.chapterComplete) world.runtime.bridgeGateHeld = true;
       state().setGame(step.state);
       if (!old || JSON.stringify([old.holdings, old.flags, old.journal]) !== JSON.stringify([step.state.holdings, step.state.flags, step.state.journal])) {
         progressAt = Date.now(); hintOffered = false; state().setHintLevel(0); ui.hint(undefined);

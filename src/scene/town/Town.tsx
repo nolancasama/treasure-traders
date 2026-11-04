@@ -14,7 +14,7 @@ import { districtParts, forestGeometry } from "./districts";
 import { GRASS_Y, HARBOR_BOATS, landGeometry, pavingGeometry, waterGeometry, waterMaterial } from "./ground";
 import { SignBatch, signMat } from "./signs";
 import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
-import { advanceSchoolGate, SCHOOL_GATE_TRAVEL, SCHOOL_GATE_WHEEL_RADIUS, SCHOOL_GATE_WHEEL_Y, type SchoolGateAnimation } from "./schoolGate";
+import { advanceSchoolGate, BRIDGE_SECONDS, SCHOOL_GATE_TRAVEL, SCHOOL_GATE_WHEEL_RADIUS, SCHOOL_GATE_WHEEL_Y, type SchoolGateAnimation } from "./schoolGate";
 
 interface TownScene {
   root: THREE.Group;
@@ -23,6 +23,7 @@ interface TownScene {
   gateProgress: Record<GateId, number>;
   schoolGateWheels: THREE.Mesh[];
   schoolGateAnimation: SchoolGateAnimation;
+  bridgeAnimation: SchoolGateAnimation;
   library: { open: THREE.Mesh[]; closed: THREE.Mesh; label: THREE.Mesh };
   boats: THREE.Object3D[];
   water: THREE.ShaderMaterial;
@@ -188,7 +189,8 @@ function makeTown(runtime: WorldRuntime): TownScene {
     for (const m of ownedMaterials) m.dispose();
   };
   const schoolGateAnimation = { target: gateProgress.school, from: gateProgress.school, elapsed: 0 };
-  return { root, districts, gates, gateProgress, schoolGateWheels, schoolGateAnimation, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
+  const bridgeAnimation = { target: gateProgress.bridge, from: gateProgress.bridge, elapsed: 0 };
+  return { root, districts, gates, gateProgress, schoolGateWheels, schoolGateAnimation, bridgeAnimation, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
 }
 
 const nearCamera = new Map<DistrictId, boolean>();
@@ -219,9 +221,11 @@ export function Town({ runtime, mood, reviewGateProgress }: { runtime: WorldRunt
       const target = runtime.state.gates[id] ? 1 : 0;
       const next = id === "school"
         ? runtime.schoolGateHeld && target === 1 ? town.gateProgress[id] : advanceSchoolGate(town.gateProgress[id], target, Math.min(delta, 0.1), town.schoolGateAnimation)
+        : id === "bridge"
+        ? runtime.bridgeGateHeld && target === 1 ? town.gateProgress[id] : advanceSchoolGate(town.gateProgress[id], target, Math.min(delta, 0.1), town.bridgeAnimation, BRIDGE_SECONDS)
         : town.gateProgress[id] + (target - town.gateProgress[id]) * smooth;
       // Other gates retain their exponential motion and exact settled endpoint.
-      const p = town.gateProgress[id] = reviewGateProgress?.[id] ?? (id === "school" ? next : Math.abs(target - next) < 0.001 ? target : next);
+      const p = town.gateProgress[id] = reviewGateProgress?.[id] ?? (id === "school" || id === "bridge" ? next : Math.abs(target - next) < 0.001 ? target : next);
       const g = town.gates[id];
       if (id === "bridge") g.rotation.x = -(1 - p) * BRIDGE_RAISED;
       if (id === "school") {

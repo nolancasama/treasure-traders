@@ -23,7 +23,8 @@ export type Solid = (SolidBase & { kind: "box"; hx: number; hz: number; yaw: num
 export const STAGE = { id: "stage", district: "festival", kind: "box", x: -62, z: 0, hx: 3, hz: 6, height: 0.6, y: 0, yaw: 0 } as const;
 export const STAGE_ROOF = { x: STAGE.x - 0.25, y: 5.42, width: 5.8, thickness: 0.14, slope: 0.1 } as const;
 export const stageRoofUnderside = (x: number) => STAGE_ROOF.y + Math.tan(STAGE_ROOF.slope) * (x - STAGE_ROOF.x) - STAGE_ROOF.thickness / (2 * Math.cos(STAGE_ROOF.slope));
-export const STALL_YAWS: Readonly<Record<string, number>> = { "flowers-stall": 190 * Math.PI / 180, "fruit-stall": 190 * Math.PI / 180, "festival-stall-south": Math.PI };
+/** At yaw 0 a stall's front faces +z, so PI turns the south-side stalls square to those across the aisle. */
+export const STALL_YAWS: Readonly<Record<string, number>> = { "flowers-stall": Math.PI, "fruit-stall": Math.PI, "festival-stall-south": Math.PI };
 export const stallPoint = (x: number, z: number, yaw: number, dx: number, dz: number) => ({ x: x + Math.cos(yaw) * dx + Math.sin(yaw) * dz, z: z - Math.sin(yaw) * dx + Math.cos(yaw) * dz });
 /** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
 export const CHEST_SCALE = 1.5;
@@ -177,7 +178,7 @@ export const SPOTS: Record<string, Position> = {
 const home = (district: DistrictId, x: number, z: number, y = 0, yaw = 0): NpcPlacement => ({ district, x, y, z, yaw });
 export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
   pom: home("square", 2.6, -8), ume: home("square", benchPoint(0, 1.15).x, benchPoint(0, 1.15).z, 0, GRANDMA_BENCH_YAW), ken: home("square", 9, 6, 0, Math.PI / 2),
-  bruno: home("market", 30, -4), lily: home("market", 30, 4), max: home("market", 45, -4), sara: home("market", 45, 4),
+  bruno: home("market", 30, -4), lily: home("market", 30, 4, 0, Math.PI), max: home("market", 45, -4), sara: home("market", 45, 4, 0, Math.PI),
   green: home("school", 5, -36), page: home("school", -14.4, -40.5, 0.12), yuki: home("school", -4, -35),
   tom: home("school", 9, -30), emma: home("school", 9, -44), bo: home("harbor", 5, 33, 0.12), finn: home("harbor", 8, 47, 0.12, -Math.PI / 2),
   mia: home("harbor", 19, 34), leo: home("harbor", -8, 32, 0, -Math.PI / 2), dan: home("festival", -52, -4, 0, 0.6), aya: home("festival", -44, 8)

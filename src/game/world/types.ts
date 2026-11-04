@@ -38,6 +38,8 @@ export interface WorldRuntime {
   schoolGateMotion?: { displacement: number; wheelRotation: number; wheelRadius: number; travel: number };
   /** The campaign's school reveal waits for its gate camera shot. */
   schoolGateHeld?: boolean;
+  /** Keeps the raised bridge still until its unlock shot, as schoolGateHeld does for the gate. */
+  bridgeGateHeld?: boolean;
   player: Position & { yaw: number; speed: number };
   locked: boolean;
   bottomPanel: number;

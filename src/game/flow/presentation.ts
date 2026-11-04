@@ -233,7 +233,6 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
     const introSay = async (beat: SayBeat) => { if (!skip?.aborted) await say(beat); };
     audio.celebrate(false);
     if (chapter === 1) {
-      const started = Date.now();
       world.playCutscene("intro");
       world.fx({ kind: "wind", from: { x: 14, y: 1.6, z: 1 }, targets: ITEM_IDS.map((_, index) => ({ ...DISTRICTS[CHAPTERS[(index % 5 + 1) as ChapterId].district], y: 1.1 })) });
       await pause(3600);
@@ -242,8 +241,6 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
       await introSay({ kind: "say", speaker: "pom", ...L.mayorBackpack, gesture: "give" });
       if (!skip?.aborted) world.setKiwi("hint", playerHand());
       await introSay({ kind: "say", speaker: "kiwi", ...K.hello });
-      // The introduction remains a real cutscene with stubbed TTS, too.
-      await pause(Math.max(0, 25_000 - (Date.now() - started)));
       world.setKiwi("follow");
     } else if (chapter === 2) {
       await say({ kind: "say", speaker: "pom", ...L.mayorMarketPen, gesture: "give", showItem: "pen" });
@@ -286,14 +283,16 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
     if (replay || chapter === 5) { world.setCamera({ mode: "follow" }); return; }
     world.playCutscene(gateScenes[chapter]);
     audio.play("correct");
-    if (chapter === 2) {
-      // Let the camera arrive before the full three-second school-gate travel.
+    if (chapter === 2 || chapter === 3) {
+      // Let the camera arrive before the full three-second gate travel.
       await wait(700);
-      world.runtime.schoolGateHeld = false;
+      const gate = chapter === 2 ? "school" : "bridge";
+      if (gate === "school") world.runtime.schoolGateHeld = false;
+      else world.runtime.bridgeGateHeld = false;
       await wait(3500);
-      // A slow/backgrounded renderer must finish the actual slide before a
+      // A slow/backgrounded renderer must finish the actual motion before a
       // new-area card can cover it. Headless flows have no renderer to await.
-      while (world.runtime.state.gates.school && world.runtime.gateProgress && world.runtime.gateProgress.school < 1) await wait(16);
+      while (world.runtime.state.gates[gate] && world.runtime.gateProgress && world.runtime.gateProgress[gate] < 1) await wait(16);
     } else await wait(2300);
     const district = CHAPTERS[chapter].unlocks!;
     await ui.card({ kind: "new-area", title: "New area!", ja: DISTRICT_NAMES[district].ja });
@@ -374,6 +373,7 @@ export function createPresenter(world: WorldAPI, ui: UIAPI) {
   function reset(): void {
     gathered = false;
     world.runtime.schoolGateHeld = false;
+    world.runtime.bridgeGateHeld = false;
     world.setParty(false);
     world.setFinale("none");
     world.holdDecorations(null);

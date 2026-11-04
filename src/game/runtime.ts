@@ -5,7 +5,7 @@ import { CHEST_SCALE, chestPose, GATE_POSITIONS, npcPosition, SPOTS } from "./wo
 import type { CameraCommand, CameraKey, FinaleStage, FxCommand, GateId, Gates, Interaction, NpcCommand, Point, Position, WorldRuntime, WorldState } from "./world/types";
 import type { Expression, RigGesture, RigState } from "../scene/models/people";
 import { CHEST_SLOTS } from "../scene/models/festivalChest";
-import { SCHOOL_GATE_SECONDS } from "../scene/town/schoolGate";
+import { BRIDGE_SECONDS, SCHOOL_GATE_SECONDS } from "../scene/town/schoolGate";
 
 /** Adapter only: world rendering never decides or applies game rules. */
 export function worldStateFromGame(game: GameState): WorldState {
@@ -85,6 +85,11 @@ function cutsceneKeys(name: "intro" | "cart" | "school" | "bridge" | "arch" | "f
       { position: { x: pose.x + 6.6, y: 2.9, z: pose.z }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
     ];
   }
+  if (name === "bridge") return [
+    // From the square's side, with the whole span and its hinge in frame while it lowers.
+    { position: { x: 10, y: 9, z: 9 }, target: { x: 0, y: 1.2, z: 24 }, duration: BRIDGE_SECONDS + 0.9 },
+    { position: { x: 10, y: 9, z: 9 }, target: { x: 0, y: 1.2, z: 24 }, duration: 0.3 }
+  ];
   if (name === "school") return [
     // Keep the closed span and its entire eastward parking bay in frame.
     { position: { x: 4, y: 6.8, z: -5 }, target: { x: 4, y: 1.4, z: -22 }, duration: SCHOOL_GATE_SECONDS + 0.9 },
@@ -120,6 +125,7 @@ export function createWorld(initial: WorldState): WorldAPI {
     setState(state, options) {
       runtime.state = structuredClone(state); runtime.revision++;
       if (options?.settleGates || !state.gates.school) runtime.schoolGateHeld = false;
+      if (options?.settleGates || !state.gates.bridge) runtime.bridgeGateHeld = false;
       if (options?.settleGates && runtime.gateProgress) {
         for (const id of Object.keys(state.gates) as GateId[]) runtime.gateProgress[id] = state.gates[id] ? 1 : 0;
       }
