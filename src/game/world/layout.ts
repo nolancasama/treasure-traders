@@ -2,9 +2,9 @@ import type { ChapterId, DistrictId, NpcId } from "../content/ids";
 import { NPC_IDS } from "../content/ids";
 import type { Placement } from "../logic/objectives";
 import type { GateId, NpcPlacement, Point, Position } from "./types";
-import { FOLLOW_CAMERA } from "./followCamera";
+import { SQUARE_CAMERA } from "./followCamera";
 
-export const GRANDMA_BENCH_YAW = Math.atan2(FOLLOW_CAMERA.offset.x, FOLLOW_CAMERA.offset.z);
+export const GRANDMA_BENCH_YAW = Math.atan2(SQUARE_CAMERA.offset.x, SQUARE_CAMERA.offset.z);
 const benchPoint = (x: number, z: number) => ({
   x: -10 + Math.cos(GRANDMA_BENCH_YAW) * x + Math.sin(GRANDMA_BENCH_YAW) * z,
   z: 4 - Math.sin(GRANDMA_BENCH_YAW) * x + Math.cos(GRANDMA_BENCH_YAW) * z
