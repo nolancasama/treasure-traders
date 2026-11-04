@@ -750,7 +750,8 @@ The teacher's list of 22 problems, reviewed against the source before work began
   target half a metre north. Movement still follows the actual eased camera yaw.
   Authored conversations and paths retain their angles, except chest close-ups.
   This supersedes the earlier square-only alignment and camera-derived bench yaw.
-- **Ume's bench has its own world frame.** Its centre is (-12.6,8.2), yaw PI/2,
+- **Ume's bench has its own world frame.** Its centre is (-10.6,8.2), east of the lamp's
+  line because the first placement at x=-12.6 put the lamp column across Ume on screen, yaw PI/2,
   with Ume facing the fountain along +x. Seat, interaction home, geometry and
   collision share that frame; the south end leaves 0.79m before lamp-square-0's
   collision circle. The flowerbed and its eraser move together to (-9.8,-6.2),
@@ -766,8 +767,9 @@ The teacher's list of 22 problems, reviewed against the source before work began
   during the transition with the new yaw.
 - **Harbor balloons clear the whole sign board.** The -7 post cluster moves to
   -4. The radius-inclusive sign check also catches -13, so that cluster moves to
-  -16, sharing the existing cluster's post while preserving all eight clusters,
-  their order, colours and offsets as specified.
+  the free post at 5, flanking the bridge opposite -4. Rejected: sharing post -16,
+  which would stack two identical clusters in the same place. All eight clusters,
+  their colours and offsets are preserved.
 - **The Festival chest is centred on the stage sun.** Chapter 5 uses (-63,0.6,0),
   yaw zero, between the drums. Chest close-ups look straight from +z above the
   south drum; fireworks originate at the moved chest and the cast stays clear.

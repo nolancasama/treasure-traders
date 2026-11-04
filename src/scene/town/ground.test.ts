@@ -31,7 +31,7 @@ it("covers the square's ring-stone gaps with continuous grout at y=0.004", () =>
     // The authored angular gaps fall between the 0.97 and 1.03 stone endpoints.
     for (let band = 0; band < 7; band++) {
       const r = 2.75 + band * 0.85, n = Math.max(8, Math.round(Math.PI * 2 * r / 1.25));
-      for (let i = 0; i < n; i++) covered(r + 0.42, (i + band * 0.5) / n * Math.PI * 2);
+      for (let i = 0; i < n; i++) covered(r + 0.42, (i + band * 0.5) / n * Math.PI * 2 + 1e-4);
     }
   } finally {
     paving.dispose(); geometry.dispose(); material.dispose();

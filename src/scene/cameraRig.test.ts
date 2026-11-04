@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { NPC_IDS, type NpcId } from "../game/content/ids";
 import { CLOSED, OPEN, isWalkable } from "../game/world/collision";
-import { HOUSES, NPC_HOMES, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose } from "../game/world/layout";
+import { HOUSES, NPC_HOMES, SOLIDS, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose } from "../game/world/layout";
 import { DISTRICT_IDS } from "../game/content/ids";
 import { blockedHeads, CAMERA_BLOCKERS, conversationShot, segmentHits, type Blocker } from "./cameraRig";
 import { createWorld, worldStateFromGame } from "../game/runtime";
@@ -92,7 +92,9 @@ describe("finale staging", () => {
     const shot = world.runtime.camera, pose = chestPose(5);
     expect(shot.mode).toBe("path");
     if (shot.mode !== "path") throw new Error("Missing finale path");
-    const drum = CAMERA_BLOCKERS.find(b => b.id === "stage-drum-1")!;
+    const solid = SOLIDS.find(s => s.id === "stage-drum-1")!;
+    if (solid.kind !== "box") throw new Error("Missing south drum");
+    const drum = { x: solid.x, z: solid.z, hx: solid.hx, hz: solid.hz, y0: solid.y, y1: solid.y + solid.height };
     for (const key of shot.keys) {
       expect(key.position.x).toBe(pose.x);
       expect(key.target.x).toBe(pose.x);

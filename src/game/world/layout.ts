@@ -3,7 +3,8 @@ import { NPC_IDS } from "../content/ids";
 import type { Placement } from "../logic/objectives";
 import type { GateId, NpcPlacement, Point, Position } from "./types";
 
-export const GRANDMA_BENCH_CENTER = { x: -12.6, z: 8.2 };
+/** East of the lamp's line: straight north of it, the lamp column would cross Ume on screen. */
+export const GRANDMA_BENCH_CENTER = { x: -10.6, z: 8.2 };
 export const GRANDMA_BENCH_YAW = Math.PI / 2;
 const benchPoint = (x: number, z: number) => ({
   x: GRANDMA_BENCH_CENTER.x + Math.cos(GRANDMA_BENCH_YAW) * x + Math.sin(GRANDMA_BENCH_YAW) * z,

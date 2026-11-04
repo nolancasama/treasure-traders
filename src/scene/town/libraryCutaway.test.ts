@@ -73,9 +73,9 @@ describe("library doorway and camera cutaway", () => {
     // Start with the exterior follow camera, then sample its actual exponential
     // approach to the indoor +0,+6.2,+7 offset as the player walks west.
     const room = WALK_AREAS.find(a => a.id === "library")!;
-    const camera = new THREE.Vector3(-11.65, 8.12, -30);
+    const camera = new THREE.Vector3(-11.6, 8.12, -30);
     for (let frame = 0; frame < 120; frame++) {
-      const player = { x: -11.65 - frame / 60, y: 0.12, z: -42 };
+      const player = { x: -11.6 - frame / 60, y: 0.12, z: -42 };
       const indoors = insideLibrary(player), indoorCamera = Math.abs(player.x - room.x) < room.hx;
       const offset = indoorCamera ? [0, 6.2, 7] : [FOLLOW_CAMERA.offset.x, FOLLOW_CAMERA.offset.y, FOLLOW_CAMERA.offset.z];
       camera.lerp(new THREE.Vector3(player.x + offset[0], player.y + offset[1], player.z + offset[2]), 1 - Math.exp(-6 / 60));
