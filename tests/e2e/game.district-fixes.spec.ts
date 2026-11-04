@@ -11,6 +11,7 @@ interface Sample extends Point { yaw: number; latch: number | null }
 interface Hook {
   read(): GameRead;
   teleport(at: Point): void;
+  project(target: { kind: "seaChest" }): { x: number; y: number; visible: boolean } | null;
   projectPoint(at: Point & { y: number }): { x: number; y: number; visible: boolean };
   readGates(): { cameraYaw: number; manualInputYaw: number | null; camera: { mode: string } };
   readScenery(): { cameraPosition: Point & { y: number }; finale: string; lidAngle: number | null; walkable: boolean };
