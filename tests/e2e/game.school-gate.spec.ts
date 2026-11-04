@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { approach, openGame, play, read, type GameRead } from "./game.helpers";
 import type { Intent } from "../../src/game/logic/plan";
 import type { Interaction } from "../../src/game/world/types";
@@ -38,19 +38,29 @@ const playable = (s: GameRead) => s.phase === "playing" && !s.busy && !s.prompt 
 async function keyboardTo(page: Page, target: { x: number; z: number }, schoolOpen = true) {
   let held: string[] = [];
   const deadline = Date.now() + 60_000;
+  // No progress means a wall or corner is in the way. Like a player steering
+  // round it, hold one axis alone for a moment, taking turns between the axes.
+  let closest = Infinity, stalledFrames = 0, detourFrames = 0, detourMinor = true;
   try {
     while (Date.now() < deadline) {
       const s = await read(page), g = await gates(page);
       if (schoolOpen) expect(g.progress?.school, "school remains fully open during keyboard travel").toBe(1);
-      const dx = target.x - s.position.x, dz = target.z - s.position.z;
-      if (Math.hypot(dx, dz) < 0.35) return;
+      const dx = target.x - s.position.x, dz = target.z - s.position.z, distance = Math.hypot(dx, dz);
+      if (distance < 0.35) return;
+      if (distance < closest - 0.05) { closest = distance; stalledFrames = 0; }
+      else if (detourFrames === 0 && ++stalledFrames >= 20) { detourFrames = 30; stalledFrames = 0; }
       const yaw = g.manualInputYaw ?? g.cameraYaw;
       const x = dx * Math.cos(yaw) - dz * Math.sin(yaw), y = -dx * Math.sin(yaw) - dz * Math.cos(yaw);
       const magnitude = Math.hypot(x, y);
-      const wanted = [
-        ...(Math.abs(x) / magnitude > 0.12 ? [x > 0 ? "ArrowRight" : "ArrowLeft"] : []),
-        ...(Math.abs(y) / magnitude > 0.12 ? [y > 0 ? "ArrowUp" : "ArrowDown"] : [])
+      const xKey = x > 0 ? "ArrowRight" : "ArrowLeft", yKey = y > 0 ? "ArrowUp" : "ArrowDown";
+      let wanted = [
+        ...(Math.abs(x) / magnitude > 0.12 ? [xKey] : []),
+        ...(Math.abs(y) / magnitude > 0.12 ? [yKey] : [])
       ];
+      if (detourFrames > 0) {
+        wanted = [(Math.abs(x) < Math.abs(y)) === detourMinor ? xKey : yKey];
+        if (--detourFrames === 0) { detourMinor = !detourMinor; closest = Infinity; }
+      }
       for (const key of held.filter(key => !wanted.includes(key))) await page.keyboard.up(key);
       for (const key of wanted.filter(key => !held.includes(key))) await page.keyboard.down(key);
       held = wanted;
@@ -81,6 +91,7 @@ async function realApproach(page: Page, intent: Intent) {
 }
 
 test("real school unlock rolls through the stone slot, settles, and permits tap and keyboard entry", async ({ page }) => {
+  await mkdir(".tmp/shots/game", { recursive: true });
   test.setTimeout(15 * 60_000);
   await precondition("new mic-free campaign", () => openGame(page));
   await precondition("real Chapter 2 progression before school unlock", () => play(page, { approach: realApproach, until: s => s.chapter === 2 && playable(s) }));

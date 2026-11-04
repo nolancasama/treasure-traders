@@ -73,6 +73,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
       test(`${kind}, ${micFree ? "mic-free" : "mic"}: centered pill closes with real input`, async ({ page }) => {
         await openPrompt(page, kind, micFree);
         await checkLayout(page, micFree);
+        await page.screenshot({ path: `.tmp/shots/prompt/${kind}-${micFree ? "mic-free" : "mic"}-${viewport.width}x${viewport.height}.png` });
         if (kind === "ask" && !micFree) {
           await precondition("real pronunciation coach opens on an item near miss", async () => {
             const text = ["Do you have a pin?", "Do you have a pancil?", "Do you have a ruber?"].find(value => judgeAsk([value]).kind === "nearMiss");
