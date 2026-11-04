@@ -723,6 +723,9 @@ The teacher's list of 22 problems, reviewed against the source before work began
 - **A button focused by a pointer does not capture Space or Enter during a line.** Only a
   button reached with Tab keeps its own key behavior. Rejected: `:focus-visible`, which a
   key press turns on for a clicked button in Chromium, as a real-input test showed.
+- **The dialogue key handler reads live state, not an effect's captured state.** The effect
+  re-subscribes after paint, so a key pressed during a slow frame could see no line at all
+  and be lost. A real-input test caught this intermittently under SwiftShader.
 - **Gable triangles wind outward.** They were wound inward and culled from outside, which
   left a see-through hole under the library roof and on every cottage. The library's now
   sits flush with its walls' outer faces, so no ledge shows between wall and gable.

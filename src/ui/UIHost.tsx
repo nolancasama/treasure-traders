@@ -24,6 +24,9 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
   }, [ui, activePanel]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
+      // Read live: an effect re-subscribes only after paint, so on a slow frame its
+      // captured state can still be the gap between two lines, and drop the key.
+      const state = ui.getSnapshot(), speech = ui.speech.getSnapshot();
       if (event.key === "Tab") tabbed.current = true;
       // During a line these keys mean Continue, unless the child tabbed to a button on purpose.
       // A key press makes a clicked button match :focus-visible too, so that cannot tell them apart.
@@ -46,7 +49,7 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
     window.addEventListener("keydown", key);
     window.addEventListener("pointerdown", pointer, true);
     return () => { window.removeEventListener("keydown", key); window.removeEventListener("pointerdown", pointer, true); };
-  }, [ui, speech.prompt, state.screen, state.beat, state.card, state.tip]);
+  }, [ui]);
   const checkMic = async () => {
     if (speech.prompt || speech.micFree) { setMicStatus(speech.micFree ? "マイクなしモードです。" : "会話のあとでチェックしてね。"); return; }
     setMicStatus("Say ‘Yes, I do.’ / マイクに話してね。");
