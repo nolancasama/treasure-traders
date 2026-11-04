@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { ITEM_IDS } from "../../game/content/ids";
 import { findPath, isWalkable, moveCircle, OPEN, standY } from "../../game/world/collision";
 import { CHEST_SCALE, chestPose, FINALE_CREW, SOLIDS, STAGE } from "../../game/world/layout";
+import { createWorld, worldStateFromGame } from "../../game/runtime";
+import { startChapter } from "../../game/logic/state";
 import { CHEST_SLOTS, FestivalChest, festivalChestBaseGeometry, festivalChestLidGeometry, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } from "./festivalChest";
 import { itemGeometry, itemSize, plaqueGeometry } from "./items";
 import { KiwiRig } from "./kiwi";
@@ -74,6 +76,7 @@ describe("chests", () => {
     try {
       for (const chapter of [1, 5] as const) {
         const pose = chestPose(chapter);
+        const world = createWorld(worldStateFromGame(startChapter(chapter, { mode: "replay", campaignSeed: 1 })));
         chest.group.position.set(pose.x, pose.y, pose.z);
         chest.group.rotation.y = pose.yaw;
         chest.setLidOpen(0);
@@ -81,6 +84,13 @@ describe("chests", () => {
         chest.group.updateMatrixWorld(true);
         const baseAtRest = base.matrixWorld.clone();
         const slotAtRest = chest.slotWorld("pen");
+        for (const item of ITEM_IDS) {
+          const slot = world.chestSlot(item);
+          expect(chest.slotWorld(item).distanceTo(new THREE.Vector3(slot.x, slot.y, slot.z))).toBeLessThan(1e-8);
+          if (chapter === 5) expect(slot.x).toBeGreaterThan(pose.x);
+        }
+        expect(chest.mouth.x).toBeCloseTo(pose.x);
+        expect(chest.mouth.z).toBeCloseTo(pose.z);
         chest.setLidOpen(1);
         for (let frame = 0; frame < 180; frame++) {
           chest.update(1 / 60);
@@ -131,12 +141,12 @@ describe("chests", () => {
 
   it("centres the stage chest between the drums with clear scenery and walking routes", () => {
     const pose = chestPose(5);
-    expect(pose).toEqual({ x: -63, y: 0.6, z: 0, yaw: 0 });
+    expect(pose).toEqual({ x: -63, y: 0.6, z: 0, yaw: Math.PI / 2 });
     expect(chestPose(1)).toEqual({ x: 0, y: 0.15, z: -8, yaw: 0 });
     const chest = SOLIDS.find(s => s.id === "stage-chest")!;
     expect(chest).toMatchObject({ x: pose.x, z: pose.z, y: pose.y, yaw: pose.yaw });
     const base = festivalChestBaseGeometry(), lid = festivalChestLidGeometry();
-    const root = new THREE.Matrix4().makeScale(CHEST_SCALE, CHEST_SCALE, CHEST_SCALE).setPosition(pose.x, pose.y, pose.z);
+    const root = new THREE.Matrix4().compose(new THREE.Vector3(pose.x, pose.y, pose.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.yaw), new THREE.Vector3().setScalar(CHEST_SCALE));
     try {
       base.computeBoundingBox(); lid.computeBoundingBox();
       for (const angle of [0, 0.95, 1.9]) {

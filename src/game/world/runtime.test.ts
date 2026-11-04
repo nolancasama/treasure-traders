@@ -4,6 +4,7 @@ import { createWorld, worldStateFromGame } from "../runtime";
 import { stepController } from "../../scene/WorldController";
 import { TapTracker } from "../../input/tap";
 import { isWalkable } from "./collision";
+import { followYaw } from "../../scene/cameraRig";
 
 const make = () => createWorld(worldStateFromGame(startChapter(1, { mode: "replay", campaignSeed: 1 })));
 describe("frozen world integration surface", () => {
@@ -38,6 +39,37 @@ describe("frozen world integration surface", () => {
     expect(world.walkTo({ x: 6, z: 8 })).toBe(false);
     world.setInputLocked(false); stepController(world, 0.1, { x: 1, y: 0 });
     expect(world.runtime.player.x).toBeCloseTo(0.45);
+  });
+  it("holds a manual heading through each camera turn, then uses the new frame on a fresh press", () => {
+    for (const side of [1, -1]) {
+      const world = createWorld(worldStateFromGame(startChapter(5, { mode: "replay", campaignSeed: 1 })));
+      world.teleport({ x: side > 0 ? 18 : -22, z: 0 });
+      const rt = world.runtime, start = { ...rt.player };
+      for (let frame = 0; frame < 17; frame++) {
+        rt.cameraYaw = followYaw(rt.player);
+        stepController(world, 0.1, { x: side, y: 0 });
+        expect(rt.player.z).toBeCloseTo(start.z, 12);
+        expect(rt.player.x).toBeCloseTo(start.x + side * (frame + 1) * 0.45, 10);
+        expect(rt.manualInputYaw).toBe(0);
+      }
+      rt.cameraYaw = followYaw(rt.player);
+      expect(rt.cameraYaw).toBeCloseTo(-side * Math.PI / 2);
+      stepController(world, 0.1, { x: 0, y: 0, held: true });
+      expect(rt.manualInputYaw).toBe(0);
+      stepController(world, 0.1);
+      expect(rt.manualInputYaw).toBeNull();
+      const before = { ...rt.player };
+      stepController(world, 0.1, { x: 0, y: 1 });
+      expect(rt.player.x).toBeCloseTo(before.x + side * 0.45);
+      expect(rt.player.z).toBeCloseTo(before.z);
+      world.setInputLocked(true);
+      expect(rt.manualInputYaw).toBeNull();
+      rt.cameraYaw = 0;
+      world.setInputLocked(false);
+      stepController(world, 0.1, { x: 0, y: 1 });
+      expect(rt.player.z).toBeCloseTo(before.z - 0.45);
+      expect(rt.manualInputYaw).toBe(0);
+    }
   });
   it("keeps a tapped approach when an already-unlocked world is unlocked again", () => {
     const world = make(), calls: string[] = [];

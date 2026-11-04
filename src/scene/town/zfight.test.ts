@@ -16,7 +16,7 @@ const regions: AuditRegion[] = [
   { name: "school-gate-ground", min: [-5.1, -0.6, -24], max: [13.5, 0.06, -19], gated: true },
   { name: "bench", min: [-13.3, 0.001, 6.2], max: [-11.9, 1.3, 10.2], gated: true },
   { name: "festival-chest", min: [-2, 0, -10], max: [2, 2.3, -6], gated: true },
-  { name: "stage-chest", min: [-64.7, 0.59, -2.2], max: [-61.3, 3.6, 2.2], gated: true },
+  { name: "stage-chest", min: [-64.7, 0.59, -1.7], max: [-61.3, 3.6, 1.7], gated: true },
   ...HOUSES.map((h): AuditRegion => ({
     name: `${h.x === 20.5 && h.z === -24.8 ? "northeast-house" : h.x === 27.8 && h.z === 32.4 ? "east-harbor-house" : "house"}(${h.x},${h.z})`,
     min: [h.x - h.w / 2 - 0.65, -0.1, h.z - h.d / 2 - 0.65],
@@ -42,6 +42,20 @@ function chestMeshes(chapter: 1 | 5, filled = false, lidAngle = 0): AuditMesh[] 
 }
 
 describe("static scenery z-fighting audit (different-colour triangle pairs)", () => {
+  it("audits the Festival chest in its east-facing stage frame", () => {
+    expect(chestPose(5)).toEqual({ x: -63, y: 0.6, z: 0, yaw: Math.PI / 2 });
+    for (const angle of [0, 0.95, 1.9]) {
+      const meshes = chestMeshes(5, false, angle), region = regions.find(r => r.name === "stage-chest")!;
+      for (const mesh of meshes) {
+        const bounds = new THREE.Box3().setFromBufferAttribute(mesh.geometry.getAttribute("position") as THREE.BufferAttribute).applyMatrix4(mesh.matrix!);
+        expect(bounds.min.x).toBeGreaterThanOrEqual(region.min[0]);
+        expect(bounds.max.x).toBeLessThanOrEqual(region.max[0]);
+        expect(bounds.min.z).toBeGreaterThanOrEqual(region.min[2]);
+        expect(bounds.max.z).toBeLessThanOrEqual(region.max[2]);
+        mesh.geometry.dispose();
+      }
+    }
+  });
   const synthetic: AuditRegion[] = [{ name: "control", min: [-5, -1, -5], max: [5, 1, 5] }];
   const quad = (name: string, x: number, y: number, color: string): AuditMesh => ({ name, geometry: new QuadWriter().rect(x, 0, x + 1, 1, y, color).build() });
   it("flags known-bad overlapping coplanar quads, including their object names", () => {

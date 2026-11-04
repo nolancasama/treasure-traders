@@ -54,19 +54,21 @@ export function approachInteraction(world: WorldAPI, target: Interaction): void 
 }
 
 /** Pure per-frame movement; dt clamping and collision substeps handle stalls. */
-export function stepController(world: WorldAPI, dt: number, input = { x: 0, y: 0 }): void {
+export function stepController(world: WorldAPI, dt: number, input: { x: number; y: number; held?: boolean } = { x: 0, y: 0 }): void {
   const rt = world.runtime, p = rt.player;
   dt = Math.min(Math.max(dt, 0), 0.1);
   rt.time += dt;
-  if (rt.locked) { p.speed = 0; rt.focus = null; return; }
+  if (rt.locked) { p.speed = 0; rt.focus = null; rt.manualInputYaw = null; return; }
   let dx = 0, dz = 0;
   const manual = Math.hypot(input.x, input.y);
   if (manual > 0) {
     rt.path = []; rt.pending = null; rt.deferredWalk = null;
-    const c = Math.cos(rt.cameraYaw), s = Math.sin(rt.cameraYaw);
+    rt.manualInputYaw ??= rt.cameraYaw;
+    const c = Math.cos(rt.manualInputYaw), s = Math.sin(rt.manualInputYaw);
     dx = (input.x * c - input.y * s) / manual;
     dz = (-input.x * s - input.y * c) / manual;
   } else {
+    if (!input.held) rt.manualInputYaw = null;
     if (rt.deferredWalk) world.walkTo(rt.deferredWalk.point, rt.deferredWalk.interact);
     const pendingPosition = rt.pending && world.positionOf(rt.pending);
     if (pendingPosition && canInteract(p, { target: rt.pending!, position: pendingPosition }, navigationGates(rt))) {

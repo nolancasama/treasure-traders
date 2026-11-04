@@ -167,7 +167,7 @@ function makeTown(runtime: WorldRuntime): TownScene {
   root.add(roundShadows);
   const rects: [number, number, number, number, number][] = [];
   for (const h of HOUSES) rects.push([h.x + SHADOW_DROP.x * 7, h.z + SHADOW_DROP.z * 7, h.w + 2, h.d + 2, GRASS_Y + 0.012]);
-  for (const s of SOLIDS) if (s.kind === "box" && !s.id.includes("wall") && !s.id.includes("east-") && !s.id.startsWith("library-") && s.id !== "grandma-bench" && s.id !== "festival-chest-base") {
+  for (const s of SOLIDS) if (s.kind === "box" && !s.id.includes("wall") && !s.id.includes("east-") && !s.id.startsWith("library-") && !s.id.startsWith("harbor-rope-") && s.id !== "grandma-bench" && s.id !== "festival-chest-base") {
     const drop = s.height > 2 ? 3 : 1.4;
     rects.push([s.x + SHADOW_DROP.x * drop, s.z + SHADOW_DROP.z * drop, s.hx * 2 + 1, s.hz * 2 + 1, 0.012]);
   }

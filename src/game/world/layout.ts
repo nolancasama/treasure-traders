@@ -21,10 +21,14 @@ interface SolidBase { id: string; district: DistrictId; x: number; z: number; y:
 export type Solid = (SolidBase & { kind: "box"; hx: number; hz: number; yaw: number }) | (SolidBase & { kind: "circle"; r: number });
 /** Visual platform dimensions; only its edges obstruct walking. */
 export const STAGE = { id: "stage", district: "festival", kind: "box", x: -62, z: 0, hx: 3, hz: 6, height: 0.6, y: 0, yaw: 0 } as const;
+export const STAGE_ROOF = { x: STAGE.x - 0.25, y: 5.42, width: 5.8, thickness: 0.14, slope: 0.1 } as const;
+export const stageRoofUnderside = (x: number) => STAGE_ROOF.y + Math.tan(STAGE_ROOF.slope) * (x - STAGE_ROOF.x) - STAGE_ROOF.thickness / (2 * Math.cos(STAGE_ROOF.slope));
+export const STALL_YAWS: Readonly<Record<string, number>> = { "flowers-stall": 190 * Math.PI / 180, "fruit-stall": 190 * Math.PI / 180, "festival-stall-south": Math.PI };
+export const stallPoint = (x: number, z: number, yaw: number, dx: number, dz: number) => ({ x: x + Math.cos(yaw) * dx + Math.sin(yaw) * dz, z: z - Math.sin(yaw) * dx + Math.cos(yaw) * dz });
 /** The chest stands in the square, then on the festival stage for Chapter 5 (SPEC §6.5). */
 export const CHEST_SCALE = 1.5;
 export const chestPose = (chapter: ChapterId) => chapter === 5
-  ? { x: -63, y: 0.6, z: 0, yaw: 0 }
+  ? { x: -63, y: 0.6, z: 0, yaw: Math.PI / 2 }
   : { x: 0, y: 0.15, z: -8, yaw: 0 };
 export const DISTRICTS: Record<DistrictId, Point> = {
   square: { x: 0, z: 0 }, market: { x: 37, z: 0 }, school: { x: 0, z: -36 },
@@ -77,9 +81,9 @@ export const SOLIDS: readonly Solid[] = [
   // Corner planters keep the middle of the square open for walking and tapping.
   ...([[-15.5, -15.5], [15.5, -15.5], [-15.5, 15.5], [15.5, 15.5]] as const).map(([x, z], i): Solid => ({ id: `square-planter-${i}`, district: "square", kind: "circle", x, z, r: 1.15, y: 0, height: 0.75 })),
   box("bakery-stall", "market", 30, -7, 3.3, 1.8, 1.1),
-  box("flowers-stall", "market", 30, 7, 3.3, 1.8, 1.1),
+  { ...box("flowers-stall", "market", 30, 7, 3.3, 1.8, 1.1), yaw: STALL_YAWS["flowers-stall"] },
   box("toys-stall", "market", 45, -7, 3.3, 1.8, 1.1),
-  box("fruit-stall", "market", 45, 7, 3.3, 1.8, 1.1),
+  { ...box("fruit-stall", "market", 45, 7, 3.3, 1.8, 1.1), yaw: STALL_YAWS["fruit-stall"] },
   box("school-building", "school", 2, -52, 12, 3, 5),
   box("lost-found", "school", 5, -39, 2, 1, 1),
   box("school-flowers-west", "school", -8, -29, 2.5, 0.65, 0.4),
@@ -105,6 +109,9 @@ export const SOLIDS: readonly Solid[] = [
   // Bridge rope/post footprint: the player stays inside the visible 4.9m rails.
   box("bridge-rail-west", "harbor", -2.45, 24, 0.12, 6.8, 1.2, 0.12),
   box("bridge-rail-east", "harbor", 2.45, 24, 0.12, 6.8, 1.2, 0.12),
+  // Only the first east pier span crosses the walkable bank. The west edge is open.
+  box("harbor-rope-span-34", "harbor", 11.15, 35.5, 0.025, 1.5, 0.16, 0.76),
+  ...[34, 37].map(z => box(`harbor-rope-post-${z}`, "harbor", 11.15, z, 0.18, 0.18, 1.4, -0.1)),
   box("stage-back-edge", "festival", -65, 0, 0.175, 6.3, 5.4),
   box("stage-north-edge", "festival", -62, -6, 3, 0.08, 0.6),
   box("stage-south-edge", "festival", -62, 6, 3, 0.08, 0.6),
@@ -113,11 +120,11 @@ export const SOLIDS: readonly Solid[] = [
     box(`stage-step-side-${side}`, "festival", -58.05, side * 1.74, 0.95, 0.04, 0.6),
     box(`stage-curtain-${side}`, "festival", -64.58, side * 4.3, 0.34, 1.34, 4.4, 0.6),
     box(`stage-drum-${side}`, "festival", -63, side * 3.4, 0.45, 0.5, 1.24, 0.6),
-    ...[-60.5, -64.4].map((x) => box(`stage-post-${side}-${x}`, "festival", x, side * 5.2, 0.35, 0.35, 5.1))
+    ...[-60.5, -64.4].map((x) => box(`stage-post-${side}-${x}`, "festival", x, side * 5.2, 0.35, 0.35, stageRoofUnderside(x)))
   ]),
   { ...box("stage-chest", "festival", chestPose(5).x, chestPose(5).z, 0.84 * CHEST_SCALE, 0.5 * CHEST_SCALE, 1.2 * CHEST_SCALE, 0.6), yaw: chestPose(5).yaw },
   box("festival-stall-north", "festival", -43, -12, 3, 1.5, 1.1),
-  box("festival-stall-south", "festival", -43, 12, 3, 1.5, 1.1),
+  { ...box("festival-stall-south", "festival", -43, 12, 3, 1.5, 1.1), yaw: STALL_YAWS["festival-stall-south"] },
   box("grounds-crate", "festival", -54, -10, 0.8, 0.8, 0.7),
   box("grounds-basket", "festival", -33, 10, 0.7, 0.7, 0.5),
   // Festival Grounds furniture keeps to the edges so the field stays a gathering space.

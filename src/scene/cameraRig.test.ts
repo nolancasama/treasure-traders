@@ -1,13 +1,45 @@
 import { describe, expect, it } from "vitest";
 import { NPC_IDS, type NpcId } from "../game/content/ids";
 import { CLOSED, OPEN, isWalkable } from "../game/world/collision";
-import { HOUSES, NPC_HOMES, SOLIDS, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose } from "../game/world/layout";
+import { HOUSES, NPC_HOMES, SOLIDS, TREES, FINALE_CREW, FINALE_VIEW, npcPosition, STAGE, chestPose, WALK_AREAS } from "../game/world/layout";
+import { FOLLOW_CAMERA } from "../game/world/followCamera";
 import { DISTRICT_IDS } from "../game/content/ids";
-import { blockedHeads, CAMERA_BLOCKERS, conversationShot, segmentHits, type Blocker } from "./cameraRig";
+import { blockedHeads, CAMERA_BLOCKERS, conversationShot, followOffset, followYaw, segmentHits, type Blocker } from "./cameraRig";
 import { createWorld, worldStateFromGame } from "../game/runtime";
 import { startChapter } from "../game/logic/state";
 
 const at = (x: number, y: number, z: number) => ({ x, y, z });
+
+describe("district follow camera", () => {
+  it("uses the frozen district angles with smooth six-metre rectangular blends", () => {
+    for (const [x, expected] of [[18, 0], [21, -Math.PI / 4], [24, -Math.PI / 2], [45, -Math.PI / 2], [-22, 0], [-25, Math.PI / 4], [-28, Math.PI / 2], [-63, Math.PI / 2]]) {
+      expect(followYaw({ x, z: 0 })).toBeCloseTo(expected, 12);
+    }
+    expect(followYaw({ x: 30, z: 15 })).toBeCloseTo(-Math.PI / 4, 12);
+    expect(followYaw({ x: -40, z: 21 })).toBeCloseTo(Math.PI / 4, 12);
+    const t = Math.hypot(3, 3) / 6, cornerWeight = 1 - t * t * (3 - 2 * t);
+    expect(followYaw({ x: 21, z: 15 })).toBeCloseTo(-Math.PI / 2 * cornerWeight, 12);
+    for (const edge of [18, 24, -22, -28]) expect(Math.abs(followYaw({ x: edge - 0.0001, z: 0 }) - followYaw({ x: edge + 0.0001, z: 0 }))).toBeLessThan(1e-7);
+  });
+
+  it("keeps the entire square, bridge, school, library and harbor at exactly zero yaw", () => {
+    for (const area of WALK_AREAS.filter(a => a.id === "square" || ["school", "harbor"].includes(a.district))) {
+      for (let ix = -1; ix <= 1; ix++) for (let iz = -1; iz <= 1; iz++) {
+        const p = { x: area.x + ix * area.hx, z: area.z + iz * area.hz };
+        expect(followYaw(p), `${area.id}: ${p.x},${p.z}`).toBe(0);
+      }
+    }
+  });
+
+  it("keeps the follow radius and height through both turns", () => {
+    for (let x = -34; x <= 30; x += 0.25) for (const z of [0, 11, 15, 18, 21]) {
+      const offset = followOffset({ x, z });
+      expect(Math.hypot(offset.x, offset.z)).toBeCloseTo(FOLLOW_CAMERA.radius, 12);
+      expect(offset.y).toBe(8);
+    }
+    expect(FOLLOW_CAMERA.targetHeight).toBe(0.8);
+  });
+});
 
 /** Where a child can actually stand to talk to someone: every side within reach. */
 function approaches(target: { x: number; y: number; z: number }) {
@@ -86,22 +118,25 @@ describe("decorative scenery stays out of the way", () => {
 });
 
 describe("finale staging", () => {
-  it("frames the moved chest straight from +z above the south drum", () => {
+  it("frames the moved chest straight from +x, beneath the stage header and clear of drums", () => {
     const world = createWorld(worldStateFromGame(startChapter(5, { mode: "campaign", campaignSeed: 101 })));
     world.playCutscene("finale");
     const shot = world.runtime.camera, pose = chestPose(5);
     expect(shot.mode).toBe("path");
     if (shot.mode !== "path") throw new Error("Missing finale path");
-    const solid = SOLIDS.find(s => s.id === "stage-drum-1")!;
-    if (solid.kind !== "box") throw new Error("Missing south drum");
-    const drum = { x: solid.x, z: solid.z, hx: solid.hx, hz: solid.hz, y0: solid.y, y1: solid.y + solid.height };
+    const blockers: Blocker[] = SOLIDS.filter(s => s.id.startsWith("stage-drum-") || s.id === "stage-back-edge").map(s => {
+      if (s.kind !== "box") throw new Error("Missing stage furniture");
+      return { x: s.x, z: s.z, hx: s.hx, hz: s.hz, y0: s.y, y1: s.y + s.height };
+    });
+    blockers.push({ x: -59.28, z: 0, hx: 0.15, hz: 4.5, y0: 4.1, y1: 5.14 });
     for (const key of shot.keys) {
-      expect(key.position.x).toBe(pose.x);
+      expect(key.position.x).toBeGreaterThan(pose.x);
       expect(key.target.x).toBe(pose.x);
       expect(key.target.z).toBe(pose.z);
-      expect(key.position.z).toBeGreaterThan(pose.z);
-      expect(segmentHits(key.position, key.target, drum)).toBe(false);
+      expect(key.position.z).toBe(pose.z);
+      for (const blocker of blockers) expect(segmentHits(key.position, key.target, blocker)).toBe(false);
     }
+    expect(segmentHits({ x: pose.x + 9, y: 3.8, z: pose.z }, { x: pose.x, y: 2.8, z: pose.z }, blockers.at(-1)!)).toBe(false);
   });
 
   it("every gathered character stands on open ground, clear of the camera and of each other", () => {

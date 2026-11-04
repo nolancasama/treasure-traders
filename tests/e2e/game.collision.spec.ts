@@ -12,7 +12,7 @@ interface WorldHook {
   setGate(id: string, open: boolean): void;
   projectPoint(point: { x: number; y: number; z: number }): { x: number; y: number; visible: boolean };
   project(target: Interaction): { x: number; y: number; visible: boolean } | null;
-  readGates(): { progress: Record<string, number> | null; open: Record<string, boolean>; cameraYaw: number };
+  readGates(): { progress: Record<string, number> | null; open: Record<string, boolean>; cameraYaw: number; manualInputYaw: number | null };
 }
 type HookWindow = Window & { __tt: WorldHook };
 
@@ -62,7 +62,8 @@ async function keyboardToward(page: Page, target: { x: number; z: number }, ms: 
     while (Date.now() < end) {
       const [s, yaw] = await page.evaluate(() => {
         const hook = (window as unknown as HookWindow).__tt;
-        return [hook.read().position, hook.readGates().cameraYaw] as const;
+        const camera = hook.readGates();
+        return [hook.read().position, camera.manualInputYaw ?? camera.cameraYaw] as const;
       });
       samples.push({ x: s.x, y: s.y, z: s.z });
       const dx = target.x - s.x, dz = target.z - s.z;

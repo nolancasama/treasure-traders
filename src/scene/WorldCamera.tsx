@@ -4,7 +4,7 @@ import * as THREE from "three";
 import type { WorldRuntime } from "../game/world/types";
 import { WALK_AREAS } from "../game/world/layout";
 import { FOLLOW_CAMERA } from "../game/world/followCamera";
-import { conversationShot, type Shot } from "./cameraRig";
+import { conversationShot, followOffset, type Shot } from "./cameraRig";
 import { sceneUniforms } from "./materials";
 
 const library = WALK_AREAS.find(a => a.id === "library")!;
@@ -24,7 +24,7 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1), p = rt.player, c = rt.camera;
     const { position, target, look } = scratch;
-    const { offset } = FOLLOW_CAMERA;
+    const offset = followOffset(p);
     position.set(p.x + offset.x, p.y + offset.y, p.z + offset.z);
     target.set(p.x, p.y + FOLLOW_CAMERA.targetHeight, p.z);
     if (c.mode === "conversation") {
@@ -48,12 +48,20 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
       if (index === c.keys.length - 1 && remaining >= a.duration) rt.camera = { mode: "follow" };
     }
     // Keep the view close to the floor inside the roofless library cutaway.
-    if (c.mode === "follow" && Math.abs(p.x - library.x) < library.hx && Math.abs(p.z - library.z) < library.hz) {
+    const indoors = Math.abs(p.x - library.x) < library.hx && Math.abs(p.z - library.z) < library.hz;
+    if (c.mode === "follow" && indoors) {
       position.set(p.x, p.y + 6.2, p.z + 7);
       target.set(p.x, p.y + 0.5, p.z - 0.5);
     }
     const k = ready.current ? 1 - Math.exp(-dt * (c.mode === "follow" ? 6 : 3)) : 1;
-    camera.position.lerp(position, k); look.lerp(target, k);
+    const radius = ready.current ? THREE.MathUtils.lerp(Math.hypot(camera.position.x - look.x, camera.position.z - look.z), FOLLOW_CAMERA.radius, k) : FOLLOW_CAMERA.radius;
+    look.lerp(target, k);
+    if (c.mode === "follow" && !indoors) {
+      const desiredYaw = Math.atan2(offset.x, offset.z);
+      const yaw = ready.current ? rt.cameraYaw + Math.atan2(Math.sin(desiredYaw - rt.cameraYaw), Math.cos(desiredYaw - rt.cameraYaw)) * k : desiredYaw;
+      // Ease the angle on a fixed-radius arc, rather than cutting across its chord.
+      camera.position.set(look.x + Math.sin(yaw) * radius, THREE.MathUtils.lerp(camera.position.y, position.y, k), look.z + Math.cos(yaw) * radius);
+    } else camera.position.lerp(position, k);
     camera.lookAt(look); ready.current = true;
     rt.cameraYaw = Math.atan2(camera.position.x - look.x, camera.position.z - look.z);
     // The compact backpack bar sits above the panel, so centre on what remains visible.

@@ -1,14 +1,10 @@
 /** Held keys (by physical code, so WASD works on JIS keyboards and with the IME on). */
 export const keys = new Set<string>();
 
-export function keyboardMove(): { x: number; y: number } {
-  let x = 0;
-  let y = 0;
-  if (keys.has("KeyW") || keys.has("ArrowUp")) y += 1;
-  if (keys.has("KeyS") || keys.has("ArrowDown")) y -= 1;
-  if (keys.has("KeyA") || keys.has("ArrowLeft")) x -= 1;
-  if (keys.has("KeyD") || keys.has("ArrowRight")) x += 1;
-  return { x, y };
+export function keyboardMove(): { x: number; y: number; held: boolean } {
+  const up = keys.has("KeyW") || keys.has("ArrowUp"), down = keys.has("KeyS") || keys.has("ArrowDown");
+  const left = keys.has("KeyA") || keys.has("ArrowLeft"), right = keys.has("KeyD") || keys.has("ArrowRight");
+  return { x: Number(right) - Number(left), y: Number(up) - Number(down), held: up || down || left || right };
 }
 
 function isTyping(e: KeyboardEvent): boolean {

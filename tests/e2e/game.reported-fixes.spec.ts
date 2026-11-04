@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { DEFAULT_SETTINGS, startChapter } from "../../src/game/logic";
 import type { ChapterId } from "../../src/game/content/ids";
 import { GRANDMA_BENCH_CENTER, NPC_HOMES } from "../../src/game/world/layout";
+import { followYaw } from "../../src/scene/cameraRig";
 import { read, settle, type GameRead } from "./game.helpers";
 
 // Real pointer, touch and key input, with screenshots for visual review in .tmp/shots/verify.
@@ -13,7 +14,7 @@ interface Hook {
   read(): GameRead;
   teleport(position: { x: number; z: number; yaw?: number }): void;
   projectPoint(point: { x: number; y: number; z: number }): { x: number; y: number; visible: boolean };
-  readGates(): { cameraYaw: number; camera: { mode: string } };
+  readGates(): { cameraYaw: number; manualInputYaw: number | null; camera: { mode: string } };
   tts: { hold(value: boolean): void; isSpeaking(): boolean };
 }
 const hook = <T>(page: Page, fn: (h: Hook, arg: never) => T, arg?: unknown) => page.evaluate(
@@ -57,7 +58,7 @@ async function walkWithKeys(page: Page, target: { x: number; z: number }, ms: nu
   const end = Date.now() + ms;
   try {
     while (Date.now() < end) {
-      const [p, yaw] = await hook(page, h => [h.read().position, h.readGates().cameraYaw] as const);
+      const [p, yaw] = await hook(page, h => [h.read().position, h.readGates().manualInputYaw ?? h.readGates().cameraYaw] as const);
       const dx = target.x - p.x, dz = target.z - p.z;
       if (Math.hypot(dx, dz) < 0.3) break;
       const x = dx * Math.cos(yaw) - dz * Math.sin(yaw), y = -dx * Math.sin(yaw) - dz * Math.cos(yaw), size = Math.hypot(x, y);
@@ -130,14 +131,14 @@ test("Village Square looks along the bridge, in play and again after a conversat
   await squareView(page, "back to the square view after talking");
 });
 
-test("every district shares the same follow yaw", async ({ page }) => {
+test("Market and Festival use their frozen district follow yaws", async ({ page }) => {
   await fromSave(page, 5, { x: 0, z: 26 });
   await page.setViewportSize(VIEWPORTS[0]);
   await settleAt(page, { x: 0, z: 26 });
   await squareView(page, "on the deck");
   for (const [district, at] of Object.entries({ square: { x: 0, z: 8 }, school: { x: 0, z: -38 }, market: { x: 37, z: 0 }, harbor: { x: 8, z: 41 }, festival: { x: -48, z: 5 } })) {
     await settleAt(page, at);
-    await squareView(page, `${district} follow yaw`);
+    await expect.poll(async () => Math.abs((await hook(page, h => h.readGates())).cameraYaw - followYaw(at)), { message: `${district} follow yaw`, timeout: 20_000 }).toBeLessThan(0.002);
   }
 });
 

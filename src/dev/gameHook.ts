@@ -34,7 +34,7 @@ export function createWorldControls(world: WorldAPI, scene: Scene, camera: Persp
       return at ? structuredClone(findPath(world.runtime.player, at, navigationGates(world.runtime))) : [];
     },
     readGates() {
-      return structuredClone({ progress: world.runtime.gateProgress, open: navigationGates(world.runtime), school: world.runtime.schoolGateMotion ?? null, schoolHeld: !!world.runtime.schoolGateHeld, camera: world.runtime.camera, cameraYaw: world.runtime.cameraYaw });
+      return structuredClone({ progress: world.runtime.gateProgress, open: navigationGates(world.runtime), school: world.runtime.schoolGateMotion ?? null, schoolHeld: !!world.runtime.schoolGateHeld, camera: world.runtime.camera, cameraYaw: world.runtime.cameraYaw, manualInputYaw: world.runtime.manualInputYaw });
     }
   };
 }

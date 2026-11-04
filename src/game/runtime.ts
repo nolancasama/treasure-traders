@@ -81,8 +81,8 @@ function cutsceneKeys(name: "intro" | "cart" | "school" | "bridge" | "arch" | "f
   if (name === "finale") {
     const pose = chestPose(5);
     return [
-      { position: { x: pose.x, y: 3.8, z: pose.z + 9 }, target: { x: pose.x, y: 1.5, z: pose.z }, duration: 1 },
-      { position: { x: pose.x, y: 2.9, z: pose.z + 6.6 }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
+      { position: { x: pose.x + 9, y: 3.8, z: pose.z }, target: { x: pose.x, y: 1.5, z: pose.z }, duration: 1 },
+      { position: { x: pose.x + 6.6, y: 2.9, z: pose.z }, target: { x: pose.x, y: 1.6, z: pose.z }, duration: 60 }
     ];
   }
   if (name === "school") return [
@@ -105,7 +105,7 @@ export function createWorld(initial: WorldState): WorldAPI {
   const runtime: WorldRuntime = {
     state: structuredClone(initial), revision: 0, time: 0, gateProgress: null,
     player: { x: 0, y: 0, z: 8, yaw: Math.PI, speed: 0 },
-    locked: false, bottomPanel: 0, camera: { mode: "follow" }, cameraYaw: 0,
+    locked: false, bottomPanel: 0, camera: { mode: "follow" }, cameraYaw: 0, manualInputYaw: null,
     path: [], pending: null, deferredWalk: null, focus: null, npcCommands: {}, playerCommand: null, decorHold: null, finale: "none", party: false,
     kiwi: { mode: "follow" }, effects: [],
     emitInteract: target => interacts.forEach(f => f(target)),
@@ -129,7 +129,7 @@ export function createWorld(initial: WorldState): WorldAPI {
     },
     setInputLocked(locked) {
       // Only locking cancels a walk; a repeated unlock must not drop a tapped approach.
-      if (locked) { runtime.path = []; runtime.pending = null; runtime.deferredWalk = null; runtime.player.speed = 0; runtime.focus = null; }
+      if (locked) { runtime.path = []; runtime.pending = null; runtime.deferredWalk = null; runtime.player.speed = 0; runtime.focus = null; runtime.manualInputYaw = null; }
       runtime.locked = locked;
     },
     setBottomPanel(height) { runtime.bottomPanel = Number.isFinite(height) ? Math.max(0, height) : 0; },

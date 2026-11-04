@@ -777,3 +777,29 @@ The teacher's list of 22 problems, reviewed against the source before work began
   readScenery exposes its semantic finale state and actual lid angle for waits.
   Gameplay screenshots at both requested sizes are controller-owned artifacts in
   .tmp/shots/scenery; implementation does not claim visual acceptance.
+
+## 2026-11-04 — District cameras, stalls, stage, rope, entrance ground
+
+- **The Market looks east and the Festival Grounds look west; everywhere else looks north.**
+  This supersedes the single-yaw decision above, at the teacher's request. The follow
+  frame keeps radius 12 and height 8 and varies only its yaw. Blends run by distance over
+  6m (about x 18..24 and x -22..-28), so Village Square keeps exactly its own view and
+  standing on a boundary cannot flicker. The angle is interpolated, not the position:
+  a straight line between two offsets would pull the camera in toward the player.
+- **Held movement keeps its heading through a camera turn.** Input is camera-relative, so
+  holding Right through the Market neck would otherwise bend into south and into a wall.
+  The yaw is latched until every movement key is released or input locks; a fresh press
+  uses the new view, so Up walks east in the Market and west on the Grounds.
+- **The Festival chest faces east (yaw PI/2).** It now faces the same way as the sun and
+  toward the Festival camera, which removes last round's conflict of a chest turned side-on
+  to its stage. Chest close-ups shoot from +x. Its position is unchanged.
+- **Fruit and Flower stalls turn exactly 190 degrees, the Games stall exactly 180.** The 190 is
+  deliberate, so its 10 degree skew shows; colliders use the same yaw and shopkeepers stay put.
+- **The rope has a collider only where it crosses walkable ground.** That is the first east
+  pier span and its two posts; the pier's west edge is an opening. Generic collider shadows
+  exclude it.
+- **Entrance ground is fixed at its source.** The school neck's mitred edge clipping and
+  disjoint foundations now serve the Market and Festival necks too, and the Festival path's
+  stones are trimmed against paving laid earlier. A built-geometry audit
+  (`town/entranceAudit.ts`) gates faces, stacked stones and flowers on paving.
+- **The visible sign says Market.** District names, chapter titles and vocabulary keep their words.

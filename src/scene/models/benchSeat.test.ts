@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CLOSED, findPath, isWalkable } from "../../game/world/collision";
-import { FOLLOW_CAMERA } from "../../game/world/followCamera";
+import { followOffset } from "../cameraRig";
 import { canInteract, interactionFocus } from "../../game/world/interaction";
 import { GRANDMA_BENCH_YAW, NPC_HOMES, SOLIDS, UME_SEAT } from "../../game/world/layout";
 import { createWorld, worldStateFromGame } from "../../game/runtime";
@@ -20,7 +20,8 @@ describe("Grandma's bench frame and supported pose", () => {
     expect(UME_SEAT.yaw).toBe(GRANDMA_BENCH_YAW);
     expect(NPC_HOMES.ume.yaw).toBe(GRANDMA_BENCH_YAW);
     const axis = new THREE.Vector3(1, 0, 0).transformDirection(frame);
-    const forward = new THREE.Vector3(-FOLLOW_CAMERA.offset.x, 0, -FOLLOW_CAMERA.offset.z).normalize();
+    const offset = followOffset(UME_SEAT);
+    const forward = new THREE.Vector3(-offset.x, 0, -offset.z).normalize();
     expect(Math.abs(axis.dot(forward))).toBeCloseTo(1, 10);
     expect(new THREE.Vector3(0, 0, 1).transformDirection(frame).x).toBeCloseTo(1, 10);
   });

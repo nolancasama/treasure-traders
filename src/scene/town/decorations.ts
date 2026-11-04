@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { DistrictId, ItemId } from "../../game/content/ids";
+import { SOLIDS, stallPoint } from "../../game/world/layout";
 import { glowTexture, sceneryMat, sceneUniforms } from "../materials";
 import { itemGeometry } from "../models/items";
 import { PartBuilder, wirePoint } from "../partBuilder";
@@ -8,6 +9,7 @@ import { MAYPOLE_TOP, NORTH_POLES, SOUTH_POLES } from "./districts";
 import { GRASS_Y } from "./ground";
 import { PALETTE } from "./builders";
 import { SignBatch, signMat } from "./signs";
+import { STAGE_LANTERN_HOOKS } from "./stage";
 
 type V3 = [number, number, number];
 const PAPER = ["#ef6a55", "#ffcf5e", "#fff0d2", "#ff9568", "#f7b0c2"];
@@ -38,6 +40,7 @@ function writePiece(p: Piece, k: number) {
 /** Hanging lantern, with its origin at the hook. Paper tinted per instance; lit by a shared emissive. */
 function lanternGeometry(): THREE.BufferGeometry {
   const b = new PartBuilder(0, true);
+  b.beam([0, 0, 0], [0, -0.065, 0], 0.018, "#8a6a48");
   b.add(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 5, 1, true), PALETTE.ink, [0, -0.1, 0], [0, 0, 0], [1, 1, 1], { wind: 0.12 });
   b.add(new THREE.SphereGeometry(0.34, 7, 4), "#ffffff", [0, -0.48, 0], [0, 0, 0], [1, 1.1, 1], { wind: 0.22 });
   b.add(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 5, 1, true), PALETTE.ink, [0, -0.86, 0], [0, 0, 0], [1, 1, 1], { wind: 0.26 });
@@ -182,7 +185,13 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
     });
     const onWires = wires.flatMap(([a, c]) => along(a, c, 0.55, 5));
     // Two on each stall's camera-side corners, hung from the top of the frame.
-    const onStalls: V3[] = [[30, -7], [30, 7], [45, -7], [45, 7]].flatMap(([x, z]) => [-3.14, 3.14].map((dx): V3 => [x + dx, 3.62, z + 1.72]));
+    const onStalls: V3[] = ["bakery-stall", "flowers-stall", "toys-stall", "fruit-stall"].flatMap(id => {
+      const stall = SOLIDS.find(s => s.id === id)!;
+      return [-3.14, 3.14].map((dx): V3 => {
+        const p = stallPoint(stall.x, stall.z, stall.kind === "box" ? stall.yaw : 0, dx, 1.72);
+        return [p.x, 3.62, p.z];
+      });
+    });
     const entries = [...onStalls, ...onWires].map((position, i) => ({ position, scale: i < onStalls.length ? 0.85 : 1, color: PAPER[i % PAPER.length] }));
     const material = litMaterial();
     batch(s, lantern, material, entries, 0.25, 1.6);
@@ -229,7 +238,7 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
   /* 8 items: the festival arch's lanterns come on and stay on. */
   {
     const s = stage(8, "festival");
-    const entries = Array.from({ length: 7 }, (_, i) => ({ position: [-22, 4.12, -3.3 + i * 1.1] as V3, scale: 0.72, color: PAPER[i % PAPER.length] }));
+    const entries = Array.from({ length: 7 }, (_, i) => ({ position: [-22, 4.14, -3.3 + i * 1.1] as V3, scale: 0.72, color: PAPER[i % PAPER.length] }));
     const material = litMaterial();
     batch(s, lantern, material, entries, 0.2, 1);
     s.lanterns = material;
@@ -243,7 +252,7 @@ export function createDecorations(districts: Record<DistrictId, THREE.Group>): D
     // Lines along both long edges, and a row hanging from the stage's roof.
     const edges: [V3, V3][] = [[NORTH_POLES[0], NORTH_POLES[1]], [NORTH_POLES[1], NORTH_POLES[2]], [SOUTH_POLES[0], SOUTH_POLES[1]], [SOUTH_POLES[1], SOUTH_POLES[2]]];
     for (const [a, c] of edges) entries.push(...along(a, c, 0.8, 5).map((position, i) => ({ position, color: PAPER[(i + 2) % PAPER.length] })));
-    for (let i = 0; i < 6; i++) entries.push({ position: [-59.75, 5.05, -4.25 + i * 1.7], color: PAPER[i % PAPER.length] });
+    entries.push(...STAGE_LANTERN_HOOKS.map((position, i) => ({ position, color: PAPER[i % PAPER.length] })));
     statics(s, b => { for (const [a, c] of edges.slice(0, 2)) b.wire(a, c, 0.8, 8, "#8a6a48", 0.03); });
     const material = litMaterial();
     batch(s, lantern, material, entries, 0.1, 1.4);

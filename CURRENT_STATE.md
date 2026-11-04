@@ -83,9 +83,8 @@ site on the previous build, with no other sign. To check what is live, read
 `<meta name="tt-build">` on the page or open the debug menu (Ctrl+Alt+D).
 
 ## Current Work
-The frozen follow-camera and scenery corrections are implemented, pending controller
-unit/e2e execution and visual acceptance. Scenery screenshots have not been generated
-by the implementation agent. The earlier four batches' review does not cover this change.
+District cameras, stall rotations, stage connections, rope collider and entrance ground are
+implemented; see DESIGN_DECISIONS.md. No delegated work is in flight.
 
 ## Known Issues
 - The z-fight audit covers static geometry with empty chest slots. Filled chest slots
@@ -101,9 +100,8 @@ by the implementation agent. The earlier four batches' review does not cover thi
   the chest assembly audit gates keep their documented empty-slot scope.
 
 ## Next Steps
-1. Controller: run unit/e2e acceptance and review the new gameplay PNGs in
-   `.tmp/shots/scenery/` at both viewport sizes. These checks were not run during
-   the camera/scenery implementation.
+1. Review gameplay PNGs from `game.district-fixes.spec.ts` in `.tmp/shots/district/`
+   and `game.scenery-fixes.spec.ts` in `.tmp/shots/scenery/` after any scenery change.
 2. Hand-play Chapter 1 and the finale at 1366×768 on a real Chromebook, with a real mic.
    Watch frame rate at the Festival Grounds and whether the dithered see-through looks
    right at the school's device pixel ratio.

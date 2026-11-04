@@ -280,12 +280,15 @@ function flatRing(q: QuadWriter, cx: number, cz: number, r0: number, r1: number,
 const insideAnyArea = (x: number, z: number) => WALK_AREAS.some(a => Math.abs(x - a.x) <= a.hx && Math.abs(z - a.z) <= a.hz);
 
 type GroundVertex = { p: [number, number, number]; c: THREE.Color };
-/** Clip the school junction's edging to shared mitres. Both districts build
+/** Clip the district junctions' edging to shared mitres. Both districts build
  * the same corner boundaries, so no overlapping grass-coloured verge or kerb
  * survives at the neck, even though they are separate merged meshes. */
-function schoolEdge(q: QuadWriter, a: Area, side: number[], points: [number, number, number][], colors: THREE.ColorRepresentation | [THREE.Color, THREE.Color, THREE.Color, THREE.Color]) {
-  const [, sz, , , nx, nz] = side;
-  if (a.id !== "school-approach" && a.id !== "school-neck" && !(a.id === "square" && nz === -1 && sz === -18) && !(a.id === "courtyard" && nz === 1 && sz === -25)) {
+function junctionEdge(q: QuadWriter, a: Area, side: number[], points: [number, number, number][], colors: THREE.ColorRepresentation | [THREE.Color, THREE.Color, THREE.Color, THREE.Color]) {
+  const [sx, sz, , , nx, nz] = side;
+  const horizontal = a.id === "market-neck" ? [18, 22] : a.id === "festival-neck" ? [-28, -18] : null;
+  const leftEdge = a.id === "square" && nx === 1 && sx === 18 ? 18 : a.id === "festival" && nx === 1 && sx === -28 ? -28 : null;
+  const rightEdge = a.id === "square" && nx === -1 && sx === -18 ? -18 : a.id === "market" && nx === -1 && sx === 22 ? 22 : null;
+  if (!horizontal && leftEdge === null && rightEdge === null && a.id !== "arch-approach" && a.id !== "school-approach" && a.id !== "school-neck" && !(a.id === "square" && nz === -1 && sz === -18) && !(a.id === "courtyard" && nz === 1 && sz === -25)) {
     q.quad(points[0], points[1], points[2], points[3], colors);
     return;
   }
@@ -297,14 +300,26 @@ function schoolEdge(q: QuadWriter, a: Area, side: number[], points: [number, num
       if (dv >= 0) out.push(v);
       if ((dv >= 0) !== (dw >= 0)) {
         const t = dv / (dv - dw);
-        out.push({ p: v.p.map((p, k) => p + (w.p[k] - p) * t) as [number, number, number], c: v.c.clone().lerp(w.c, t) });
+        const p = v.p.map((p, k) => p + (w.p[k] - p) * t) as [number, number, number];
+        // Shared diagonal contacts must remain exact in the Float32 mesh.
+        // Rounding x and z independently can cross a mitre by a few microns.
+        if (plane[0] && plane[1]) { p[0] = Math.fround(p[0]); p[2] = (-plane[2] - plane[0] * p[0]) / plane[1]; }
+        out.push({ p, c: v.c.clone().lerp(w.c, t) });
       }
     }
     return out;
   };
   let pieces: [number, number, number][][] = [[]];
-  if (a.id === "school-approach") return; // The neck owns this entire shared edge.
-  if (a.id === "school-neck") {
+  if (a.id === "school-approach" || a.id === "arch-approach") return; // The neck owns this entire shared edge.
+  if (horizontal) {
+    if (!nz) return;
+    const [left, right] = horizontal;
+    pieces = [[[1, 0, -left], [-1, 0, right], [1, -nz, 4 - left], [-1, -nz, right + 4]]];
+  } else if (leftEdge !== null) {
+    pieces = [[[0, 1, -4], [-1, 1, leftEdge - 4]], [[0, -1, -4], [-1, -1, leftEdge - 4]]];
+  } else if (rightEdge !== null) {
+    pieces = [[[0, 1, -4], [1, 1, -rightEdge - 4]], [[0, -1, -4], [1, -1, -rightEdge - 4]]];
+  } else if (a.id === "school-neck") {
     if (!nx) return; // End edges are wholly inside square/courtyard.
     pieces = [[[0, 1, 25], [0, -1, -18], [-nx, 1, 29], [-nx, -1, -14]]];
   } else if (a.id === "square" && nz === -1 && sz === -18) {
@@ -323,7 +338,7 @@ function schoolEdge(q: QuadWriter, a: Area, side: number[], points: [number, num
 }
 
 /** Subtract existing paving footprints, retaining disjoint foundation boxes. */
-function schoolBase(a: Area, earlier: readonly Area[]): [number, number, number, number][] {
+function freeBase(a: Area, earlier: readonly Area[]): [number, number, number, number][] {
   let pieces: [number, number, number, number][] = [[a.x - a.hx, a.z - a.hz, a.x + a.hx, a.z + a.hz]];
   for (const e of earlier) pieces = pieces.flatMap(([x0, z0, x1, z1]) => {
     const ax = Math.max(x0, e.x - e.hx), az = Math.max(z0, e.z - e.hz), bx = Math.min(x1, e.x + e.hx), bz = Math.min(z1, e.z + e.hz);
@@ -352,14 +367,14 @@ function edging(q: QuadWriter, a: Area, rand: () => number, kerbColors: string[]
       const k = 0.26, wide0 = 0.5 + noise(ax * 0.4, az * 0.4) * 1.1, wide1 = 0.5 + noise(bx * 0.4, bz * 0.4) * 1.1;
       // Side direction then outward keeps every one of these faces pointing up.
       const up = (p0: [number, number], p1: [number, number], p2: [number, number], p3: [number, number], y0: number, y1: number, c: THREE.ColorRepresentation | [THREE.Color, THREE.Color, THREE.Color, THREE.Color]) =>
-        schoolEdge(q, a, side, [[p0[0], y0, p0[1]], [p1[0], y0, p1[1]], [p2[0], y1, p2[1]], [p3[0], y1, p3[1]]], c);
+        junctionEdge(q, a, side, [[p0[0], y0, p0[1]], [p1[0], y0, p1[1]], [p2[0], y1, p2[1]], [p3[0], y1, p3[1]]], c);
       const color = kerbColors[Math.floor(rand() * kerbColors.length)];
       const a1: [number, number] = [ax + nx * k, az + nz * k], b1: [number, number] = [bx + nx * k, bz + nz * k];
       up([ax, az], [bx - tx * 0.05, bz - tz * 0.05], [b1[0] - tx * 0.05, b1[1] - tz * 0.05], a1, KERB_Y, KERB_Y, color);
       const a2: [number, number] = [ax + nx * (k + wide0), az + nz * (k + wide0)], b2: [number, number] = [bx + nx * (k + wide1), bz + nz * (k + wide1)];
       up(a1, b1, b2, a2, VERGE_Y, VERGE_Y, [gravelColor, gravelColor, grassAt(b2[0], b2[1]), grassAt(a2[0], a2[1])]);
       // Outer face of the kerb, down to the verge.
-      schoolEdge(q, a, side, [[a1[0], KERB_Y, a1[1]], [b1[0], KERB_Y, b1[1]], [b1[0], VERGE_Y, b1[1]], [a1[0], VERGE_Y, a1[1]]], new THREE.Color(color).multiplyScalar(0.72));
+      junctionEdge(q, a, side, [[a1[0], KERB_Y, a1[1]], [b1[0], KERB_Y, b1[1]], [b1[0], VERGE_Y, b1[1]], [a1[0], VERGE_Y, a1[1]]], new THREE.Color(color).multiplyScalar(0.72));
     }
   }
 }
@@ -381,7 +396,9 @@ function festivalLawn(q: QuadWriter, a: Area, earlier: readonly Area[], rand: ()
   flatRing(q, -47, 0, 0.72, 1.1, y, "#f5c04f", 20);
   // A stone path from the arch to the circle, which itself reaches the stage steps.
   for (let x = -37; x < -28.01; x += 1.25) for (let z = -2.1; z < 2.09; z += 0.9) {
-    q.rect(x + 0.04, z + 0.04, Math.min(x + 1.25, -28) - 0.04, z + 0.86 + (rand() - 0.5) * 0.08, y, NECK.colors[Math.floor(rand() * NECK.colors.length)]);
+    const zEnd = z + 0.86 + (rand() - 0.5) * 0.08, color = NECK.colors[Math.floor(rand() * NECK.colors.length)];
+    const free = trimToFree(earlier, x + 0.04, z + 0.04, Math.min(x + 1.25, -28) - 0.04, zEnd);
+    if (free) q.rect(free[0], free[1], free[2], free[3], y, color);
   }
 }
 
@@ -395,8 +412,8 @@ export function pavingGeometry(district: DistrictId): THREE.BufferGeometry {
     const style = STYLES[a.id];
     const grout = a.id === "library" ? "#8d6a48" : a.id === "pier" ? "#6e5236" : a.id === "festival" ? "#94bd70" : style.grout;
     // Base tops step down by a hair so overlapping junctions never share a plane.
-    if (a.id === "school-approach" || a.id === "school-neck") {
-      for (const [x0, z0, x1, z1] of schoolBase(a, earlier)) base.box(x1 - x0, 0.5, z1 - z0, (x0 + x1) / 2, a.y - 0.52 - index * 0.0012, (z0 + z1) / 2, grout);
+    if (["school-approach", "school-neck", "arch-approach", "market-neck", "market", "festival-neck", "festival"].includes(a.id)) {
+      for (const [x0, z0, x1, z1] of freeBase(a, earlier)) base.box(x1 - x0, 0.5, z1 - z0, (x0 + x1) / 2, a.y - 0.52 - index * 0.0012, (z0 + z1) / 2, grout);
     } else base.box(a.hx * 2, 0.5, a.hz * 2, a.x, a.y - 0.52 - index * 0.0012, a.z, grout);
     if (a.id === "library" || a.id === "pier") {
       const palette = a.id === "library" ? PLANKS : DECK, width = a.id === "library" ? 0.72 : 0.92;

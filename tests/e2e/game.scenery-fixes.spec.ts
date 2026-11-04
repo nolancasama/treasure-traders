@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { DEFAULT_SETTINGS, startChapter } from "../../src/game/logic";
 import type { ChapterId } from "../../src/game/content/ids";
 import { GRANDMA_BENCH_CENTER, NPC_HOMES, SPOTS, chestPose } from "../../src/game/world/layout";
-import { FOLLOW_CAMERA } from "../../src/game/world/followCamera";
+import { followOffset, followYaw } from "../../src/scene/cameraRig";
 import { read, settle, type GameRead } from "./game.helpers";
 
 interface Hook {
@@ -41,6 +41,7 @@ async function start(page: Page, chapter: ChapterId, position: { x: number; z: n
 }
 
 async function at(page: Page, position: { x: number; z: number }) {
+  const expectedOffset = followOffset(position);
   await hook(page, (h, p) => h.teleport(p), position);
   await precondition(`follow view at ${JSON.stringify(position)}`, async () => {
     await expect.poll(async () => {
@@ -50,12 +51,12 @@ async function at(page: Page, position: { x: number; z: number }) {
     await expect.poll(async () => {
       const s = await hook(page, h => ({ p: h.read().position, scenery: h.readScenery(), camera: h.readGates().camera }));
       const indoor = s.p.x > -26 && s.p.x < -12 && s.p.z > -47 && s.p.z < -37;
-      const offset = indoor ? { x: 0, y: 6.2, z: 7 } : FOLLOW_CAMERA.offset;
+      const offset = indoor ? { x: 0, y: 6.2, z: 7 } : expectedOffset;
       const camera = s.scenery.cameraPosition;
       return s.camera.mode === "follow" ? Math.hypot(camera.x - s.p.x - offset.x, camera.y - s.p.y - offset.y, camera.z - s.p.z - offset.z) : Infinity;
     }, { timeout: 20_000 }).toBeLessThan(0.02);
   });
-  expect(Math.abs((await hook(page, h => h.readGates())).cameraYaw), "follow yaw").toBeLessThan(0.002);
+  await expect.poll(async () => Math.abs((await hook(page, h => h.readGates())).cameraYaw - followYaw(position)), { message: "district follow yaw", timeout: 20_000 }).toBeLessThan(0.002);
   expect(await hook(page, h => h.readScenery().walkable), "player stands on a walkable surface").toBe(true);
   const visible = await hook(page, h => {
     const p = h.read().position;
@@ -123,8 +124,8 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
 
     test("Festival chest closed and open through its real lid animation", async ({ page }) => {
       const pose = chestPose(5);
-      await start(page, 5, { x: pose.x, z: pose.z + 2.1 });
-      await at(page, { x: pose.x, z: pose.z + 2.1 });
+      await start(page, 5, { x: pose.x + 2.1, z: pose.z });
+      await at(page, { x: pose.x + 2.1, z: pose.z });
       const campaign = (await read(page)).game;
       for (const open of [false, true]) {
         await precondition(`chest ${open ? "open" : "closed"} fixture`, async () => {

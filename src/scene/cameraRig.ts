@@ -1,16 +1,39 @@
-import { HOUSES, LAMP_POSITIONS, SOLIDS, TREES, type Solid } from "../game/world/layout";
+import { HOUSES, LAMP_POSITIONS, SOLIDS, STALL_YAWS, stallPoint, TREES, WALK_AREAS, type Solid } from "../game/world/layout";
+import { FOLLOW_CAMERA } from "../game/world/followCamera";
 import { DISTRICT_IDS } from "../game/content/ids";
-import type { Position } from "../game/world/types";
+import type { Point, Position } from "../game/world/types";
+
+const market = WALK_AREAS.find(a => a.id === "market")!;
+const festival = WALK_AREAS.find(a => a.id === "festival")!;
+
+function districtWeight(p: Point, minX: number, maxX: number, z: number, hz: number): number {
+  const distance = Math.hypot(Math.max(minX - p.x, 0, p.x - maxX), Math.max(Math.abs(p.z - z) - hz, 0));
+  const t = Math.min(1, distance / FOLLOW_CAMERA.blendDistance);
+  return 1 - t * t * (3 - 2 * t);
+}
+
+/** Rectangular distance gives a stable turn through each neck, including its corners. */
+export function followYaw(p: Point): number {
+  return FOLLOW_CAMERA.yaw.default
+    + districtWeight(p, 24, Infinity, market.z, market.hz) * FOLLOW_CAMERA.yaw.market
+    + districtWeight(p, -Infinity, festival.x + festival.hx, festival.z, festival.hz) * FOLLOW_CAMERA.yaw.festival;
+}
+
+export function followOffset(p: Point): Position {
+  const yaw = followYaw(p);
+  return { x: Math.sin(yaw) * FOLLOW_CAMERA.radius, y: FOLLOW_CAMERA.height, z: Math.cos(yaw) * FOLLOW_CAMERA.radius };
+}
 
 /** An axis-aligned box the camera should not sit in or look through. */
 export interface Blocker { x: number; z: number; hx: number; hz: number; y0: number; y1: number; id?: string }
 
-const STALLS = [[30, -7], [30, 7], [45, -7], [45, 7]] as const;
+const STALLS = [["bakery-stall", 30, -7], ["flowers-stall", 30, 7], ["toys-stall", 45, -7], ["fruit-stall", 45, 7]] as const;
+const rotatedExtent = (hx: number, hz: number, yaw: number) => ({ hx: Math.abs(Math.cos(yaw)) * hx + Math.abs(Math.sin(yaw)) * hz, hz: Math.abs(Math.sin(yaw)) * hx + Math.abs(Math.cos(yaw)) * hz });
 
 /** Scenery tall enough to hide a head: collision solids plus overhead and decorative parts. */
 export const CAMERA_BLOCKERS: readonly Blocker[] = [
   ...SOLIDS.filter((s: Solid) => s.height >= 1.4).map((s): Blocker => s.kind === "box"
-    ? { x: s.x, z: s.z, hx: s.hx, hz: s.hz, y0: s.y, y1: s.y + s.height, id: s.id }
+    ? { x: s.x, z: s.z, ...rotatedExtent(s.hx, s.hz, s.yaw), y0: s.y, y1: s.y + s.height, id: s.id }
     : { x: s.x, z: s.z, hx: s.r, hz: s.r, y0: s.y, y1: s.y + s.height, id: s.id }),
   ...DISTRICT_IDS.flatMap(id => TREES[id].flatMap((t): Blocker[] => [
     { x: t.x, z: t.z, hx: 0.3, hz: 0.3, y0: 0, y1: 2.2 * t.s },
@@ -18,10 +41,13 @@ export const CAMERA_BLOCKERS: readonly Blocker[] = [
   ])),
   ...HOUSES.map((h): Blocker => ({ x: h.x, z: h.z, hx: h.w / 2 + 0.4, hz: h.d / 2 + 0.4, y0: 0, y1: h.h + 2.4 })),
   ...DISTRICT_IDS.flatMap(id => LAMP_POSITIONS[id].map((p): Blocker => ({ x: p.x, z: p.z, hx: 0.3, hz: 0.3, y0: 2.6, y1: 3.9 }))),
-  ...STALLS.flatMap(([x, z]): Blocker[] => [
-    { x, z: z < 0 ? z : z + 1, hx: 3.1, hz: z < 0 ? 2.3 : 1.4, y0: 2.8, y1: 4.7 },
-    ...[-2.9, 2.9].flatMap(dx => [-1.7, 1.7].map((dz): Blocker => ({ x: x + dx, z: z + dz, hx: 0.12, hz: 0.12, y0: 1, y1: 3.8 })))
-  ]),
+  ...STALLS.flatMap(([id, x, z]): Blocker[] => {
+    const yaw = STALL_YAWS[id] ?? 0;
+    return [
+      { ...stallPoint(x, z, yaw, 0, z < 0 ? 0 : 1), ...rotatedExtent(3.1, z < 0 ? 2.3 : 1.4, yaw), y0: 2.8, y1: 4.7 },
+      ...[-2.9, 2.9].flatMap(dx => [-1.7, 1.7].map((dz): Blocker => ({ ...stallPoint(x, z, yaw, dx, dz), ...rotatedExtent(0.12, 0.12, yaw), y0: 1, y1: 3.8 })))
+    ];
+  }),
   // The arch, school gate and festival stage have parts above their low colliders.
   ...[-4, 4].map((z): Blocker => ({ x: -22, z, hx: 0.5, hz: 0.5, y0: 0, y1: 6.4 })),
   { x: -22, z: 0, hx: 0.55, hz: 5.3, y0: 4.5, y1: 6.4 },

@@ -17,7 +17,7 @@ const STYLES = {
 };
 const SIGNS = {
   square: { text: "Village Square", style: "wood" },
-  market: { text: "Stationery Market", style: "wood" },
+  market: { text: "Market", style: "wood" },
   school: { text: "Schoolhouse", style: "wood" },
   library: { text: "Library", style: "wood" },
   harbor: { text: "Riverside & Harbor", style: "wood" },

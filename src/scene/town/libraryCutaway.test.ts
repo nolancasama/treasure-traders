@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import * as THREE from "three";
 import { OPEN, findPath, isWalkable, moveCircle } from "../../game/world/collision";
 import { SOLIDS, WALK_AREAS } from "../../game/world/layout";
-import { FOLLOW_CAMERA } from "../../game/world/followCamera";
+import { followOffset } from "../cameraRig";
 import { libraryGeometry } from "./builders";
 import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
 
@@ -77,7 +77,8 @@ describe("library doorway and camera cutaway", () => {
     for (let frame = 0; frame < 120; frame++) {
       const player = { x: -11.6 - frame / 60, y: 0.12, z: -42 };
       const indoors = insideLibrary(player), indoorCamera = Math.abs(player.x - room.x) < room.hx;
-      const offset = indoorCamera ? [0, 6.2, 7] : [FOLLOW_CAMERA.offset.x, FOLLOW_CAMERA.offset.y, FOLLOW_CAMERA.offset.z];
+      const exterior = followOffset(player);
+      const offset = indoorCamera ? [0, 6.2, 7] : [exterior.x, exterior.y, exterior.z];
       camera.lerp(new THREE.Vector3(player.x + offset[0], player.y + offset[1], player.z + offset[2]), 1 - Math.exp(-6 / 60));
       const mask = libraryEastCutMask(camera, player), geometry = libraryGeometry(SOLIDS, indoors, mask);
       for (const y of [0.6, 1.6]) expect(blocked(geometry, camera, new THREE.Vector3(player.x, player.y + y, player.z)), `frame ${frame},mask ${mask}`).toBe(false);

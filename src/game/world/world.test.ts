@@ -92,14 +92,14 @@ describe("world collision", () => {
     checkRoute(findPath(spawn, SPOTS["grounds-1"], OPEN), OPEN);
   });
 
-  it("keeps the harbor chest solid while preserving access on every side and the pier route", () => {
+  it("keeps the harbor chest solid while preserving access inside the rope and the pier route", () => {
     const chest = SOLIDS.find(s => s.id === "sea-chest")!;
     expect(chest.x).toBe(10);
     expect(isWalkable(10, 36, OPEN)).toBe(false);
     expect(moveCircle(8, 36, 12, 36, 0.35, OPEN).x).toBeLessThan(9);
     const bo = NPC_HOMES.bo, finn = NPC_HOMES.finn;
     checkRoute(findPath(bo, finn, OPEN), OPEN, bo);
-    for (const side of [{ x: 8.9, z: 36 }, { x: 11.1, z: 36 }, { x: 10, z: 35.1 }, { x: 10, z: 36.9 }]) {
+    for (const side of [{ x: 8.9, z: 36 }, { x: 10, z: 35.1 }, { x: 10, z: 36.9 }]) {
       expect(isWalkable(side.x, side.z, OPEN)).toBe(true);
       checkRoute(findPath(bo, side, OPEN), OPEN, bo);
     }
@@ -172,7 +172,7 @@ describe("world interaction", () => {
   }
 
   it("interacts with the solid harbor chest from every reachable side, closed or open", () => {
-    for (const open of [false, true]) for (const point of [{ x: 8.7, z: 36 }, { x: 11.3, z: 36 }, { x: 10, z: 34.8 }, { x: 10, z: 37.2 }]) {
+    for (const open of [false, true]) for (const point of [{ x: 8.7, z: 36 }, { x: 10, z: 34.8 }, { x: 10, z: 37.2 }]) {
       const world = interactionWorld(), received: Interaction[] = [];
       world.runtime.state.seaChest.open = open;
       expect(isWalkable(point.x, point.z, OPEN)).toBe(true);
