@@ -70,20 +70,31 @@ async function walkWithKeys(page: Page, target: { x: number; z: number }, ms: nu
   return (await read(page)).position;
 }
 
-/** Every line that reaches the screen, in order, observed from the DOM. */
+/**
+ * Every line that reaches the screen, in order, observed from the DOM, with its delay
+ * after the press. Measured in the page: a round trip from the test can stall for seconds
+ * on a software-rendered frame, which says nothing about the game.
+ */
 async function recordLines(page: Page) {
   await page.evaluate(() => {
     const seen: string[] = [];
-    Object.assign(window, { __lines: seen });
+    const record = { __lines: seen, __pressAt: 0, __pressGap: Infinity, __latency: -1 };
+    Object.assign(window, record);
+    const state = window as unknown as typeof record;
+    const press = () => { const now = performance.now(); state.__pressGap = now - state.__pressAt; state.__pressAt = now; };
+    window.addEventListener("pointerdown", press, true);
+    window.addEventListener("keydown", press, true);
     const note = () => {
       const text = document.querySelector(".tt-dialogue-lines")?.textContent ?? "";
-      if (text && seen.at(-1) !== text) seen.push(text);
+      if (text && seen.at(-1) !== text) { seen.push(text); state.__latency = performance.now() - state.__pressAt; }
     };
     new MutationObserver(note).observe(document.body, { childList: true, subtree: true, characterData: true });
     note();
   });
 }
 const lines = (page: Page) => page.evaluate(() => (window as unknown as { __lines: string[] }).__lines.length);
+const latency = (page: Page) => page.evaluate(() => (window as unknown as { __latency: number }).__latency);
+const pressGap = (page: Page) => page.evaluate(() => (window as unknown as { __pressGap: number }).__pressGap);
 const beatText = async (page: Page) => (await read(page)).presentation.beat?.en ?? null;
 
 test("Village Square looks along the bridge, in play and again after a conversation", async ({ page }) => {
@@ -145,10 +156,12 @@ test("Continue advances at once with speech running: touch, mouse and keys, one 
     const before = await beatText(page), count = await lines(page);
     expect(await hook(page, h => h.tts.isSpeaking()), `${name}: speech is running`).toBe(true);
     await press();
-    await expect.poll(() => beatText(page), { message: `${name} advanced`, timeout: 1000, intervals: [20] }).not.toBe(before);
+    await expect.poll(() => beatText(page), { message: `${name} advanced`, timeout: 15_000 }).not.toBe(before);
     await page.waitForTimeout(350);
     // The intro's last line ends the dialogue, so no further line appears after it.
-    expect(await lines(page), `${name} moved exactly one line`).toBe(await beatText(page) ? count + 1 : count);
+    const next = await beatText(page);
+    expect(await lines(page), `${name} moved exactly one line`).toBe(next ? count + 1 : count);
+    if (next) expect(await latency(page), `${name}: next line appeared at once`).toBeLessThan(100);
     if (name === "touch") await shot(page, "2-dialogue-after");
   }
 });
@@ -164,9 +177,9 @@ test("a double tap and a held key move one line, and a next line is spoken", asy
   await expect(button).toBeVisible({ timeout: 30_000 });
   await recordLines(page);
   const b = (await button.boundingBox())!, count = await lines(page);
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  await Promise.all([page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2), page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2)]);
   await page.waitForTimeout(350);
+  expect(await pressGap(page), "the two taps arrived as a double tap").toBeLessThan(300);
   expect(await lines(page), "double tap").toBe(count + 1);
   expect(await hook(page, h => h.tts.isSpeaking()), "the next line is speaking").toBe(true);
   // Focus left on the Replay button by a click must not capture Space.
