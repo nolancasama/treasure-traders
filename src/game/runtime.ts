@@ -86,9 +86,9 @@ function cutsceneKeys(name: "intro" | "cart" | "school" | "bridge" | "arch" | "f
     ];
   }
   if (name === "bridge") return [
-    // From the square's side, with the whole span and its hinge in frame while it lowers.
-    { position: { x: 10, y: 9, z: 9 }, target: { x: 0, y: 1.2, z: 24 }, duration: BRIDGE_SECONDS + 0.9 },
-    { position: { x: 10, y: 9, z: 9 }, target: { x: 0, y: 1.2, z: 24 }, duration: 0.3 }
+    // From the river bank, side on, so the span fills the frame and its tilt reads clearly.
+    { position: { x: 15, y: 5.5, z: 19 }, target: { x: 0, y: 1.6, z: 23 }, duration: BRIDGE_SECONDS + 0.9 },
+    { position: { x: 15, y: 5.5, z: 19 }, target: { x: 0, y: 1.6, z: 23 }, duration: 0.3 }
   ];
   if (name === "school") return [
     // Keep the closed span and its entire eastward parking bay in frame.

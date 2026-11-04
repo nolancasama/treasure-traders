@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { DEFAULT_SETTINGS, startChapter } from "../../src/game/logic";
 import type { ChapterId } from "../../src/game/content/ids";
 import { acknowledge, play, read, settle, type GameRead } from "./game.helpers";
@@ -10,7 +10,7 @@ interface Hook {
   read(): GameRead;
   readGates(): { progress: Record<string, number> | null; open: Record<string, boolean>; school: { displacement: number; wheelRotation: number; wheelRadius: number } | null; camera: { mode: string } };
 }
-type HookWindow = Window & { __tt: Hook; __samples: Sample[] };
+type HookWindow = Window & { __tt: Hook; __samples: Sample[]; __frame(label: string, png: string): Promise<void> };
 
 const playable = (s: GameRead) => s.phase === "playing" && !s.busy && !s.prompt && !s.presentation.beat && !s.presentation.card && !s.presentation.tip && !s.presentation.screen && !s.navigation.locked;
 const progress = (page: Page, id: string) => page.evaluate(id => (window as unknown as HookWindow).__tt.readGates().progress?.[id] ?? 0, id);
@@ -48,11 +48,19 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
     await page.waitForTimeout(500);
     expect(await progress(page, c.gate), "still closed behind the clear card").toBe(0);
 
+    // A page screenshot takes longer than the motion under software rendering, so
+    // frames come straight from the canvas, in the frame they were rendered.
+    await page.exposeFunction("__frame", async (label: string, png: string) => {
+      await writeFile(`${dir}/${c.name}-${label}.png`, Buffer.from(png.split(",")[1], "base64"));
+    });
     await page.evaluate(gate => {
       const w = window as unknown as HookWindow, samples: Sample[] = [];
       w.__samples = samples;
+      const stages: [string, number][] = [["1-closed", 0.0001], ["2-early", 0.08], ["3-middle", 0.5], ["4-late", 0.9], ["5-open", 1]];
+      const frame = (label: string) => { void w.__frame(label, document.querySelector("canvas")!.toDataURL("image/png")); };
       const tick = () => {
-        const g = w.__tt.readGates(), r = w.__tt.read();
+        const g = w.__tt.readGates(), r = w.__tt.read(), now = g.progress?.[gate] ?? 0;
+        while (stages.length && now >= stages[0][1]) frame(stages.shift()![0]);
         samples.push({ t: performance.now(), p: g.progress?.[gate] ?? 0, open: g.open[gate], displacement: g.school?.displacement ?? null, wheel: g.school?.wheelRotation ?? null, card: r.presentation.card?.kind ?? null, mode: g.camera.mode });
         if (samples.length < 20_000 && !(samples.at(-1)!.card === "new-area")) requestAnimationFrame(tick);
       };
@@ -60,16 +68,6 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
     }, c.gate);
     await page.getByTestId("card-chapter-clear-continue").click();
 
-    // Frames through the motion: closed, then at each stage as it is reached.
-    await expect.poll(async () => (await page.evaluate(() => (window as unknown as HookWindow).__tt.readGates().camera.mode)), { timeout: 15_000 }).toBe("path");
-    await page.waitForTimeout(600);
-    await page.screenshot({ path: `${dir}/${c.name}-1-closed.png` });
-    for (const [label, at] of [["2-early", 0.15], ["3-middle", 0.5], ["4-late", 0.85]] as const) {
-      await expect.poll(() => progress(page, c.gate), { timeout: 60_000, intervals: [30] }).toBeGreaterThan(at);
-      await page.screenshot({ path: `${dir}/${c.name}-${label}.png` });
-    }
-    await expect.poll(() => progress(page, c.gate), { timeout: 60_000, intervals: [30] }).toBe(1);
-    await page.screenshot({ path: `${dir}/${c.name}-5-open.png` });
     await expect(page.getByTestId("card-new-area-continue")).toBeVisible({ timeout: 30_000 });
 
     const samples = await page.evaluate(() => (window as unknown as HookWindow).__samples);

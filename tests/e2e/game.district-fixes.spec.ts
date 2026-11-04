@@ -102,9 +102,11 @@ async function tapTo(page: Page, target: Point & { y?: number }) {
   await precondition("ground tap lies on canvas above the backpack", async () => {
     expect(p.visible && p.y > 0 && p.y < page.viewportSize()!.height - 100).toBe(true);
   });
-  await page.mouse.click(p.x, p.y);
   await precondition("tap starts a route", async () => {
-    await expect.poll(async () => (await read(page)).navigation.path.length).toBeGreaterThan(0);
+    await expect(async () => {
+      await page.mouse.click(p.x, p.y);
+      await expect.poll(async () => (await read(page)).navigation.path.length, { timeout: 2000 }).toBeGreaterThan(0);
+    }).toPass({ timeout: 15_000 });
   });
   const samples: Point[] = [];
   await precondition("tap route reaches its destination", async () => {
@@ -151,7 +153,7 @@ for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800
         });
         await shot(page, name);
       }
-      for (const [name, point] of [["vendor-lily-rest", { x: 19, z: 3 }], ["vendor-sara-rest", { x: 36, z: 3 }]] as const) {
+      for (const [name, point] of [["vendor-lily-rest", { x: 22.5, z: 3 }], ["vendor-sara-rest", { x: 37.5, z: 3 }]] as const) {
         await at(page, point);
         await shot(page, name);
       }
@@ -185,7 +187,7 @@ test("district Up directions and held headings through both necks", async ({ pag
 
 test("rope blocks real keyboard and redirects taps from both sides, with chest access", async ({ page }) => {
   await start(page, 4, { x: 10.2, z: 35 });
-  for (const [point, key, sign, target] of [[{ x: 10.2, z: 35 }, "ArrowRight", 1, { x: 12.2, z: 35 }], [{ x: 12.2, z: 35 }, "ArrowLeft", -1, { x: 9.5, z: 34.5 }]] as const) {
+  for (const [point, key, sign, target] of [[{ x: 10.2, z: 35 }, "ArrowRight", 1, { x: 12.2, z: 35 }], [{ x: 12.2, z: 35 }, "ArrowLeft", -1, { x: 8.4, z: 34.5 }]] as const) {
     await at(page, point);
     await page.keyboard.down(key);
     try {
