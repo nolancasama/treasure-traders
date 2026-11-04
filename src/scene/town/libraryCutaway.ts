@@ -15,7 +15,7 @@ export function libraryEastCutMask(camera: Position, player: Position): number {
     if (s.kind !== "box") continue;
     if ([0.6, 1.6].some(y => segmentHits(camera, { x: player.x, y: player.y + y, z: player.z }, { x: s.x, z: s.z, hx: s.hx + 0.16, hz: s.hz, y0: s.y + 0.5, y1: s.y + s.height }))) mask |= bit;
   }
-  const lintel = { x: -11.85, z: -42, hx: 0.35, hz: 1.8, y0: 2.72, y1: 3.62 };
+  const lintel = { x: -11.85, z: -42, hx: 0.35, hz: 0.98, y0: 2.72, y1: 3.62 };
   if (mask || [0.6, 1.6].some(y => segmentHits(camera, { x: player.x, y: player.y + y, z: player.z }, lintel))) mask |= 4;
   return mask;
 }
