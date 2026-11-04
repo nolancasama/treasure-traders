@@ -206,14 +206,24 @@ test("rope blocks real keyboard and redirects taps from both sides, with chest a
     expect(samples.some(p => p.z < 33.5), "tap goes around the north post").toBe(true);
     for (const p of samples) if (p.z > 34.18 && p.z < 36.8) expect(Math.abs(p.x - 11.15)).toBeGreaterThan(0.374);
   }
-  await at(page, { x: 8, z: 35 });
-  await tapTo(page, { x: 10, z: 34.8, y: 0.12 });
+  const talking = async () => { const s = await read(page); return !!s.presentation.beat || !!s.prompt; };
+  // A tap on the chest walks up and starts its interaction, from inside the rope.
+  await at(page, { x: 7, z: 35 });
+  const chest = await hook(page, h => h.project({ kind: "seaChest" }));
+  await page.mouse.click(chest!.x, chest!.y);
+  await precondition("sea chest interaction began by tap", async () => {
+    await expect.poll(talking, { timeout: 20_000 }).toBe(true);
+  });
+  await page.keyboard.press("Escape");
+  await settle(page, playable);
+  // And E works beside it.
+  await at(page, { x: 10, z: 34.8 });
   await precondition("sea chest focused inside the rope", async () => {
     await expect.poll(async () => (await read(page)).focus).toEqual({ kind: "seaChest" });
   });
   await page.keyboard.press("e");
-  await precondition("sea chest interaction began", async () => {
-    await expect.poll(async () => !!(await read(page)).presentation.beat || !!(await read(page)).prompt).toBe(true);
+  await precondition("sea chest interaction began by E", async () => {
+    await expect.poll(talking).toBe(true);
   });
 });
 
