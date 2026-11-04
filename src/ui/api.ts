@@ -96,7 +96,16 @@ export function createUI(options: UIOptions = {}) {
       await Promise.all([advanced, spoken]);
       if (current === generation) { resolveSay = null; publish({ beat: null }); }
     },
-    advance() { resolveSay?.(); },
+    advance() {
+      // A Continue press means "skip this spoken line", not "wait for TTS".
+      // Claim the current resolver before cancelling so repeated taps cannot
+      // accidentally advance a new line while the old speech is finishing.
+      const resolve = resolveSay;
+      if (!resolve) return;
+      resolveSay = null;
+      resolve();
+      voice.cancel();
+    },
     async replay() {
       if (!state.beat || state.beat.jaOnly) return;
       voice.cancel();
