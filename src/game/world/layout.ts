@@ -85,8 +85,9 @@ export const SOLIDS: readonly Solid[] = [
   box("library-west-wall", "school", -26, -42, 0.2, 5.2, 3.5, 0.12),
   box("library-north-wall", "school", -19, -47, 7, 0.2, 3.5, 0.12),
   box("library-south-wall", "school", -19, -37, 7, 0.2, 3.5, 0.12),
-  box("library-east-north", "school", -12, -45.3, 0.2, 1.7, 3.5, 0.12),
-  box("library-east-south", "school", -12, -38.7, 0.2, 1.7, 3.5, 0.12),
+  // A single 1.8m-wide entrance centered at z=-42, with masonry to each jamb.
+  box("library-east-north", "school", -12, -44.95, 0.2, 2.05, 3.5, 0.12),
+  box("library-east-south", "school", -12, -39.05, 0.2, 2.05, 3.5, 0.12),
   box("library-shelf-nw", "school", -23.5, -45.7, 1.7, 0.55, 1.4, 0.12),
   box("library-shelf-ne", "school", -17, -45.7, 1.7, 0.55, 1.4, 0.12),
   box("library-table", "school", -20, -42, 1.4, 0.7, 0.9, 0.12),
