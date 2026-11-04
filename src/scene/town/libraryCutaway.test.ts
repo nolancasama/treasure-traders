@@ -11,11 +11,13 @@ describe("library doorway and camera cutaway", () => {
     mesh.updateMatrixWorld(true);
     return new THREE.Raycaster(from, to.clone().sub(from).normalize(), 0, distance - 0.01).intersectObject(mesh).length > 0;
   }
-  it("has solid masonry above the entrance and leaves its full width clear", () => {
+  it("has one centered clear doorway, no side gaps, and a continuous lintel", () => {
     const geometry = libraryGeometry(SOLIDS, false);
-    for (const z of [-43.59, -42, -40.41]) for (const y of [0.7, 1.7, 2.6]) expect(blocked(geometry, new THREE.Vector3(-10.8, y, z), new THREE.Vector3(-13, y, z)), `opening y=${y},z=${z}`).toBe(false);
+    for (const z of [-42.75, -42, -41.25]) for (const y of [0.7, 1.7, 2.6])
+      expect(blocked(geometry, new THREE.Vector3(-10.8, y, z), new THREE.Vector3(-13, y, z)), `opening y=${y},z=${z}`).toBe(false);
     expect(blocked(geometry, new THREE.Vector3(-10.8, 3, -42), new THREE.Vector3(-13, 3, -42))).toBe(true);
-    for (const z of [-44.5, -39.5]) expect(blocked(geometry, new THREE.Vector3(-10.8, 1.3, z), new THREE.Vector3(-13, 1.3, z)), `open leaf against wall z=${z}`).toBe(true);
+    for (const z of [-43.59, -40.41]) for (const y of [0.7, 1.7])
+      expect(blocked(geometry, new THREE.Vector3(-10.8, y, z), new THREE.Vector3(-13, y, z)), `wall z=${z}`).toBe(true);
     geometry.dispose();
   });
   it("switches at the real doorway boundary, retaining the far entrance wall", () => {
