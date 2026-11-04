@@ -88,6 +88,8 @@ export const SOLIDS: readonly Solid[] = [
   // A single 1.8m-wide entrance centered at z=-42, with masonry to each jamb.
   box("library-east-north", "school", -12, -44.95, 0.2, 2.05, 3.5, 0.12),
   box("library-east-south", "school", -12, -39.05, 0.2, 2.05, 3.5, 0.12),
+  // The open door leaf outside the north jamb. Named so neither library builder draws it.
+  box("courtyard-library-door", "school", -10.88, -42.97, 0.85, 0.06, 2.6, 0.02),
   box("library-shelf-nw", "school", -23.5, -45.7, 1.7, 0.55, 1.4, 0.12),
   box("library-shelf-ne", "school", -17, -45.7, 1.7, 0.55, 1.4, 0.12),
   box("library-table", "school", -20, -42, 1.4, 0.7, 0.9, 0.12),

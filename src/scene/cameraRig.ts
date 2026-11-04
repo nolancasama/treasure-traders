@@ -1,6 +1,7 @@
-import { HOUSES, LAMP_POSITIONS, SOLIDS, TREES, type Solid } from "../game/world/layout";
+import { HOUSES, LAMP_POSITIONS, SOLIDS, TREES, WALK_AREAS, type Solid } from "../game/world/layout";
 import { DISTRICT_IDS } from "../game/content/ids";
-import type { Position } from "../game/world/types";
+import { FOLLOW_CAMERA, SQUARE_BLEND_DISTANCE, SQUARE_CAMERA } from "../game/world/followCamera";
+import type { Point, Position } from "../game/world/types";
 
 /** An axis-aligned box the camera should not sit in or look through. */
 export interface Blocker { x: number; z: number; hx: number; hz: number; y0: number; y1: number; id?: string }
@@ -53,6 +54,21 @@ export function segmentHits(a: Position, b: Position, box: Blocker): boolean {
     if (t0 > t1) return false;
   }
   return true;
+}
+
+const SQUARE_VIEW_AREAS = WALK_AREAS.filter(a => a.id === "square" || a.id === "bridge-approach" || a.id === "bridge");
+
+/** 1 anywhere in Village Square and on its bridge, easing to 0 by distance, never by time alone. */
+export function squareViewWeight(p: Point): number {
+  const distance = Math.min(...SQUARE_VIEW_AREAS.map(a => Math.hypot(Math.max(0, Math.abs(p.x - a.x) - a.hx), Math.max(0, Math.abs(p.z - a.z) - a.hz))));
+  const u = Math.min(1, distance / SQUARE_BLEND_DISTANCE);
+  return 1 - u * u * (3 - 2 * u);
+}
+
+/** The follow offset here. Looking along the bridge puts its short edge level on screen. */
+export function followOffset(p: Point): Position {
+  const weight = squareViewWeight(p), { offset: a } = FOLLOW_CAMERA, { offset: b } = SQUARE_CAMERA;
+  return { x: a.x + (b.x - a.x) * weight, y: a.y + (b.y - a.y) * weight, z: a.z + (b.z - a.z) * weight };
 }
 
 export interface Shot { position: Position; target: Position }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { audio } from "../audio/audio";
 import { itemsOf } from "../game/logic";
 import { PromptPanel } from "./prompts";
-import { BackpackBar, BackpackPanel, Card, ChapterSelect, DialoguePanel, FirstTimeTip, Hud, JournalPanel, ResultsScreen, SettingsPanel, TitleScreen } from "./components";
+import { BackpackBar, BackpackPanel, Card, ChapterSelect, DebugMenu, DialoguePanel, FirstTimeTip, Hud, JournalPanel, ResultsScreen, SettingsPanel, TitleScreen } from "./components";
 import type { UIAPI, JournalTab } from "./api";
 import "./host.css";
 
@@ -24,12 +24,17 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
   }, [ui, activePanel]);
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
+      // A button left focused by a tap or click must not take over Continue's keys.
+      const advanceKey = event.code === "Space" || event.key === "Enter", target = event.target as HTMLElement;
+      const pointerFocused = target?.tagName === "BUTTON" && !target.matches(":focus-visible");
+      if (state.beat && advanceKey && event.repeat && !state.screen) { event.preventDefault(); return; }
+      if (state.beat && advanceKey && pointerFocused && !event.altKey && !event.ctrlKey && !event.metaKey && !speech.prompt && !state.screen && !state.card && !state.tip) { event.preventDefault(); ui.advance(); return; }
       if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || /INPUT|SELECT|TEXTAREA|BUTTON/.test((event.target as HTMLElement)?.tagName)) return;
       if (speech.prompt) return;
       if (event.key === "Escape") { if (state.screen) ui.back(); else ui.screen("settings"); event.preventDefault(); return; }
       if (state.screen || state.card || state.tip) return;
       const letter = event.key.toLowerCase();
-      if (state.beat && (event.code === "Space" || event.key === "Enter")) { event.preventDefault(); ui.advance(); }
+      if (state.beat && advanceKey) { event.preventDefault(); ui.advance(); }
       if (letter === "b") ui.screen("backpack");
       if (letter === "j") ui.screen("journal");
       if (letter === "h") ui.action("hint");
@@ -59,6 +64,7 @@ export function UIHost({ ui, hasSave = false, titleBackdrop }: { ui: UIAPI; hasS
     {state.screen === "journal" && game && <JournalPanel state={game} tab={state.journalTab} onTab={tab => ui.screen("journal", { tab })} japanese={state.settings.japanese} onSpeak={text => { void ui.hear(text); }} onClose={ui.back} />}
     {state.screen === "settings" && <SettingsPanel settings={state.settings} onChange={ui.configure} onMicCheck={() => void checkMic()} micStatus={speech.listening ? "Listening… / 聞いているよ" : micStatus || speech.tip?.en} onReset={() => ui.action("reset")} onClose={() => { if (speech.prompt?.kind === "answer" && speech.prompt.questionId === "ui-mic-check") ui.speech.cancel(); ui.back(); }} />}
     {state.screen === "chapters" && <ChapterSelect current={game?.chapter ?? 1} completed={game?.completedChapters ?? []} onSelect={chapter => ui.action("chapter", chapter)} japanese={state.settings.japanese} onClose={ui.back} />}
+    {state.screen === "debug" && <DebugMenu current={game?.chapter ?? 1} completed={game?.completedChapters ?? []} build={document.querySelector<HTMLMetaElement>('meta[name="tt-build"]')?.content ?? "dev"} onChapter={chapter => ui.action("debug-chapter", chapter)} onUnlockAll={() => ui.action("debug-unlock-all")} onClose={ui.back} />}
     {state.screen === "results" && game && <div className={state.settings.japanese ? undefined : "tt-no-japanese"}><ResultsScreen state={game} onReplay={() => ui.action("replay")} onTitle={() => ui.action("title")} onExplore={() => ui.action("explore")} /></div>}
     {state.card && <Card {...state.card} ja={state.settings.japanese ? state.card.ja : undefined} onContinue={ui.dismissCard} />}
     {state.tip && <FirstTimeTip tip={state.tip} onDismiss={ui.dismissTip} />}

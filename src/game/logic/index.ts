@@ -8,7 +8,7 @@
 export type * from "./types";
 export { talk, ask, answer, collect, inspect, leave, playerHolds } from "./interact";
 export { objectives, askCards, indicators, unasked, placement, type Placement } from "./objectives";
-export { startChapter, newCampaign, nextChapter, replayChapter, chapterSeed, randomSeed, type StartOptions } from "./state";
+export { debugCampaignAt, debugUnlockAll, startChapter, newCampaign, nextChapter, replayChapter, chapterSeed, randomSeed, type StartOptions } from "./state";
 export { generateChapter, LIBRARY_SPOTS, GROUNDS_SPOTS, SQUARE_SPOTS } from "./generator";
 export { validate, solve, consistencyProblems, remainingTargets, missionsDone, spotActive, BANDS, type AbstractAction } from "./solver";
 export { count, has, itemsOf, totals } from "./holdings";

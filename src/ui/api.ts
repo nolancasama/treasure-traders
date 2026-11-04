@@ -6,7 +6,7 @@ import { askSentence } from "../game/content/items";
 import { DEFAULT_SETTINGS, type Beat, type GameState, type Objective, type Prompt, type Settings } from "../game/logic";
 
 export type SayBeat = Extract<Beat, { kind: "say" }>;
-export type Screen = "title" | "backpack" | "journal" | "settings" | "chapters" | "results" | null;
+export type Screen = "title" | "backpack" | "journal" | "settings" | "chapters" | "results" | "debug" | null;
 export type JournalTab = "Festival" | "People" | "Words" | "Stickers";
 export type Tip = "moving" | "mic" | "asking" | "backpack" | "journal";
 export interface CardCommand {
@@ -36,10 +36,13 @@ export interface UIOptions {
   settings?: Settings;
   speech?: SpeechOptions;
   voice?: Pick<typeof tts, "speak" | "cancel" | "isSpeaking" | "onSpeakingChange" | "configure">;
-  onAction?: (action: "new-game" | "continue" | "chapters" | "title" | "explore" | "replay" | "reset" | "hint" | "chapter", chapter?: ChapterId) => void;
+  onAction?: (action: "new-game" | "continue" | "chapters" | "title" | "explore" | "replay" | "reset" | "hint" | "chapter" | "debug-chapter" | "debug-unlock-all", chapter?: ChapterId) => void;
   onSettingsChange?: (settings: Settings) => void;
   onBottomPanel?: (pixels: number) => void;
 }
+
+/** A double tap or a held key must not also skip the line that follows. */
+const ADVANCE_GUARD_MS = 300;
 
 /** Presentation only: never applies a model transition or writes a save. */
 export function createUI(options: UIOptions = {}) {
@@ -54,6 +57,7 @@ export function createUI(options: UIOptions = {}) {
   let resolveSay: (() => void) | null = null;
   let resolveCard: (() => void) | null = null;
   let generation = 0;
+  let lastAdvance = -Infinity;
   let disposed = false;
   const screenHistory: Screen[] = [];
   const publish = (patch: Partial<Presentation>) => {
@@ -91,20 +95,20 @@ export function createUI(options: UIOptions = {}) {
       speech.cancel(); stopSay();
       const current = generation;
       publish({ beat });
+      // Only Continue ends a line, so a lost speech-completion event can never hold it.
       const advanced = new Promise<void>(resolve => { resolveSay = resolve; });
-      const spoken = beat.jaOnly ? Promise.resolve() : voice.speak(beat.en, { speaker: beat.speaker });
-      await Promise.all([advanced, spoken]);
+      if (!beat.jaOnly) void voice.speak(beat.en, { speaker: beat.speaker });
+      await advanced;
       if (current === generation) { resolveSay = null; publish({ beat: null }); }
     },
     advance() {
       // A Continue press means "skip this spoken line", not "wait for TTS".
-      // Claim the current resolver before cancelling so repeated taps cannot
-      // accidentally advance a new line while the old speech is finishing.
-      const resolve = resolveSay;
-      if (!resolve) return;
+      const resolve = resolveSay, now = Date.now();
+      if (!resolve || now - lastAdvance < ADVANCE_GUARD_MS) return;
+      lastAdvance = now;
       resolveSay = null;
-      resolve();
       voice.cancel();
+      resolve();
     },
     async replay() {
       if (!state.beat || state.beat.jaOnly) return;

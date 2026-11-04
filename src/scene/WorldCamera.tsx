@@ -3,12 +3,11 @@ import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import type { WorldRuntime } from "../game/world/types";
 import { WALK_AREAS } from "../game/world/layout";
-import { FOLLOW_CAMERA, SQUARE_CAMERA } from "../game/world/followCamera";
-import { conversationShot, type Shot } from "./cameraRig";
+import { FOLLOW_CAMERA } from "../game/world/followCamera";
+import { conversationShot, followOffset, type Shot } from "./cameraRig";
 import { sceneUniforms } from "./materials";
 
 const library = WALK_AREAS.find(a => a.id === "library")!;
-const square = WALK_AREAS.find(a => a.id === "square")!;
 const scratchA = new THREE.Vector3(), scratchB = new THREE.Vector3();
 
 /** Depth-buffer value at a view distance, for the see-through test in scenery shaders. */
@@ -25,12 +24,9 @@ export function WorldCamera({ runtime: rt }: { runtime: WorldRuntime }) {
   useFrame((_, rawDt) => {
     const dt = Math.min(rawDt, 0.1), p = rt.player, c = rt.camera;
     const { position, target, look } = scratch;
-    // Face along the bridge length in Village Square, so its short edge runs
-    // horizontally along the bottom of the screen. Do not rotate other districts.
-    const inSquare = Math.abs(p.x - square.x) <= square.hx && Math.abs(p.z - square.z) <= square.hz;
-    const frame = c.mode === "follow" && inSquare ? SQUARE_CAMERA : FOLLOW_CAMERA;
-    position.set(p.x + frame.offset.x, p.y + frame.offset.y, p.z + frame.offset.z);
-    target.set(p.x, p.y + frame.targetHeight, p.z);
+    const offset = followOffset(p);
+    position.set(p.x + offset.x, p.y + offset.y, p.z + offset.z);
+    target.set(p.x, p.y + FOLLOW_CAMERA.targetHeight, p.z);
     if (c.mode === "conversation") {
       // Chosen once per pairing: re-picking while they talk would make the view jump.
       const key = `${c.target.x},${c.target.z},${p.x.toFixed(1)},${p.z.toFixed(1)}`;

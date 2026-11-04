@@ -45,6 +45,34 @@ describe("frozen presentation commands", () => {
     expect(h.ui.getSnapshot().beat).toBeNull();
     h.ui.dispose();
   });
+  it("advances at once with no completion event, and a double tap never skips the next line", async () => {
+    vi.useFakeTimers();
+    try {
+      const h = harness();
+      h.voice.speak.mockImplementation(() => new Promise<void>(() => {})); // The browser never finishes.
+      h.voice.cancel.mockImplementation(() => undefined);
+      const first = vi.fn(), second = vi.fn(), third = vi.fn();
+      const a = h.ui.say(beat).then(first);
+      h.ui.advance(); await a;
+      expect(first).toHaveBeenCalledOnce();
+      const b = h.ui.say({ ...beat, en: "Second" }).then(second);
+      h.ui.advance(); // The other half of a double tap, landing on the new line.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(second).not.toHaveBeenCalled();
+      expect(h.ui.getSnapshot().beat?.en).toBe("Second");
+      await vi.advanceTimersByTimeAsync(250);
+      h.ui.advance(); await b;
+      expect(second).toHaveBeenCalledOnce();
+      // A line whose speech has already finished still takes one press.
+      h.voice.speak.mockImplementation(() => Promise.resolve());
+      const c = h.ui.say({ ...beat, en: "Third" }).then(third);
+      await vi.advanceTimersByTimeAsync(400);
+      expect(third).not.toHaveBeenCalled();
+      h.ui.advance(); await c;
+      expect(third).toHaveBeenCalledOnce();
+      h.ui.dispose();
+    } finally { vi.useRealTimers(); }
+  });
   it("replaces and cancels pending lines and cards without stranding promises", async () => {
     const h = harness();
     const first = h.ui.say(beat); const second = h.ui.say({ ...beat, en: "Thank you!" });

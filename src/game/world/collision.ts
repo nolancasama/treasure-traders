@@ -107,11 +107,14 @@ function clearSegment(a: Point, b: Point, gates: Gates, r: number): boolean {
   return true;
 }
 
+/** Samples are 0.2m apart, so a shortcut past a corner needs this much spare to clear it throughout. */
+const SHORTCUT_MARGIN = 0.02;
+
 interface Node extends Point { key: string; score: number; cost: number; parent?: Node }
 /** A* on a 1m grid, with checked diagonals and line-of-sight smoothing. No route returns []. */
 export function findPath(from: Point, to: Point, gates: Gates = CLOSED, r = PLAYER_R): Point[] {
   const start = nearestWalkable(from.x, from.z, gates, r), goal = nearestWalkable(to.x, to.z, gates, r);
-  if (clearSegment(start, goal, gates, r)) return [goal];
+  if (clearSegment(start, goal, gates, r + SHORTCUT_MARGIN)) return [goal];
   const gridPoint = (p: Point): Point | undefined => {
     let best: Point | undefined, dist = Infinity;
     for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
@@ -162,7 +165,7 @@ export function findPath(from: Point, to: Point, gates: Gates = CLOSED, r = PLAY
       const smooth: Point[] = [];
       for (let i = 0; i < raw.length - 1;) {
         let j = raw.length - 1;
-        while (j > i + 1 && !clearSegment(raw[i], raw[j], gates, r)) j--;
+        while (j > i + 1 && !clearSegment(raw[i], raw[j], gates, r + SHORTCUT_MARGIN)) j--;
         smooth.push(raw[j]); i = j;
       }
       return smooth;

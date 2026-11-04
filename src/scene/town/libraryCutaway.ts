@@ -3,7 +3,9 @@ import { SOLIDS, WALK_AREAS } from "../../game/world/layout";
 import { segmentHits } from "../cameraRig";
 
 const room = WALK_AREAS.find(a => a.id === "library")!;
-export const insideLibrary = (p: { x: number; z: number }) => Math.abs(p.x - room.x) < room.hx && Math.abs(p.z - room.z) < room.hz;
+/** Cutaway starts at the wall's outer face: the frame would hide a player standing in the doorway. */
+const OUTER_FACE_X = room.x + room.hx + 0.2;
+export const insideLibrary = (p: { x: number; z: number }) => p.x < OUTER_FACE_X && p.x > room.x - room.hx && Math.abs(p.z - room.z) < room.hz;
 
 /** Test the actual eased camera, including the exterior-to-interior transition.
  * A doorway frame cuts with its adjoining wall, so it never floats on a cut wall.

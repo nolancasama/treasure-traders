@@ -34,6 +34,8 @@ export interface GameStoreState {
   configure(settings: Settings): void;
   /** Explicit checkpoint, called by flows after a step or completed cutscene. */
   persist(position?: SavedPosition): void;
+  /** Debug menu only: replaces the campaign save outright, whatever is on screen. */
+  overwriteCampaign(game: GameState): void;
   load(key?: string, relocate?: (position: SavedPosition) => SavedPosition): GameState | null;
   /** Erases both progress slots while retaining teacher settings. */
   reset(): void;
@@ -90,6 +92,7 @@ export function createGameStore(storage: StorageLike = browserStorage()) {
         set({ game: checkpoint });
       }
     },
+    overwriteCampaign: (game) => { saveSlot(storage, SAVE_KEY, game); },
     load: (key = SAVE_KEY, relocate) => {
       const result = loadSlot(storage, key, relocate);
       const campaignSlot = key === SAVE_KEY;

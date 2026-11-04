@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { CLOSED, findPath, isWalkable } from "../../game/world/collision";
-import { FOLLOW_CAMERA } from "../../game/world/followCamera";
+import { followOffset } from "../cameraRig";
 import { canInteract, interactionFocus } from "../../game/world/interaction";
 import { GRANDMA_BENCH_YAW, NPC_HOMES, SOLIDS, UME_SEAT } from "../../game/world/layout";
 import { createWorld, worldStateFromGame } from "../../game/runtime";
@@ -15,14 +15,15 @@ const inverse = frame.clone().invert();
 const point = (x: number, z: number) => new THREE.Vector3(x, 0, z).applyMatrix4(frame);
 
 describe("Grandma's bench frame and supported pose", () => {
-  it("projects the long seat edge level through the real follow frame at different player positions", () => {
+  it("projects the long seat edge level through the real Village Square view at different player positions", () => {
     expect(bench.kind === "box" && bench.yaw).toBe(GRANDMA_BENCH_YAW);
     expect(UME_SEAT.yaw).toBe(GRANDMA_BENCH_YAW);
     expect(NPC_HOMES.ume.yaw).toBe(GRANDMA_BENCH_YAW);
     for (const [x, y, z] of [[-10, 0, 8], [-4, 0, 5], [-14, 0, 2], [5, 0.3, 16]]) {
       const camera = new THREE.PerspectiveCamera(46, 16 / 9, 0.1, 420);
-      camera.position.set(x + FOLLOW_CAMERA.offset.x, y + FOLLOW_CAMERA.offset.y, z + FOLLOW_CAMERA.offset.z);
-      camera.lookAt(x, y + FOLLOW_CAMERA.targetHeight, z);
+      const offset = followOffset({ x, z });
+      camera.position.set(x + offset.x, y + offset.y, z + offset.z);
+      camera.lookAt(x, y + 0.8, z);
       camera.updateMatrixWorld(true);
       const a = new THREE.Vector3(-1.7, UME_SEAT.y, 0.43).applyMatrix4(frame).project(camera);
       const b = new THREE.Vector3(1.7, UME_SEAT.y, 0.43).applyMatrix4(frame).project(camera);

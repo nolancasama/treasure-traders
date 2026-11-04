@@ -705,3 +705,32 @@ The teacher's list of 22 problems, reviewed against the source before work began
   side. Its top is 1.90m, below the lowest 2.35m scallop, without changing the
   tent footprint, location or camera. Final readability at both requested
   viewports remains for the controller's visual acceptance.
+
+## 2026-11-04 — Camera, dialogue, library door, debug menu
+
+- **Village Square looks straight along the bridge, and the bridge keeps that view.**
+  The bridge belongs to the harbor district, but the alignment exists to show it, and
+  the square's edge is at its foot. The view holds across the square, approach and deck,
+  then eases out by distance over 5m (`followOffset`), so standing on a boundary cannot
+  flicker. Rejected: switching at the square's edge, which swung the camera at the
+  moment the bridge was in view. Other districts keep their angle beyond the blend.
+- **Only Continue ends a line.** `say` no longer awaits speech at all, because Continue
+  cancels it anyway. A lost browser completion event therefore cannot hold the game.
+- **Continue acts on pointerdown; keyboard and assistive clicks arrive as detail-0 clicks.**
+  Finger slip can no longer lose a tap. A 300ms guard after an accepted press stops the
+  second half of a double tap, or a held key, from skipping the next line. Rejected:
+  claiming the resolver alone, which only protected until the next line was published.
+- **A button focused by a pointer does not capture Space or Enter during a line.** Only
+  real keyboard focus (`:focus-visible`) keeps a button's own key behavior.
+- **The library door is 1.8m with one open leaf that has a collider.** The frame shows on
+  both faces. Cutaway starts at the wall's outer face, since the narrower frame would
+  otherwise hide a player standing in the doorway.
+- **Route shortcuts keep 2cm of spare clearance.** Samples 0.2m apart could miss a corner
+  by up to 1.5cm between them, which the narrower door exposed.
+- **Debug menu on Ctrl+Alt+D, in the live build too.** It rewrites the campaign save and
+  reloads, rather than jumping live, so no running cutscene can touch the new chapter;
+  the reload also leaves the title's click to restore speech activation. Ctrl+Alt+D was
+  chosen because it collides with no Chrome or ChromeOS shortcut we know of and is hard
+  to press by accident. Chapter 5 is the state with every area open.
+- **The published page names its commit** in `<meta name="tt-build">`, shown in the debug
+  menu, so a stale deployment can be told apart from a broken change.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Vector3, type Group } from "three";
 import { CAST, speakerName } from "../game/content/cast";
@@ -53,10 +53,10 @@ function useDialogFocus(ref: RefObject<HTMLElement | null>, onClose: () => void)
   }, [ref]);
 }
 
-function Button({ id, children, onClick, primary = false, disabled = false, label, className = "" }: {
-  id: string; children: ReactNode; onClick: () => void; primary?: boolean; disabled?: boolean; label?: string; className?: string;
+function Button({ id, children, onClick, onPointerDown, primary = false, disabled = false, label, className = "" }: {
+  id: string; children: ReactNode; onClick: (event: MouseEvent) => void; onPointerDown?: (event: PointerEvent) => void; primary?: boolean; disabled?: boolean; label?: string; className?: string;
 }) {
-  return <button type="button" data-testid={id} className={`tt-button ${primary ? "tt-primary" : ""} ${className}`} disabled={disabled} onClick={onClick} aria-label={label}>{children}</button>;
+  return <button type="button" data-testid={id} className={`tt-button ${primary ? "tt-primary" : ""} ${className}`} disabled={disabled} onClick={onClick} onPointerDown={onPointerDown} aria-label={label}>{children}</button>;
 }
 
 function Modal({ title, subtitle, id, onClose, children, className = "" }: {
@@ -184,7 +184,7 @@ export interface DialoguePanelProps {
 export function DialoguePanel({ beat, japanese = true, speaking = false, onReplay, onContinue, children }: DialoguePanelProps) {
   const name = beat.speaker === "seaChest" ? "Sea chest" : speakerName(beat.speaker).en;
   return <section className="tt-dialogue tt-paper" data-testid="dialogue-panel" aria-label={`${name} speaking`} data-mood={beat.mood ?? "neutral"}>
-    <div className="tt-dialogue-row"><div className="tt-dialogue-portrait"><Portrait id={beat.speaker} mood={beat.mood} size={100} /><strong>{name}</strong></div><div className="tt-dialogue-lines" aria-live="polite">{!beat.jaOnly && <p className="tt-dialogue-en">{beat.en}</p>}{(japanese || beat.jaOnly) && <p className="tt-ja">{beat.ja}</p>}{beat.showItem && <span className="tt-shown-item"><ItemIcon id={beat.showItem} size={40} />{withArticle(beat.showItem)}</span>}</div><div className="tt-dialogue-buttons">{!beat.jaOnly && <Button id="dialogue-replay" onClick={onReplay} label={speaking ? "Replay spoken line" : "Hear again"}><UiIcon name="speaker" size={28} /></Button>}{onContinue && <Button id="dialogue-continue" primary onClick={onContinue} label="Continue dialogue"><UiIcon name="arrow" size={26} /></Button>}</div></div>{children}
+    <div className="tt-dialogue-row"><div className="tt-dialogue-portrait"><Portrait id={beat.speaker} mood={beat.mood} size={100} /><strong>{name}</strong></div><div className="tt-dialogue-lines" aria-live="polite">{!beat.jaOnly && <p className="tt-dialogue-en">{beat.en}</p>}{(japanese || beat.jaOnly) && <p className="tt-ja">{beat.ja}</p>}{beat.showItem && <span className="tt-shown-item"><ItemIcon id={beat.showItem} size={40} />{withArticle(beat.showItem)}</span>}</div><div className="tt-dialogue-buttons">{!beat.jaOnly && <Button id="dialogue-replay" onClick={onReplay} label={speaking ? "Replay spoken line" : "Hear again"}><UiIcon name="speaker" size={28} /></Button>}{onContinue && <Button id="dialogue-continue" primary onPointerDown={event => { if (event.button === 0) onContinue(); }} onClick={event => { if (event.detail === 0) onContinue(); }} label="Continue dialogue"><UiIcon name="arrow" size={26} /></Button>}</div></div>{children}
   </section>;
 }
 
@@ -213,6 +213,12 @@ export interface SettingsPanelProps {
 export function SettingsPanel({ settings, onChange, onMicCheck, micStatus, onReset, onClose }: SettingsPanelProps) {
   const [confirm, setConfirm] = useState(false);
   return <><Modal id="settings" title="Settings" subtitle="せってい" onClose={onClose} className="tt-settings"><div className="tt-settings-grid"><section><h2>Sound <span className="tt-ja">音</span></h2>{([ ["music", "Music", "音楽"], ["effects", "Effects", "こうか音"], ["voice", "Voice", "声"] ] as const).map(([key, name, ja]) => <label className="tt-volume" key={key}><span>{name} <span className="tt-ja">{ja}</span></span><input data-testid={`settings-${key}`} type="range" min="0" max="1" step="0.05" value={settings[key]} onChange={e => onChange({ ...settings, [key]: Number(e.target.value) })} /><output>{Math.round(settings[key] * 100)}%</output></label>)}<label className="tt-select-label">Voice speed <span className="tt-ja">話すはやさ</span><select data-testid="settings-voice-speed" value={settings.voiceSpeed} onChange={e => onChange({ ...settings, voiceSpeed: e.target.value as Settings["voiceSpeed"] })}><option value="normal">Normal / ふつう</option><option value="slow">Slow / ゆっくり</option></select></label></section><section><h2>Play <span className="tt-ja">あそび方</span></h2><label className="tt-toggle"><input data-testid="settings-japanese" type="checkbox" checked={settings.japanese} onChange={e => onChange({ ...settings, japanese: e.target.checked })} /><span>Japanese support<span className="tt-ja">日本語のヒント</span></span></label><label className="tt-toggle"><input data-testid="settings-mic-free" type="checkbox" checked={settings.micFree} onChange={e => onChange({ ...settings, micFree: e.target.checked })} /><span>Mic-free mode<span className="tt-ja">マイクなしモード（先生用）</span></span></label><Button id="settings-mic-check" onClick={onMicCheck}><UiIcon name="mic" size={24} /> Mic check / マイクテスト</Button><p className="tt-mic-status" role="status">{micStatus ?? "Tap to check your microphone."}</p></section></div><footer className="tt-settings-footer"><p className="tt-ja">ぼうけんは自動でほぞんされるよ。</p><Button id="settings-reset" className="tt-danger" onClick={() => setConfirm(true)}>Reset save / データを消す</Button></footer></Modal>{confirm && <Confirm id="reset-save" title="Reset your adventure?" ja="ぼうけんのデータを消す？ もとにはもどせないよ。" onCancel={() => setConfirm(false)} onConfirm={() => { setConfirm(false); onReset(); }} />}</>;
+}
+
+export interface DebugMenuProps { current: ChapterId; completed: ChapterId[]; build: string; onChapter: (chapter: ChapterId) => void; onUnlockAll: () => void; onClose: () => void }
+/** Developer tool on Ctrl+Alt+D. English only: children never reach it by following the game. */
+export function DebugMenu({ current, completed, build, onChapter, onUnlockAll, onClose }: DebugMenuProps) {
+  return <Modal id="debug-menu" title="Debug menu" subtitle={`Ctrl+Alt+D · build ${build}`} onClose={onClose}><p className="tt-debug-note">These replace the saved game. The page reloads; then press Continue (つづきから).</p><div className="tt-debug-list">{CHAPTER_IDS.map(id => <div className="tt-debug-row" key={id}><span><strong>{id}. {CHAPTERS[id].title.en}</strong><small>{id === current ? "current" : completed.includes(id) ? "cleared" : "locked"}</small></span><Button id={`debug-chapter-${id}`} onClick={() => onChapter(id)}>Go to chapter</Button></div>)}</div><div className="tt-actions"><Button id="debug-unlock-all" primary onClick={onUnlockAll}>Unlock all chapters</Button></div></Modal>;
 }
 
 export interface ChapterSelectProps { current: ChapterId; completed: ChapterId[]; onSelect: (chapter: ChapterId) => void; onClose: () => void; japanese?: boolean }

@@ -244,12 +244,15 @@ export function libraryGeometry(solids: readonly Solid[], cutaway: boolean, east
     // One centered 1.8m-wide passage. The solid lintel joins the east walls,
     // leaving one normal-sized doorway rather than a 3.2m blank gap.
     b.box(0.4, 0.9, 1.8, -12, 2.72, -42, walls);
-    for (const z of [-42.94, -41.06]) b.box(0.14, 2.6, 0.14, -11.73, 0.12, z, PALETTE.darkWood);
-    b.box(0.14, 0.18, 2.1, -11.73, 2.72, -42, PALETTE.darkWood);
+    // The same frame reads from both sides: the courtyard is lower than the floor.
+    for (const [x, base] of [[-11.73, 0.02], [-12.27, 0.12]] as const) {
+      for (const z of [-42.94, -41.06]) b.box(0.14, 2.72 - base, 0.14, x, base, z, PALETTE.darkWood);
+      b.box(0.14, 0.18, 2.1, x, 2.72, -42, PALETTE.darkWood);
+    }
     // One door leaf hinged at the north jamb and swung open toward the
     // courtyard. It parks along X outside the wall and clears the walkway.
-    b.box(1.7, 2.5, 0.12, -10.88, 0.12, -42.97, "#9a6244");
-    b.box(1.28, 1.95, 0.035, -10.86, 0.39, -42.88, PALETTE.wood);
+    b.box(1.7, 2.6, 0.12, -10.88, 0.02, -42.97, "#9a6244");
+    b.box(1.28, 1.95, 0.035, -10.86, 0.39, -42.89, PALETTE.wood);
     b.sphere(0.055, -10.22, 1.34, -42.85, PALETTE.gold, [1, 1, 1], 6);
   }
   if (!cutaway) {

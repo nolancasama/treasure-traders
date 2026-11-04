@@ -283,3 +283,4 @@
 .tt-first-tip{gap:14px}
 .tt-first-tip>.portrait{display:none}
 }
+.tt-debug-note{margin:0 0 12px}.tt-debug-list{display:grid;gap:8px;margin-bottom:14px}.tt-debug-row{display:flex;align-items:center;justify-content:space-between;gap:12px}.tt-debug-row span{display:grid}.tt-debug-row small{opacity:.7}

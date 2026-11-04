@@ -3,7 +3,7 @@ import { createUI, type UIAPI, type UIOptions } from '../../ui';
 import { createGameStubs } from '../../dev/gameHook';
 import { DISTRICT_IDS, NPC_IDS, type ChapterId, type DistrictId } from '../content/ids';
 import { L } from '../content/lines';
-import { answer, ask, collect, inspect, leave, newCampaign, nextChapter, objectives, playerHolds, randomSeed, replayChapter, type Step, type Prompt } from '../logic';
+import { answer, ask, collect, debugCampaignAt, debugUnlockAll, inspect, leave, newCampaign, nextChapter, objectives, playerHolds, randomSeed, replayChapter, type GameState, type Step, type Prompt } from '../logic';
 import { intentsFor, remainingPlan, type Intent } from '../logic/plan';
 import { createWorld, worldStateFromGame, DISTRICTS } from '../world';
 import type { Interaction } from '../world/types';
@@ -20,6 +20,7 @@ export function createGame() {
   let district: DistrictId | undefined;
   let introAbort: AbortController | null = null;
   let endingPresented = false;
+  let reloading = false;
   const state = () => store.getState();
   const ui: UIAPI = createUI({
     settings: state().settings,
@@ -62,7 +63,13 @@ export function createGame() {
       if (target) world.setCamera({ mode: 'conversation', target });
     }
   }
-  function save() { state().persist(world.runtime.player); }
+  function save() { if (!reloading) state().persist(world.runtime.player); }
+  /** Reloads rather than jumping live, so no running cutscene can touch the new chapter. */
+  function debugReload(next: GameState) {
+    reloading = true;
+    state().overwriteCampaign(next);
+    location.reload();
+  }
   function cancelTalk() {
     epoch++; ui.cancel();
     // Whoever was talking relaxes and puts away whatever they were showing.
@@ -185,6 +192,8 @@ export function createGame() {
   }
   async function menu(action: Parameters<NonNullable<UIOptions['onAction']>>[0], chapter?: ChapterId) {
     audio.unlock();
+    if (action === 'debug-chapter') { if (chapter) debugReload(debugCampaignAt(chapter, state().campaign)); return; }
+    if (action === 'debug-unlock-all') { debugReload(debugUnlockAll(state().campaign)); return; }
     if (action === 'hint') { hint(); return; }
     if (action === 'explore') { ui.screen(null); state().setPhase('playing'); world.setCamera({ mode: 'follow' }); lock(); return; }
     if (action === 'chapters' || action === 'replay') { ui.screen('chapters'); return; }
@@ -248,6 +257,11 @@ export function createGame() {
   const offArrive = world.onArrive(() => { if (!state().busy) save(); });
   const timer = window.setInterval(tick, 250);
   const key = (event: KeyboardEvent) => {
+    if (event.ctrlKey && event.altKey && event.code === 'KeyD') {
+      event.preventDefault(); event.stopImmediatePropagation();
+      if (ui.getSnapshot().screen === 'debug') ui.back(); else ui.screen('debug');
+      return;
+    }
     if (event.key === 'Escape' && active && state().phase === 'playing' && !ui.getSnapshot().screen) { event.preventDefault(); event.stopImmediatePropagation(); cancelTalk(); }
     if (event.code === 'Enter' || event.code === 'Space') audio.unlock();
   };

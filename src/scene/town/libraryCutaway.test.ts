@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import * as THREE from "three";
+import { OPEN, findPath, isWalkable, moveCircle } from "../../game/world/collision";
 import { SOLIDS } from "../../game/world/layout";
 import { libraryGeometry } from "./builders";
 import { insideLibrary, libraryEastCutMask } from "./libraryCutaway";
@@ -19,6 +20,16 @@ describe("library doorway and camera cutaway", () => {
     for (const z of [-43.59, -40.41]) for (const y of [0.7, 1.7])
       expect(blocked(geometry, new THREE.Vector3(-10.8, y, z), new THREE.Vector3(-13, y, z)), `wall z=${z}`).toBe(true);
     geometry.dispose();
+  });
+  it("walks through the one doorway, and is stopped by the walls and the open door leaf", () => {
+    expect(moveCircle(-9, -42, -15, -42, undefined, OPEN).x).toBeCloseTo(-15, 5);
+    expect(moveCircle(-15, -42, -9, -42, undefined, OPEN).x).toBeCloseTo(-9, 5);
+    for (const z of [-44.5, -39.5]) expect(moveCircle(-9, z, -15, z, undefined, OPEN).x, `wall z=${z}`).toBeGreaterThan(-12);
+    expect(moveCircle(-10.9, -41.5, -10.9, -45, undefined, OPEN).z, "door leaf").toBeGreaterThan(-43);
+    expect(isWalkable(-12, -42, OPEN)).toBe(true);
+    const route = findPath({ x: -5, z: -42 }, { x: -18, z: -40 }, OPEN);
+    expect(route.length).toBeGreaterThan(0);
+    expect(route.at(-1)).toEqual({ x: -18, z: -40 });
   });
   it("switches at the real doorway boundary, retaining the far entrance wall", () => {
     expect(insideLibrary({ x: -11.75, z: -42 })).toBe(false);

@@ -43,6 +43,11 @@ hand-playing it on a real Chromebook.
   `npm run e2e:gate` exercises the school unlock animation and effective collision.
   `tests/e2e/game.collision.spec.ts` drives the bridge, harbor chest, stage steps and E
   with real keys and taps; it fails against the old bridge and chest colliders.
+  `tests/e2e/game.reported-fixes.spec.ts` covers the square camera, Continue with real
+  touch, mouse and keys, the library door and the debug menu, with screenshots in
+  `.tmp/shots/verify/`. Setting `BASE_URL` points it at the published site.
+- **Debug menu:** Ctrl+Alt+D, on the title or in play. Jumps to any chapter or unlocks them
+  all, by rewriting the save and reloading.
 - **Review galleries:** `?gallery=items|people|ui|world`; `npm run shots` renders them to
   `.tmp/shots/`. `tests/shots/perf.spec.ts` measures relative frame cost.
 - **Fix review harness:** controller-owned `npm run shots:fixes` produces paired
@@ -64,6 +69,11 @@ hand-playing it on a real Chromebook.
 - **4:** merged wooden tripod easel, shoreline-derived fish clearance and regression
   controls, adjacent east harbor fence ropes, pier-end joints, complete bridge rope
   posts/spans, and a prize sign on a front counter board below the tent hem.
+
+## Deployment Note
+A push deploys only if `npm test` and the build pass in CI. A red test leaves the live
+site on the previous build, with no other sign. To check what is live, read
+`<meta name="tt-build">` on the page or open the debug menu (Ctrl+Alt+D).
 
 ## Current Work
 None in flight. No delegated work is pending. All four batches passed review: 230 unit

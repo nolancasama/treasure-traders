@@ -1,5 +1,5 @@
 import { areasAtStart, chestAtStart } from "../content/chapters";
-import type { ChapterId, NpcId } from "../content/ids";
+import { CHAPTER_IDS, type ChapterId, type NpcId } from "../content/ids";
 import { generateChapter } from "./generator";
 import { cloneHoldings } from "./holdings";
 import type { GameState, Mode, NpcMemory } from "./types";
@@ -76,6 +76,18 @@ export function startChapter(chapter: ChapterId, opts: StartOptions): GameState 
 /** A new campaign at Chapter 1. */
 export function newCampaign(campaignSeed = randomSeed()): GameState {
   return startChapter(1, { mode: "campaign", campaignSeed });
+}
+
+/** Debug menu only: the campaign as if every chapter before this one had been cleared. */
+export function debugCampaignAt(chapter: ChapterId, campaign: GameState | null): GameState {
+  const state = startChapter(chapter, { mode: "campaign", campaignSeed: campaign?.campaignSeed ?? randomSeed(), previous: campaign ?? undefined });
+  const earlier = CHAPTER_IDS.filter(id => id < chapter);
+  return { ...state, completedChapters: [...new Set([...state.completedChapters, ...earlier])].sort() };
+}
+
+/** Debug menu only: every chapter replayable from Chapter Select, the campaign otherwise as it was. */
+export function debugUnlockAll(campaign: GameState | null): GameState {
+  return { ...(campaign ?? newCampaign()), completedChapters: [...CHAPTER_IDS] };
 }
 
 /** After `chapterComplete`, the next chapter's start state (campaign or replay end). */
