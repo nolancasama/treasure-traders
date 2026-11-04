@@ -820,3 +820,50 @@ The teacher's list of 22 problems, reviewed against the source before work began
   the moment the chapter completed, behind the clear card. It now shares the school gate's clock
   and hold, so navigation still opens only on the exact final frame. Cart and arch keep their
   old timing; they were not part of this request.
+
+## 2026-11-05 — Supported roofs, working painters, and accessible Bye
+
+- **Every market/festival stall uses the same full-depth local awning.** Its
+  low edge is at z-hz-0.35, y=2.95, and high edge at z+hz+0.35, y=3.72.
+  Four posts stand at x±(hx-0.16), z±(hz-0.14). World z no longer decides
+  roof depth. Flower, Fruit and Games retain yaw PI, all stall footprints,
+  counters, goods, signs and shopkeeper positions stay fixed except attachments:
+  Flower's basket beam/baskets and Fruit's banana beam/hanging bananas move
+  together onto the full-depth rear supports. Existing front lantern hooks
+  remain seated inside the new roof slab at their unchanged positions.
+- **Post caps meet the actual roof slab.** A shared pure calculation uses the
+  awning line and its rotated 0.07m thickness to place flat caps strictly inside
+  both faces across their 0.13m width. The drawing booth uses this calculation
+  for its rear posts and two matching front posts seated on the table ends.
+  Stage pillars retain their existing slope-cut caps, embedded 0.012m rather
+  than exactly coplanar with the underside. The prize tent's four poles move
+  inside its polygonal canopy and meet its panel planes; the picnic parasol
+  pole reaches its peak. Their original fabric tops/hem keep their silhouette,
+  with a 0.07m underside added in the same merged batch. The school entrance
+  braces, cottage/building roof attachments, stage bunting and lantern hooks
+  were audited and need no relocation. No lights or draw calls were added.
+- **Notice-board papers have separate vertical space.** The middle upper/lower
+  papers start at y=1.50/0.92, within the cork. Text bars and pins sit outside
+  the paper faces. Roof halves butt at their ridge, removing a further overlap
+  exposed by the new whole-board z-fight gate (80 pairs before, zero after).
+- **Both school fence rails end on capped posts.** Include z=-35 west and
+  z=-47 east once, with the original materials and dimensions. Source inspection
+  corrected the brief: there are no fence-specific colliders; the existing
+  courtyard walk boundary excludes these posts. The west endpoint is south of
+  the library walls and approach. Collision/navigation boundaries are unchanged.
+- **Painters stand within brush reach of their fixed artwork.** Ken's home is
+  (10.79,6), Leo's (-8.92,32), with their original +x/-x facing. The actual rig
+  gives about 0.059m/0.075m closest brush clearance through the animation cycle;
+  Ken's arm/checking pose now reaches poster height. Home painters resume that
+  facing after conversation. Chapter overrides still use their authored spots,
+  presentation resolves Ken through world.positionOf, and saves store no NPC
+  home coordinates. NPC rig radii are about 0.279/0.296m; interaction range is
+  still 2.4m. Open-side paths/interactions are tested. No camera changes needed.
+- **Bye belongs above the microphone.** Ask and answer prompts share a centered
+  112×56px pill with bold 20px text and an 8px column gap. Mic-free mode keeps
+  Bye in that column with its mode label beneath it. Replay stays right-aligned
+  in the header. Existing close behavior, keyboard handling and dialogue rules
+  remain. Read-only `__tt.readScenery().painters` exposes rendered cycle moment,
+  position, yaw, home status and visibility for the controller's gameplay shots;
+  no new state machine is introduced. Added E2E checks and screenshot captures
+  are controller-run; implementation does not claim visual acceptance.

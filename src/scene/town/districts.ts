@@ -6,6 +6,7 @@ import { addAwning, addCottage, addFarTree, addFlowerBox, addFlowers, addHipRoof
 import { GRASS_Y, seeded } from "./ground";
 import { SignBatch } from "./signs";
 import { stagePillarGeometry, STAGE_BUNTING } from "./stage";
+import { canopyPostGeometry, CANOPY_THICKNESS, schoolFencePosts, supportedAwning, tentSupports } from "./roofSupports";
 
 /**
  * What one district adds on top of its paving, as three merged meshes:
@@ -144,14 +145,21 @@ function square(low: B, tall: B, signs: SignBatch) {
   const board = solid("notice-board");
   for (const z of [4.75, 7.25]) tall.box(0.26, 2.15, 0.2, board.x, 0, z, PALETTE.darkWood);
   tall.box(0.22, 1.5, 3, board.x, 0.75, board.z, PALETTE.darkWood);
-  for (const side of [-1, 1]) tall.boxAt(0.36, 0.07, 3.3, [board.x + side * 0.15, 2.3, board.z], [0, 0, -side * 0.5], side < 0 ? PALETTE.red : "#d0523f");
+  for (const side of [-1, 1]) {
+    const roof = new THREE.BoxGeometry(0.36, 0.07, 3.3).rotateZ(-side * 0.5).translate(side * 0.15, 2.3, 0);
+    // Butt joint at the ridge; overlapping end faces used to share a plane.
+    const p = roof.getAttribute("position");
+    for (let i = 0; i < p.count; i++) p.setX(i, side * Math.max(0, side * p.getX(i)));
+    roof.computeVertexNormals();
+    tall.add(roof, side < 0 ? PALETTE.red : "#d0523f", [board.x, 0, board.z]);
+  }
   for (const face of [-1, 1]) {
     tall.box(0.04, 1.28, 2.76, board.x + face * 0.12, 0.86, board.z, "#d7ab6e");
-    for (const [z, y, color] of [[5.15, 1.15, "#fff0ba"], [6, 1.38, "#a7dcd6"], [6.85, 1.08, "#f3a899"], [5.95, 0.93, "#d8c7f3"]] as const) {
+    for (const [z, y, color] of [[5.15, 1.15, "#fff0ba"], [6, 1.50, "#a7dcd6"], [6.85, 1.08, "#f3a899"], [5.95, 0.92, "#d8c7f3"]] as const) {
       tall.box(0.03, 0.52, 0.62, board.x + face * 0.145, y, z, color);
-      tall.box(0.04, 0.05, 0.38, board.x + face * 0.15, y + 0.34, z, "#6b5a50");
-      tall.box(0.04, 0.05, 0.3, board.x + face * 0.15, y + 0.21, z, "#6b5a50");
-      tall.sphere(0.04, board.x + face * 0.16, y + 0.46, z, PALETTE.red, [0.6, 1, 1], 6);
+      tall.box(0.012, 0.05, 0.38, board.x + face * 0.166, y + 0.34, z, "#6b5a50");
+      tall.box(0.012, 0.05, 0.3, board.x + face * 0.166, y + 0.21, z, "#6b5a50");
+      tall.sphere(0.04, board.x + face * 0.178, y + 0.46, z, PALETTE.red, [0.6, 1, 1], 6);
     }
   }
   signpost(tall, signs, "square", -15.5, -19.2, 0.82, 3.1);
@@ -170,8 +178,8 @@ function atStall(low: B, tall: B, id: string, build: () => void) {
 
 /** A market stall: the counter fills its collider, the frame and awning stand above it. */
 function stall(low: B, tall: B, signs: SignBatch, id: string, sign: Parameters<SignBatch["add"]>[0], a: string, c: string, body: string, trim: string) {
-  const s = boxOf(id), { x, z, hx, hz } = s, north = z < 0, top = s.height;
-  const zLow = north ? z - hz - 0.35 : z - 0.1, yLow = north ? 2.95 : 3.1, zHigh = z + hz + 0.35, yHigh = 3.72;
+  const s = boxOf(id), { x, z, hx, hz } = s, top = s.height;
+  const frame = supportedAwning(s), { zLow, yLow, zHigh, yHigh } = frame.roof;
   const width = SignBatch.width(sign, 0.82);
   atStall(low, tall, id, () => {
   low.box(hx * 2, top - 0.1, hz * 2, x, 0, z, body);
@@ -182,17 +190,14 @@ function stall(low: B, tall: B, signs: SignBatch, id: string, sign: Parameters<S
   }
   low.box(hx * 2 + 0.2, 0.1, hz * 2 + 0.2, x, top - 0.1, z, trim);
   // The awning and all its attachments share the stall's frame.
-  for (const dx of [-hx + 0.16, hx - 0.16]) {
-    tall.box(0.13, yHigh + 0.02 - top, 0.13, x + dx, top, z + hz - 0.14, PALETTE.wood);
-    tall.box(0.13, (north ? yLow : 3.1) - top, 0.13, x + dx, top, north ? z - hz + 0.14 : z - 0.1, PALETTE.wood);
-  }
+  for (const post of frame.posts) tall.box(0.13, post.top - top, 0.13, post.x, top, post.z, PALETTE.wood);
   addAwning(tall, x, hx + 0.2, zLow, yLow, zHigh, yHigh, a, c, 9);
   // The shop sign stands on the awning's high edge.
   tall.box(width + 0.2, 0.98, 0.1, x, yHigh, zHigh - 0.02, PALETTE.darkWood);
   });
   const signPoint = stallPoint(x, z, s.yaw, 0, zHigh + 0.04 - z);
   signs.add(sign, signPoint.x, yHigh + 0.49, signPoint.z, 0.82, s.yaw);
-  return { x, z, hx, hz, top, north };
+  return { x, z, hx, hz, top };
 }
 
 function bakery(low: B, tall: B, signs: SignBatch) {
@@ -227,12 +232,13 @@ function flowerShop(low: B, tall: B, signs: SignBatch) {
     }
   });
   // Hanging baskets from a beam, trailing leaves.
-  tall.box(6.5, 0.1, 0.1, x, 2.86, z - 0.1, PALETTE.wood);
+  const basketZ = z - hz + 0.14;
+  tall.box(6.5, 0.1, 0.1, x, 2.86, basketZ, PALETTE.wood);
   for (const dx of [-2.4, -0.8, 0.8, 2.4]) {
-    tall.add(new THREE.CylinderGeometry(0.012, 0.012, 0.45, 3), "#8a6a48", [x + dx, 2.64, z - 0.1], [0, 0, 0], [1, 1, 1], { wind: 0.2, hang: true, flatAo: true });
-    tall.add(new THREE.ConeGeometry(0.3, 0.3, 7, 1, true), "#c08a58", [x + dx, 2.3, z - 0.1], [Math.PI, 0, 0], [1, 1, 1], { wind: 0.25, hang: true, flatAo: true });
-    tall.add(new THREE.IcosahedronGeometry(0.31, 0), "#62ad5c", [x + dx, 2.42, z - 0.1], [dx, 0, 0], [1, 0.72, 1], { wind: 0.3, hang: true });
-    addFlowers(tall, x + dx, z - 0.1, 2.55, 4, 0.22, rand, FLOWERS, 0.05);
+    tall.add(new THREE.CylinderGeometry(0.012, 0.012, 0.45, 3), "#8a6a48", [x + dx, 2.64, basketZ], [0, 0, 0], [1, 1, 1], { wind: 0.2, hang: true, flatAo: true });
+    tall.add(new THREE.ConeGeometry(0.3, 0.3, 7, 1, true), "#c08a58", [x + dx, 2.3, basketZ], [Math.PI, 0, 0], [1, 1, 1], { wind: 0.25, hang: true, flatAo: true });
+    tall.add(new THREE.IcosahedronGeometry(0.31, 0), "#62ad5c", [x + dx, 2.42, basketZ], [dx, 0, 0], [1, 0.72, 1], { wind: 0.3, hang: true });
+    addFlowers(tall, x + dx, basketZ, 2.55, 4, 0.22, rand, FLOWERS, 0.05);
   }
   void hz;
   });
@@ -280,7 +286,7 @@ function toyShop(low: B, tall: B, signs: SignBatch) {
 }
 
 function fruitShop(low: B, tall: B, signs: SignBatch) {
-  const { x, z, top } = stall(low, tall, signs, "fruit-stall", "fruit", "#ff9d3c", "#7fc161", "#d9a366", "#5fa564");
+  const { x, z, hz, top } = stall(low, tall, signs, "fruit-stall", "fruit", "#ff9d3c", "#7fc161", "#d9a366", "#5fa564");
   atStall(low, tall, "fruit-stall", () => {
   const crate = (cx: number, cz: number, fruit: string, r: number, second?: string) => {
     low.box(1.34, 0.26, 0.9, cx, top + 0.02, cz, "#a8743f");
@@ -301,10 +307,11 @@ function fruitShop(low: B, tall: B, signs: SignBatch) {
     low.sphere(0.34, x + dx, top + 0.3 + dy, z + dz, "#3f8f55", [1.15, 0.95, 0.95], 8);
     for (let i = 0; i < 2; i++) low.sphere(0.345, x + dx, top + 0.3 + dy, z + dz, "#6fb35c", [0.32 + i * 0.5, 0.96, 0.96], 8);
   }
-  // Bananas hang from the front beam.
-  tall.box(6.5, 0.09, 0.09, x, 2.9, z - 0.1, PALETTE.wood);
+  // The banana beam moves with the rear posts of the full-depth frame.
+  const bananaZ = z - hz + 0.14;
+  tall.box(6.5, 0.09, 0.09, x, 2.9, bananaZ, PALETTE.wood);
   for (const dx of [-2.2, 0, 2.2]) for (let i = 0; i < 4; i++) {
-    tall.add(new THREE.CapsuleGeometry(0.05, 0.36, 2, 5), "#ffd64f", [x + dx + (i - 1.5) * 0.09, 2.62, z - 0.1 + (i % 2) * 0.06], [0.25, 0, (i - 1.5) * 0.25], [1, 1, 1], { wind: 0.16, hang: true, flatAo: true });
+    tall.add(new THREE.CapsuleGeometry(0.05, 0.36, 2, 5), "#ffd64f", [x + dx + (i - 1.5) * 0.09, 2.62, bananaZ + (i % 2) * 0.06], [0.25, 0, (i - 1.5) * 0.25], [1, 1, 1], { wind: 0.16, hang: true, flatAo: true });
   }
   // The shop's hanging sign, on a bracket off the corner post.
   tall.box(1.6, 0.08, 0.08, x + 3.7, 3.3, z + 1.66, PALETTE.darkWood);
@@ -411,7 +418,7 @@ function school(low: B, tall: B, signs: SignBatch) {
   // Fence around the yard, stopping at the library approach.
   for (const x of [-14.3, 14.3]) {
     const northEnd = x < 0 ? -35 : -47;
-    for (let z = -26; z > northEnd; z -= 3) { tall.box(0.16, 1.18, 0.16, x, GRASS_Y, z, PALETTE.cream); tall.sphere(0.09, x, 1.18, z, PALETTE.gold, [1, 1, 1], 5); }
+    for (const z of schoolFencePosts(northEnd)) { tall.box(0.16, 1.18, 0.16, x, GRASS_Y, z, PALETTE.cream); tall.sphere(0.09, x, 1.18, z, PALETTE.gold, [1, 1, 1], 5); }
     for (const y of [0.42, 0.86]) tall.box(0.08, 0.12, -26 - northEnd, x, y, (-26 + northEnd) / 2, PALETTE.cream);
   }
   // Playground past the east fence, visible across it and never in the way.
@@ -551,6 +558,16 @@ function stripedTop(b: B, x: number, y: number, z: number, rx: number, rz: numbe
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute([0, rise, 0, Math.cos(a1) * rx, 0, Math.sin(a1) * rz, Math.cos(a0) * rx, 0, Math.sin(a0) * rz], 3));
     b.add(g, i % 2 ? c : a, [x, y, z]);
+    // A thin fabric slab provides a real underside for the supports. Keep the
+    // original top and hem silhouette; these triangles stay in the same batch.
+    const under = g.clone().translate(0, -CANOPY_THICKNESS, 0);
+    const p = under.getAttribute("position");
+    const reversed = new THREE.BufferGeometry();
+    reversed.setAttribute("position", new THREE.Float32BufferAttribute([
+      p.getX(0), p.getY(0), p.getZ(0), p.getX(2), p.getY(2), p.getZ(2), p.getX(1), p.getY(1), p.getZ(1)
+    ], 3));
+    b.add(reversed, i % 2 ? c : a, [x, y, z]);
+    under.dispose();
     // Scalloped hem under each panel.
     const hem = new THREE.BufferGeometry();
     const mx = (Math.cos(a0) + Math.cos(a1)) / 2, mz = (Math.sin(a0) + Math.sin(a1)) / 2;
@@ -671,7 +688,9 @@ function prizeTent(low: B, tall: B, signs: SignBatch) {
   }
   tall.cyl(0.05, 0.09, 0.2, x, 0.96, z + hz - 0.26, PALETTE.gold, 6);
   tall.add(new THREE.CylinderGeometry(0.2, 0.08, 0.3, 8), PALETTE.gold, [x, 1.3, z + hz - 0.26]);
-  for (const dx of [-hx + 0.08, hx - 0.08]) for (const dz of [-hz + 0.08, hz - 0.08]) tall.cyl(0.07, 0.07, 2.75, x + dx, 0, z + dz, PALETTE.darkWood, 6);
+  for (const p of tentSupports(hx, hz)) {
+    tall.add(canopyPostGeometry(p.x, p.z, hx + 0.7, hz + 0.7, 2.5, 10, 2.75, 0.07), PALETTE.darkWood, [x + p.x, 0, z + p.z]);
+  }
   stripedTop(tall, x, 2.75, z, hx + 0.7, hz + 0.7, 2.5, 10, "#ffcc4d", "#fff4d4");
   tall.cyl(0.04, 0.04, 1, x, 5.2, z, PALETTE.darkWood, 5);
   tall.add(new THREE.ConeGeometry(0.28, 0.76, 3), "#e8604c", [x + 0.38, 5.98, z], [0, 0, -Math.PI / 2], [1, 1, 0.08], { wind: 1 });
@@ -695,7 +714,8 @@ function drawingBooth(low: B, tall: B, signs: SignBatch) {
     for (let k = 0; k < 3; k++) low.beam([px + 0.42 + (k - 1) * 0.04, 0.9, z + 0.05], [px + 0.42 + (k - 1) * 0.08, 1.22, z + 0.05 + (k - 1) * 0.03], 0.024, PENNANTS[(i + k) % PENNANTS.length]);
   }
   // Board of the children's pictures.
-  for (const dx of [-hx + 0.1, hx - 0.1]) tall.box(0.13, 3.05, 0.13, x + dx, 0, z - hz + 0.1, PALETTE.wood);
+  const frame = supportedAwning(s, true);
+  for (const p of frame.posts) tall.box(0.13, p.top - p.bottom, 0.13, p.x, p.bottom, p.z, PALETTE.wood);
   tall.box(hx * 2 - 0.1, 2.2, 0.08, x, 0.8, z - hz + 0.1, "#d7ab6e");
   for (let row = 0; row < 2; row++) for (let i = 0; i < 6; i++) {
     const px = x - 2.35 + i * 0.94, py = 1.14 + row * 1;
@@ -704,7 +724,8 @@ function drawingBooth(low: B, tall: B, signs: SignBatch) {
     else if ((i + row) % 3 === 1) { tall.box(0.46, 0.2, 0.02, px, py + 0.14, z - hz + 0.18, "#6fb35c"); tall.box(0.3, 0.3, 0.02, px, py + 0.34, z - hz + 0.18, "#e8604c"); }
     else for (let k = 0; k < 3; k++) tall.box(0.6, 0.1, 0.02, px, py + 0.2 + k * 0.14, z - hz + 0.18, PENNANTS[k]);
   }
-  addAwning(tall, x, hx + 0.2, z - hz - 0.2, 3.1, z + 0.4, 3.5, "#4f9ad6", "#ffe680", 9);
+  const r = frame.roof;
+  addAwning(tall, x, frame.halfWidth, r.zLow, r.yLow, r.zHigh, r.yHigh, "#4f9ad6", "#ffe680", 9);
   const width = SignBatch.width("draw", 0.78);
   tall.box(width + 0.2, 0.9, 0.08, x, 3.5, z + 0.42, PALETTE.darkWood);
   signs.add("draw", x, 3.95, z + 0.47, 0.78);
@@ -725,7 +746,7 @@ function picnic(low: B, tall: B, id: string, parasol: boolean) {
     low.sphere(0.08, x + dx, 0.85, z + dz, ["#ff9d3c", "#e8483f", "#a6cf52"][Math.abs(Math.round(dx))], [1, 0.85, 1], 6);
   }
   if (parasol) {
-    tall.cyl(0.04, 0.05, 2.3, x, 0.78, z, PALETTE.cream, 5);
+    tall.cyl(0.04, 0.05, 3 + 0.72 - CANOPY_THICKNESS / 2 - 0.78, x, 0.78, z, PALETTE.cream, 5);
     stripedTop(tall, x, 3, z, 1.9, 1.9, 0.72, 8, "#4f9ad6", "#fffaf0");
   }
 }

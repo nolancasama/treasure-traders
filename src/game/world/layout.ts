@@ -177,11 +177,11 @@ export const SPOTS: Record<string, Position> = {
 // +z faces the follow camera, which always looks north; faces read from a distance.
 const home = (district: DistrictId, x: number, z: number, y = 0, yaw = 0): NpcPlacement => ({ district, x, y, z, yaw });
 export const NPC_HOMES: Record<NpcId, NpcPlacement> = {
-  pom: home("square", 2.6, -8), ume: home("square", benchPoint(0, 1.15).x, benchPoint(0, 1.15).z, 0, GRANDMA_BENCH_YAW), ken: home("square", 9, 6, 0, Math.PI / 2),
+  pom: home("square", 2.6, -8), ume: home("square", benchPoint(0, 1.15).x, benchPoint(0, 1.15).z, 0, GRANDMA_BENCH_YAW), ken: home("square", 10.79, 6, 0, Math.PI / 2),
   bruno: home("market", 30, -4), lily: home("market", 30, 4, 0, Math.PI), max: home("market", 45, -4), sara: home("market", 45, 4, 0, Math.PI),
   green: home("school", 5, -36), page: home("school", -14.4, -40.5, 0.12), yuki: home("school", -4, -35),
   tom: home("school", 9, -30), emma: home("school", 9, -44), bo: home("harbor", 5, 33, 0.12), finn: home("harbor", 8, 47, 0.12, -Math.PI / 2),
-  mia: home("harbor", 19, 34), leo: home("harbor", -8, 32, 0, -Math.PI / 2), dan: home("festival", -52, -4, 0, 0.6), aya: home("festival", -44, 8)
+  mia: home("harbor", 19, 34), leo: home("harbor", -8.92, 32, 0, -Math.PI / 2), dan: home("festival", -52, -4, 0, 0.6), aya: home("festival", -44, 8)
 };
 
 /** The ending's framing: from the open east of the field, with the sky over the stage. */

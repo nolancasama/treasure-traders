@@ -28,8 +28,9 @@ hand-playing it on a real Chromebook.
     mood; `materials.ts` shared wind and see-through shaders.
   - `cameraRig.ts` (pure, tested) picks conversation shots; `WorldCamera.tsx` feeds the
     see-through holes; `fx/` sparkles and GPU fireworks.
-  - Every district uses follow offset (0,8,12), target height 0.8, with no district
-    yaw blend. The library uses (0,6.2,7) and its own pitch at the same yaw;
+  - Follow views use radius 12, height 8, target height 0.8: Market looks east,
+    Festival looks west, and other districts north, with 6m distance yaw blends.
+    The library uses (0,6.2,7) and its own pitch at the north-facing yaw;
     conversations and authored paths keep their framing except chest close-ups.
   - **`docs/WORLD_API.md` is the integration boundary** (v1.1, additive).
 - **UI + audio** (`src/ui/`, `src/audio/`): `createUI` + `UIHost`, shared `UiIcon` set;
@@ -84,7 +85,14 @@ site on the previous build, with no other sign. To check what is live, read
 
 ## Current Work
 District cameras, stall rotations, stage connections, rope collider and entrance ground are
-implemented; see DESIGN_DECISIONS.md. No delegated work is in flight.
+implemented; see DESIGN_DECISIONS.md. The 2026-11-05 scenery/UI corrections add
+full-depth supported stall roofs, repaired canopy/post contacts, separated board
+posters, both capped school fence endpoints, painter reach/facing corrections,
+and a large Bye above the mic. Unit geometry/rig checks and controller-run prompt
+and scenery E2E specs cover these changes. New gameplay screenshot outputs target
+`.tmp/shots/scenery/`; this implementation has not run acceptance or generated them.
+`__tt.readScenery().painters` reports actual rendered painting/looking moments.
+No delegated work is in flight.
 
 ## Known Issues
 - The z-fight audit covers static geometry with empty chest slots. Filled chest slots

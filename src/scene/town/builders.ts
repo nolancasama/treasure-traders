@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { AWNING_THICKNESS } from "./roofSupports";
 import { PartBuilder } from "../partBuilder";
 import type { House, Solid, Tree } from "../../game/world/layout";
 import { GRASS_Y } from "./ground";
@@ -213,7 +214,7 @@ export function addAwning(b: B, cx: number, halfWidth: number, zLow: number, yLo
   const width = halfWidth * 2 / stripes;
   for (let i = 0; i < stripes; i++) {
     const x = cx - halfWidth + (i + 0.5) * width, color = i % 2 ? c : a;
-    b.boxAt(width + 0.005, 0.07, length, [x, (yLow + yHigh) / 2, (zLow + zHigh) / 2], [-angle, 0, 0], color);
+    b.boxAt(width + 0.005, AWNING_THICKNESS, length, [x, (yLow + yHigh) / 2, (zLow + zHigh) / 2], [-angle, 0, 0], color);
     // Scallops hang from whichever edge faces the camera.
     b.add(new THREE.CylinderGeometry(width * 0.5, width * 0.5, 0.04, 7, 1, false, Math.PI / 2, Math.PI), color, [x, yHigh - 0.02, zHigh + 0.015], [Math.PI / 2, 0, 0], [1, 1, 1], { wind: 0.12 });
   }

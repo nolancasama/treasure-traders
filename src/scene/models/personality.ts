@@ -25,6 +25,10 @@ const moment = (t: number, period: number, start: number, length: number): numbe
 };
 const blend = (a: number, b: number, k: number) => a + (b - a) * k;
 
+/** The same animation clock and envelope used by the painters' arm poses. */
+export const painterMoment = (id: "ken" | "leo", t: number): "painting" | "looking" =>
+  (id === "ken" ? moment(t, 7, 4.8, 1.6) : moment(t, 8, 4, 3)) > 0.5 ? "looking" : "painting";
+
 /** Both hands raised in front of the chest, for reading, knitting and so on. */
 function handsFront(p: Pose, k: number, height = 0.75, bend = 1.3) {
   p.armLX = blend(p.armLX, -height, k); p.armRX = blend(p.armRX, -height, k);
@@ -71,9 +75,9 @@ export const IDLES: Partial<Record<LookId, (p: Pose, t: number) => void>> = {
   ken(p, t) {
     // Painting his poster with big strokes, stepping back to check it.
     const checking = moment(t, 7, 4.8, 1.6);
-    p.armRX = blend(-1.75 + Math.sin(t * 3.2) * 0.3, -0.25, checking);
-    p.armRZ = blend(-0.25 + Math.sin(t * 1.6) * 0.2, -0.07, checking);
-    p.elbowRX = blend(-0.5, -0.2, checking);
+    p.armRX = blend(-2.3 + Math.sin(t * 3.2) * 0.08, -0.25, checking);
+    p.armRZ = blend(-0.08 + Math.sin(t * 1.6) * 0.06, -0.07, checking);
+    p.elbowRX = blend(-0.5, -2.8, checking);
     p.headZ += checking * 0.18;
     p.spineX -= checking * 0.05;
   },

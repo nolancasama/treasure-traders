@@ -10,7 +10,7 @@ export function stagePillarGeometry(x: number, rTop: number, rBottom: number): T
   const height = stageRoofUnderside(x), geometry = new THREE.CylinderGeometry(rTop, rBottom, height, 8);
   const positions = geometry.getAttribute("position");
   for (let i = 0; i < positions.count; i++) if (positions.getY(i) > 0) {
-    positions.setY(i, height / 2 + Math.tan(STAGE_ROOF.slope) * positions.getX(i));
+    positions.setY(i, height / 2 + Math.tan(STAGE_ROOF.slope) * positions.getX(i) + 0.012);
   }
   geometry.computeVertexNormals();
   return geometry;

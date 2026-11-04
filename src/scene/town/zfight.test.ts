@@ -12,6 +12,7 @@ import { auditZFighting, DEPTH_TOLERANCE, type AuditMesh, type AuditRegion } fro
 // Add regions to this list when later batches repair them. Ungated findings
 // remain visible in every npm test run; they are not silently allowlisted away.
 const regions: AuditRegion[] = [
+  { name: "notice-board", min: [11, 0.7, 4.3], max: [11.8, 2.6, 7.7], gated: true },
   { name: "library-shelves", min: [-25.35, 0.11, -47.25], max: [-15.15, 1.65, -44.98], gated: true },
   { name: "school-gate-ground", min: [-5.1, -0.6, -24], max: [13.5, 0.06, -19], gated: true },
   { name: "bench", min: [-13.3, 0.001, 6.2], max: [-11.9, 1.3, 10.2], gated: true },

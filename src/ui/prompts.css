@@ -5,7 +5,7 @@
 .tt-prompt button:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
 .tt-prompt button:focus-visible { outline: 3px solid #2187ac; outline-offset: 3px; }
 .tt-prompt-header { display: flex; align-items: center; gap: 14px; }
-.tt-prompt-header button:first-of-type { margin-left: auto; }
+.tt-prompt-header [data-testid="prompt-replay"] { margin-left: auto; }
 .tt-prompt-header button { padding: 4px 12px; font-weight: 700; }
 .tt-turn { background: var(--sun); border-radius: 24px; padding: 8px 18px; font-weight: 800; }
 .tt-prompt-partner { display: flex; align-items: center; gap: 8px; font-weight: 700; }
@@ -31,6 +31,7 @@
 .tt-answer-yes .tt-answer-mark { color: #378762; }
 .tt-answer-no .tt-answer-mark { color: #b95349; }
 .tt-mic-area { width: 150px; flex: 0 0 150px; display: flex; align-items: center; flex-direction: column; gap: 8px; text-align: center; font-size: 16px; }
+.tt-prompt .tt-prompt-bye { min-width: 112px; min-height: 56px; padding: 8px 18px; border-radius: 999px; font-size: 20px; font-weight: 800; flex-shrink: 0; }
 .tt-prompt .tt-mic { width: 80px; height: 80px; border-radius: 50%; border: 0; padding: 4px; background: var(--festival-red); box-shadow: 0 5px 0 var(--festival-red-dark); }
 .tt-prompt .tt-mic:hover:not(:disabled) { background: var(--festival-red); }
 .tt-mic span { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 50%; background: var(--festival-red); }

@@ -4,7 +4,7 @@ import type { ItemId, NpcId } from "../../game/content/ids";
 import { skinnedMat, smoothMat } from "../materials";
 import { ITEM_DISPLAY, THICKEN, buildItem, itemSize } from "./items";
 import { LOOKS, type Build, type Look, type LookId } from "./looks";
-import { IDLES, PAGE_BOOK_POSE, UME_PELVIS_BOTTOM, UME_SEATED_POSE, type Pose } from "./personality";
+import { IDLES, PAGE_BOOK_POSE, painterMoment, UME_PELVIS_BOTTOM, UME_SEATED_POSE, type Pose } from "./personality";
 import { RigBuilder, skinnedMesh, type BoneSpec, type V3 } from "./rig";
 
 /* ------------------------------------------------------------ proportions */
@@ -539,6 +539,10 @@ export class CharacterRig {
 
   get state(): RigState {
     return this.base;
+  }
+
+  get paintingMoment(): "painting" | "looking" | null {
+    return this.id === "ken" || this.id === "leo" ? painterMoment(this.id, this.t + this.phase) : null;
   }
 
   /** Read-only semantic support state for scene inspection. */

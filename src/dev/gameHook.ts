@@ -26,7 +26,12 @@ export function createWorldControls(world: WorldAPI, scene: Scene, camera: Persp
         walkable: isWalkable(rt.player.x, rt.player.z, navigationGates(rt)),
         finale: rt.finale, chestCount: rt.state.chestCount,
         lidAngle: scene.getObjectByName('festival-chest-lid')?.rotation.x ?? null,
-        cameraPosition: { x: camera.position.x, y: camera.position.y, z: camera.position.z }
+        cameraPosition: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+        // These are the last rendered rig samples, not a separate animation clock.
+        painters: {
+          ken: structuredClone(scene.getObjectByName('character:ken')?.userData.painter ?? null),
+          leo: structuredClone(scene.getObjectByName('character:leo')?.userData.painter ?? null)
+        }
       };
     },
     approachPath(target: Interaction) {

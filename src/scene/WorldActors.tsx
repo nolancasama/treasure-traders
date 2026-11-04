@@ -10,6 +10,7 @@ import { FestivalChest, festivalChestShadowGeometry, FESTIVAL_CHEST_SHADOW_Y } f
 import { buildItem, ITEM_DISPLAY, THICKEN } from "./models/items";
 import { KiwiRig } from "./models/kiwi";
 import { buildCharacter, type CharacterRig } from "./models/people";
+import { equipPainter, painterFacesPlayer } from "./models/painter";
 import { props } from "./models/props";
 import { SeaChest } from "./models/seaChest";
 import { textSprite } from "./textSprite";
@@ -37,11 +38,7 @@ function disposeSeaChest(chest: SeaChest) {
 /** People's tools, held in the right hand whenever no item is being shown. */
 function equip(id: NpcId, rig: CharacterRig) {
   if (id === "ken" || id === "leo") {
-    const brush = props.brush();
-    brush.rotation.x = 3.8;
-    brush.position.z = 0.02;
-    brush.scale.setScalar(1.6);
-    rig.setProp(brush);
+    equipPainter(rig);
   } else if (id === "finn") {
     const rod = props.fishingRod();
     rod.rotation.x = 2.1;
@@ -205,6 +202,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       const placement = runtime.state.npcs[npc.id];
       npc.cell.visible = Boolean(placement);
       if (!placement) {
+        if (npc.rig.group.userData.painter) npc.rig.group.userData.painter.visible = false;
         placeShadow(index + 1, 0, 0, 0, 0);
         continue;
       }
@@ -220,6 +218,7 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
         delete runtime.npcCommands[npc.id];
       }
       if (!npc.cell.visible) {
+        if (npc.rig.group.userData.painter) npc.rig.group.userData.painter.visible = false;
         placeShadow(index + 1, 0, 0, 0, 0);
         continue;
       }
@@ -244,12 +243,18 @@ export function WorldActors({ runtime }: { runtime: WorldRuntime }) {
       placeShadow(index + 1, placement.x + npc.rig.group.position.x, placement.y, placement.z + npc.rig.group.position.z, npc.rig.radius * 1.35);
       let yaw = seated ? UME_SEAT.yaw : placement.yaw ?? 0;
       if (walking) yaw = Math.atan2(Math.cos(phase) * 0.5, -Math.sin(phase) * 0.4);
-      if (distance < 7 && !seated) yaw = Math.atan2(player.x - placement.x, player.z - placement.z);
+      const facesPlayer = painterFacesPlayer(npc.id, atHome(npc.id, placement.x, placement.z), runtime.camera, placement);
+      if (distance < 7 && !seated && facesPlayer) yaw = Math.atan2(player.x - placement.x, player.z - placement.z);
       const delta = Math.atan2(Math.sin(yaw - npc.rig.group.rotation.y), Math.cos(yaw - npc.rig.group.rotation.y));
       if (seated) npc.rig.group.rotation.y = yaw;
       else npc.rig.group.rotation.y += delta * Math.min(1, dt * 4);
-      npc.rig.lookAt(distance < 8 ? point : null);
+      npc.rig.lookAt(distance < 8 && facesPlayer ? point : null);
       npc.rig.update(dt);
+      if (npc.id === "ken" || npc.id === "leo") npc.rig.group.userData.painter = {
+        moment: npc.rig.paintingMoment, visible: npc.cell.visible,
+        atHome: atHome(npc.id, placement.x, placement.z), yaw: npc.rig.group.rotation.y,
+        position: { x: placement.x, y: placement.y, z: placement.z }
+      };
       const indicator = placement.indicator;
       npc.marker.visible = Boolean(indicator);
       if (indicator) {

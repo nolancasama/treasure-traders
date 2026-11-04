@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 import { DEFAULT_SETTINGS, startChapter } from "../../src/game/logic";
 import type { ChapterId } from "../../src/game/content/ids";
-import { GRANDMA_BENCH_CENTER, NPC_HOMES, SPOTS, chestPose } from "../../src/game/world/layout";
+import { GRANDMA_BENCH_CENTER, NPC_HOMES, SOLIDS, SPOTS, chestPose, stallPoint } from "../../src/game/world/layout";
 import { followOffset, followYaw } from "../../src/scene/cameraRig";
 import { read, settle, type GameRead } from "./game.helpers";
 
@@ -15,6 +15,10 @@ interface Hook {
   readScenery(): {
     walkable: boolean; finale: string; chestCount: number; lidAngle: number | null;
     cameraPosition: { x: number; y: number; z: number };
+    painters: Record<"ken" | "leo", {
+      moment: "painting" | "looking"; visible: boolean; atHome: boolean; yaw: number;
+      position: { x: number; y: number; z: number };
+    } | null>;
   };
 }
 const hook = <T>(page: Page, fn: (h: Hook, arg: never) => T, arg?: unknown) => page.evaluate(
@@ -56,13 +60,15 @@ async function at(page: Page, position: { x: number; z: number }) {
       return s.camera.mode === "follow" ? Math.hypot(camera.x - s.p.x - offset.x, camera.y - s.p.y - offset.y, camera.z - s.p.z - offset.z) : Infinity;
     }, { timeout: 20_000 }).toBeLessThan(0.02);
   });
-  await expect.poll(async () => Math.abs((await hook(page, h => h.readGates())).cameraYaw - followYaw(position)), { message: "district follow yaw", timeout: 20_000 }).toBeLessThan(0.002);
-  expect(await hook(page, h => h.readScenery().walkable), "player stands on a walkable surface").toBe(true);
-  const visible = await hook(page, h => {
-    const p = h.read().position;
-    return [0.1, 1.6].every(y => h.projectPoint({ ...p, y: p.y + y }).visible);
+  await precondition(`walkable, visible player and settled yaw at ${JSON.stringify(position)}`, async () => {
+    await expect.poll(async () => Math.abs((await hook(page, h => h.readGates())).cameraYaw - followYaw(position)), { message: "district follow yaw", timeout: 20_000 }).toBeLessThan(0.002);
+    expect(await hook(page, h => h.readScenery().walkable), "player stands on a walkable surface").toBe(true);
+    const visible = await hook(page, h => {
+      const p = h.read().position;
+      return [0.1, 1.6].every(y => h.projectPoint({ ...p, y: p.y + y }).visible);
+    });
+    expect(visible, "player feet and head are visible in gameplay framing").toBe(true);
   });
-  expect(visible, "player feet and head are visible in gameplay framing").toBe(true);
 }
 
 async function shot(page: Page, name: string) {
@@ -74,9 +80,89 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: `.tmp/shots/scenery/${name}-${width}x${height}.png` });
 }
 
+/** Check the subject in the real follow camera before writing evidence. */
+async function subjectInFrame(page: Page, name: string, points: { x: number; y: number; z: number }[]) {
+  await precondition(`${name} fits in gameplay framing`, async () => {
+    await expect.poll(async () => hook(page, (h, points: { x: number; y: number; z: number }[]) =>
+      points.every(point => h.projectPoint(point).visible), points)).toBe(true);
+  });
+}
+
+const STALL_VIEWS = [
+  ["flowers-stall", "flower"], ["fruit-stall", "fruit"],
+  ["festival-stall-south", "games"], ["bakery-stall", "bakery"],
+  ["toys-stall", "toy"], ["festival-stall-north", "snacks"]
+] as const;
+
 for (const viewport of [{ width: 1366, height: 768 }, { width: 1280, height: 800 }]) {
   test.describe(`${viewport.width}x${viewport.height} gameplay scenery`, () => {
     test.use({ viewport });
+
+    for (const id of ["ken", "leo"] as const) {
+      test(`${id} painter strokes and looking moments`, async ({ page }) => {
+        const home = NPC_HOMES[id];
+        const position = { x: home.x + (id === "ken" ? -2.5 : 2.5), z: home.z + 3 };
+        // These chapters keep each painter at home regardless of generated roles.
+        // Chapter 5 can relocate both of them to the festival.
+        await start(page, id === "ken" ? 1 : 4, position);
+        await at(page, position);
+        await subjectInFrame(page, id, [home, { ...home, y: 1.8 }]);
+        for (const moment of ["painting", "looking"] as const) {
+          await precondition(`${id} rendered ${moment} moment at home`, async () => {
+            await expect.poll(async () => {
+              const painter = (await hook(page, h => h.readScenery())).painters[id];
+              if (!painter || !painter.visible || !painter.atHome || painter.moment !== moment) return false;
+              const angle = painter.yaw - (home.yaw ?? 0);
+              return Math.abs(Math.atan2(Math.sin(angle), Math.cos(angle))) < 0.02;
+            }, { timeout: 30_000 }).toBe(true);
+          });
+          await shot(page, `${id}-${moment}`);
+        }
+      });
+    }
+
+    test("notice-board posters close in the gameplay camera", async ({ page }) => {
+      await start(page, 1, { x: 8, z: 7.8 });
+      await at(page, { x: 8, z: 7.8 });
+      await subjectInFrame(page, "notice-board posters", [
+        { x: 11.34, y: 0.86, z: 4.62 }, { x: 11.34, y: 2.14, z: 7.38 }
+      ]);
+      await shot(page, "notice-board-posters-close");
+    });
+
+    test("all stall front and rear supports, and drawing booth", async ({ page }) => {
+      await start(page, 5, { x: 30, z: -3 });
+      for (const [id, name] of STALL_VIEWS) {
+        const stall = SOLIDS.find(s => s.id === id);
+        if (!stall || stall.kind !== "box") throw new Error(`HARNESS_PRECONDITION_FAILED: box collider for ${id}`);
+        for (const [side, direction] of [["front", 1], ["rear", -1]] as const) {
+          // Stand on the corresponding local side. The production district camera
+          // keeps its own yaw; the evidence never installs a gallery camera.
+          const position = stallPoint(stall.x, stall.z, stall.yaw, 0, direction * (stall.hz + 2.1));
+          await at(page, position);
+          await subjectInFrame(page, `${name} ${side}`, [-1, 1].flatMap(x => [-1, 1].map(z => ({
+            ...stallPoint(stall.x, stall.z, stall.yaw, x * (stall.hx - 0.16), z * (stall.hz - 0.14)), y: 3.4
+          }))));
+          await shot(page, `stall-${name}-${side}`);
+        }
+      }
+      await at(page, { x: -35.5, z: -10.8 });
+      await subjectInFrame(page, "drawing booth supports", [
+        { x: -38.4, y: 3.2, z: -16.9 }, { x: -32.6, y: 3.5, z: -14.6 }
+      ]);
+      await shot(page, "drawing-booth-supports");
+    });
+
+    test("school fences have capped posts at both north ends", async ({ page }) => {
+      await start(page, 5, { x: -11, z: -34 });
+      for (const [side, x, z] of [["west", -14.3, -35], ["east", 14.3, -47]] as const) {
+        await at(page, { x: x + (side === "west" ? 2.5 : -2.5), z: z + 2.5 });
+        await subjectInFrame(page, `${side} school fence north post and cap`, [
+          { x, y: 0, z }, { x, y: 1.27, z }
+        ]);
+        await shot(page, `school-fence-${side}-north-end`);
+      }
+    });
 
     test("square, seated Ume, flowerbed and mortar", async ({ page }) => {
       await start(page, 1, { x: 0, z: 8 });

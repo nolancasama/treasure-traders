@@ -13,7 +13,10 @@ it("meets the sloping roof with every top-cap vertex and both bunting endpoints"
     const positions = geometry.getAttribute("position"), height = stageRoofUnderside(x);
     let top = 0;
     for (let i = 0; i < positions.count; i++) if (positions.getY(i) > 0) {
-      expect(positions.getY(i) + height / 2).toBeCloseTo(stageRoofUnderside(x + positions.getX(i)), 6);
+      const cap = positions.getY(i) + height / 2, underside = stageRoofUnderside(x + positions.getX(i));
+      expect(cap).toBeCloseTo(underside + 0.012, 6);
+      expect(cap).toBeGreaterThan(underside);
+      expect(cap).toBeLessThan(underside + STAGE_ROOF.thickness / Math.cos(STAGE_ROOF.slope));
       top++;
     }
     expect(top).toBeGreaterThan(8);
