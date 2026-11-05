@@ -26,6 +26,7 @@ interface TownScene {
   bridgeAnimation: SchoolGateAnimation;
   library: { open: THREE.Mesh[]; closed: THREE.Mesh; label: THREE.Mesh };
   boats: THREE.Object3D[];
+  rightMooring: THREE.InstancedMesh;
   water: THREE.ShaderMaterial;
   bulbs: THREE.MeshLambertMaterial;
   lampGlow: THREE.Points;
@@ -40,6 +41,35 @@ const noRaycast = () => {};
 const BRIDGE_RAISED = 0.5;
 const SHADOW_DROP = { x: 0.26, z: -0.22 };
 const GROUND_ORDER = 2;
+
+/** Bank bollard to the starboard boat's actual stern cleat. */
+const RIGHT_MOORING_BANK = new THREE.Vector3(17, 0.78, 37.4);
+const RIGHT_MOORING_CLEAT = new THREE.Vector3(0, 0.8, -1.95);
+const MOORING_LINKS = 6;
+const mooringEnd = new THREE.Vector3(), mooringA = new THREE.Vector3(), mooringB = new THREE.Vector3();
+const mooringMid = new THREE.Vector3(), mooringDelta = new THREE.Vector3();
+const mooringQuat = new THREE.Quaternion(), mooringScale = new THREE.Vector3(), mooringMatrix = new THREE.Matrix4();
+const mooringUp = new THREE.Vector3(0, 1, 0);
+
+/** Six low-poly segments share one draw call and track the boat's bob/roll. */
+function updateRightMooring(boat: THREE.Object3D, rope: THREE.InstancedMesh) {
+  boat.updateWorldMatrix(true, false);
+  boat.localToWorld(mooringEnd.copy(RIGHT_MOORING_CLEAT));
+  const point = (out: THREE.Vector3, fraction: number) => {
+    out.copy(RIGHT_MOORING_BANK).lerp(mooringEnd, fraction);
+    out.y -= 0.22 * 4 * fraction * (1 - fraction);
+  };
+  for (let i = 0; i < MOORING_LINKS; i++) {
+    point(mooringA, i / MOORING_LINKS);
+    point(mooringB, (i + 1) / MOORING_LINKS);
+    const length = mooringDelta.subVectors(mooringB, mooringA).length();
+    mooringQuat.setFromUnitVectors(mooringUp, mooringDelta.multiplyScalar(1 / Math.max(0.001, length)));
+    mooringScale.set(1, length, 1);
+    mooringMid.copy(mooringA).add(mooringB).multiplyScalar(0.5);
+    rope.setMatrixAt(i, mooringMatrix.compose(mooringMid, mooringQuat, mooringScale));
+  }
+  rope.instanceMatrix.needsUpdate = true;
+}
 
 /** Scenery and collision consume the same footprints; animation reads mutable runtime. */
 function makeTown(runtime: WorldRuntime): TownScene {
@@ -140,19 +170,30 @@ function makeTown(runtime: WorldRuntime): TownScene {
   root.add(lampGlow);
 
   const boats: THREE.Object3D[] = [];
-  const hull = mesh(boatGeometry(PALETTE.gold, PALETTE.blue), districts.harbor, sceneryMat());
+  const hull = mesh(boatGeometry(PALETTE.gold, PALETTE.blue, true), districts.harbor, sceneryMat());
   hull.position.set(HARBOR_BOATS.hull.x, HARBOR_BOATS.hull.y, HARBOR_BOATS.hull.z); hull.rotation.y = HARBOR_BOATS.hull.yaw;
   const yacht = mesh(boatGeometry("#ff8fa8", "#e8604c"), districts.harbor, sceneryMat());
   yacht.position.set(HARBOR_BOATS.yacht.x, HARBOR_BOATS.yacht.y, HARBOR_BOATS.yacht.z); yacht.rotation.y = HARBOR_BOATS.yacht.yaw; yacht.scale.setScalar(HARBOR_BOATS.yacht.scale);
   const skiff = mesh(rowboatGeometry(), districts.harbor);
   skiff.position.set(HARBOR_BOATS.skiff.x, HARBOR_BOATS.skiff.y, HARBOR_BOATS.skiff.z); skiff.rotation.y = HARBOR_BOATS.skiff.yaw;
   boats.push(hull, yacht, skiff);
-  // Mooring lines from the bank, slack enough to hide the boats' gentle bobbing.
+  // The rightmost boat's old loose rope ended in mid-air. The shore bollard
+  // and boat cleat are actual endpoints; this one line follows boat motion.
   const moorings = new PartBuilder(0, true);
-  moorings.wire([17, 0.7, 37.4], [19, 0.75, 39.6], 0.5, 5, "#e4c58f", 0.04);
+  moorings.cyl(0.13, 0.16, 0.84, RIGHT_MOORING_BANK.x, GRASS_Y, RIGHT_MOORING_BANK.z, PALETTE.darkWood, 8);
+  moorings.box(0.42, 0.07, 0.12, RIGHT_MOORING_BANK.x, 0.7, RIGHT_MOORING_BANK.z, PALETTE.darkWood);
   moorings.wire([5.05, 0.5, 40.5], [-1.3, 0.7, 41], 0.5, 6, "#e4c58f", 0.04);
   moorings.wire([5.05, 0.5, 46], [-7.2, 0.2, 45.4], 0.6, 8, "#e4c58f", 0.04);
   mesh(moorings.build(), districts.harbor, flatMat());
+  const ropeGeometry = new THREE.CylinderGeometry(0.04, 0.04, 1, 5);
+  const ropeMaterial = new THREE.MeshLambertMaterial({ color: "#e4c58f" });
+  ownedGeometries.add(ropeGeometry); ownedMaterials.add(ropeMaterial);
+  const rightMooring = new THREE.InstancedMesh(ropeGeometry, ropeMaterial, MOORING_LINKS);
+  rightMooring.name = "rightmost boat attached mooring";
+  rightMooring.frustumCulled = false;
+  rightMooring.raycast = noRaycast;
+  districts.harbor.add(rightMooring);
+  updateRightMooring(hull, rightMooring);
 
   // Soft contact shadows, slid away from the low sun: real depth for two draw calls.
   const shadowPlane = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
@@ -184,13 +225,13 @@ function makeTown(runtime: WorldRuntime): TownScene {
   const dispose = () => {
     decorations.dispose();
     ambient.dispose();
-    roundShadows.dispose(); rectShadows.dispose(); bulbMesh.dispose();
+    roundShadows.dispose(); rectShadows.dispose(); bulbMesh.dispose(); rightMooring.dispose();
     for (const g of ownedGeometries) g.dispose();
     for (const m of ownedMaterials) m.dispose();
   };
   const schoolGateAnimation = { target: gateProgress.school, from: gateProgress.school, elapsed: 0 };
   const bridgeAnimation = { target: gateProgress.bridge, from: gateProgress.bridge, elapsed: 0 };
-  return { root, districts, gates, gateProgress, schoolGateWheels, schoolGateAnimation, bridgeAnimation, library: { open, closed, label }, boats, water, bulbs, lampGlow, decorations, ambient, dispose };
+  return { root, districts, gates, gateProgress, schoolGateWheels, schoolGateAnimation, bridgeAnimation, library: { open, closed, label }, boats, rightMooring, water, bulbs, lampGlow, decorations, ambient, dispose };
 }
 
 const nearCamera = new Map<DistrictId, boolean>();
@@ -247,6 +288,7 @@ export function Town({ runtime, mood, reviewGateProgress }: { runtime: WorldRunt
       boat.rotation.z = Math.sin(t * 0.8 + i) * 0.035;
       boat.rotation.x = Math.sin(t * 0.63 + i * 1.7) * 0.022;
     });
+    updateRightMooring(town.boats[0], town.rightMooring);
     town.water.uniforms.time.value = t;
     town.water.uniforms.deep.value.set("#3ea6c7").lerp(tmpColor.set("#2a3f78"), dusk);
     town.water.uniforms.shallow.value.set("#7fdcd6").lerp(tmpColor.set("#7a6fa6"), dusk);
