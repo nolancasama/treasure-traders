@@ -485,7 +485,7 @@ export function gatePosts(): THREE.BufferGeometry {
   return b.build();
 }
 
-export function boatGeometry(sail: string, hull: string): THREE.BufferGeometry {
+export function boatGeometry(sail: string, hull: string, mooringCleat = false): THREE.BufferGeometry {
   const b = new PartBuilder(0, true);
   b.add(new THREE.CylinderGeometry(1.2, 0.72, 0.85, 10, 1), hull, [0, 0.12, 0], [0, 0, 0], [1, 1, 2.3]);
   b.add(new THREE.CylinderGeometry(1.22, 1.2, 0.14, 10, 1), PALETTE.cream, [0, 0.58, 0], [0, 0, 0], [1, 1, 2.3]);
@@ -498,6 +498,11 @@ export function boatGeometry(sail: string, hull: string): THREE.BufferGeometry {
   b.add(new THREE.ConeGeometry(0.26, 0.9, 3), sail, [0.44, 3.72, -0.85], [0, 0, -Math.PI / 2], [1, 1, 0.1], { wind: 1 });
   b.beam([0, 3.6, -0.85], [0, 0.72, 2.2], 0.025, "#e4c58f");
   b.torus(0.26, 0.05, [1.17, 0.74, -0.7], [0, Math.PI / 2, 0], "#f4f4f4");
+  if (mooringCleat) {
+    // Rightmost boat's stern cleat; the animated bank rope ends at its top.
+    b.cyl(0.055, 0.055, 0.1, 0, 0.64, -1.95, PALETTE.darkWood, 6);
+    b.box(0.36, 0.07, 0.13, 0, 0.74, -1.95, PALETTE.darkWood);
+  }
   return b.build();
 }
 
